@@ -644,7 +644,7 @@ TARGET = ENV.styl;
   mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0xb9b3a2, roughness: 1 }));
   const pg = polyline2strip(PIT, 5, .11); mesh(pg, new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xc8c8cc, roughness: .9 }), { to: scene });
 }
-{ const gs = D.water.map(r => flatShape(r, .1)).filter(Boolean); mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0x3b8fd6, roughness: .12, metalness: .15 })); }
+// (l'eau du décor stylisé est construite plus bas, une fois les tribunes posées, pour pouvoir remblayer les berges)
 function extrude(poly, h, y = 0) {
   const sh = new THREE.Shape(poly.map(p => new THREE.Vector2(p[0] - cx, -(p[1] - cz))));
   const g = new THREE.ExtrudeGeometry(sh, { depth: h, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, y, 0); return g;
@@ -898,6 +898,25 @@ Object.entries(byName).forEach(([name, o]) => {
 });
 console.table(REPORT);
 window.__standsReport = REPORT;
+// ---- berges remblayées : l'eau ne touche jamais la piste, les murs ni les tribunes ----
+function carveWater(rings) {
+  return rings.map(r => {
+    const pts = [];
+    for (let k = 0; k < r.length; k++) { const a = r[k], b = r[(k + 1) % r.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(l / 1.5)); for (let j = 0; j < n; j++) pts.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); }
+    return pts.map(([x, z]) => {
+      let wx = x - cx, wz = z - cz, bi = -1, bd = 1e18;
+      trackGrid.any(wx, wz, 40, j => { const d = (P[j].x - wx) ** 2 + (P[j].z - wz) ** 2; if (d < bd) { bd = d; bi = j; } return false; });
+      if (bi >= 0 && bd < 1600) { const lat = (wx - P[bi].x) * NL[bi].x + (wz - P[bi].z) * NL[bi].z, lim = (lat > 0 ? offL[bi] : offR[bi]) + .8; if (Math.abs(lat) < lim) { const t = (lat > 0 ? 1 : -1) * lim - lat; wx += NL[bi].x * t; wz += NL[bi].z * t; } }
+      for (const q of placed) {
+        const u = (wx - q.c.x) * q.d.x + (wz - q.c.z) * q.d.z, v = (wx - q.c.x) * q.q.x + (wz - q.c.z) * q.q.z;
+        if (Math.abs(u) < q.hl + 1.5 && Math.abs(v) < q.hd + 1.5) { const c = [[q.hl + 1.5 - u, q.d], [-(q.hl + 1.5) - u, q.d], [q.hd + 1.5 - v, q.q], [-(q.hd + 1.5) - v, q.q]].sort((m, n) => Math.abs(m[0]) - Math.abs(n[0]))[0]; wx += c[1].x * c[0]; wz += c[1].z * c[0]; }
+      }
+      return [wx + cx, wz + cz];
+    });
+  });
+}
+window.__carveWater = carveWater;
+{ const gs = D.water.map(r => flatShape(carveWater(r), .1)).filter(Boolean); mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0x3b8fd6, roughness: .12, metalness: .15 }), { to: ENV.styl }); }
 mesh(mergeGeometries(standGeos), new THREE.MeshStandardMaterial({ color: 0xb9bcc6, roughness: .8 }), { cast: true });
 mesh(mergeGeometries(roofGeos), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .5 }), { cast: true });
 {
@@ -1013,7 +1032,7 @@ function buildOSM() {
     layer(O.grass, .045, new THREE.MeshStandardMaterial({ map: texLawn, roughness: 1 }));
     layer(O.garden, .05, new THREE.MeshStandardMaterial({ color: 0x6dbb4f, roughness: 1 }));
     layer(O.pitch, .055, new THREE.MeshStandardMaterial({ color: 0x5fae45, roughness: 1 }));
-    layer(O.water, .1, new THREE.MeshStandardMaterial({ color: 0x3b8fd6, roughness: .12, metalness: .15 }));
+    layer(O.water.map(carveWater), .1, new THREE.MeshStandardMaterial({ color: 0x3b8fd6, roughness: .12, metalness: .15 }));
     { const gs = O.stream.map(([w, r]) => polyline2strip(r.map(V2), w / 2, .095)).filter(Boolean); if (gs.length) mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0x3b8fd6, roughness: .2 }), { to: G }); }
     // routes et chemins
     { const road = [], path = []; O.roads.forEach(([w, r]) => { const g = polyline2strip(r.map(V2), w / 2, w >= 5 ? .085 : .08); if (g) (w >= 5 ? road : path).push(g); });
