@@ -1212,9 +1212,8 @@ function stepPlayer(dt) {
     c.pos.sub(NL[i].clone().multiplyScalar(l2 - Math.sign(l2) * lim));
     const rel = wrapA(c.h - HD[i]); const hit = Math.abs(Math.sin(rel));
     c.v *= 1 - clamp(hit * 1.4, .05, .7); c.h = wrapA(HD[i] + rel * .35);
-    if (c.v > 15 && hit > .15) c.shake = .5;
   }
-  c.shake = Math.max(0, c.shake - dt) + (off && av > 5 ? .08 : 0);
+  c.shake = 0; // plus de tremblement de caméra (mur ou herbe)
   // tours
   c.lapT += dt;
   if (idxDist(c.idx, (START + NS / 2) | 0) < 30) c.armed = true;
@@ -1224,7 +1223,7 @@ function stepPlayer(dt) {
     flash('TOUR ' + c.lap + '  ' + fmt3(c.lapT) + (isBest ? '  · MEILLEUR' : '')); c.lap++; c.lapT = 0; c.armed = false;
   }
   // visuel (tangage au freinage, roulis léger)
-  c.car.position.set(c.pos.x, .12 + (off ? (Math.random() - .5) * .04 * Math.min(av, 20) / 20 : 0), c.pos.z);
+  c.car.position.set(c.pos.x, .12, c.pos.z);
   c.car.rotation.set(-c.brk * .012 + c.thr * .006, c.h, -c.steer * Math.min(av / 80, 1) * .02, 'YXZ');
   const ud = c.car.userData;
   ud.wheels.forEach((w, k) => { w.rotation.x += c.v * dt / .37; if (k < 2) w.rotation.y = c.steer * .3; });
@@ -1260,7 +1259,7 @@ function updateCamera(dt) {
     const c = player, f = new THREE.Vector3(Math.sin(c.h), 0, Math.cos(c.h)), r = new THREE.Vector3(f.z, 0, -f.x);
     const av = Math.abs(c.v);
     if (camMode === 0) { // T-cam : au-dessus de la prise d'air, derrière le casque
-      camera.position.copy(c.pos).addScaledVector(f, -.42).setY(1.33 + (Math.random() - .5) * .006 * Math.min(av / 40, 1));
+      camera.position.copy(c.pos).addScaledVector(f, -.42).setY(1.33);
       camLook.copy(c.pos).addScaledVector(f, 30).setY(.75); camera.fov = 58;
     } else if (camMode === 1) { // poursuite basse
       const want = c.pos.clone().addScaledVector(f, -6.2).setY(1.75);
@@ -1278,7 +1277,6 @@ function updateCamera(dt) {
       heli.lerp(want, 1 - Math.exp(-dt * 1.2)); if (heli.lengthSq() < 1) heli.copy(want);
       camera.position.copy(heli); camLook.lerp(c.pos, 1 - Math.exp(-dt * 6)); camera.fov = 22;
     }
-    if (c.shake > 0) camera.position.add(new THREE.Vector3((Math.random() - .5), (Math.random() - .5), 0).multiplyScalar(c.shake * .25));
     camera.lookAt(camLook);
   } else if (mode === 'walk') {
     const sp = (keys.run ? 16 : 5) * dt;
