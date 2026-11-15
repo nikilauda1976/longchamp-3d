@@ -33,6 +33,9 @@
   .btn[aria-pressed="true"] { background:var(--red); }
   select { font:700 15px "Barlow Condensed",sans-serif; background:rgba(22,18,42,.85); color:#fff; border:0; border-radius:18px; padding:7px 10px; max-width:230px; }
   #help { left:50%; transform:translateX(-50%); bottom:max(14px,env(safe-area-inset-bottom)); font-weight:600; font-size:15px; background:rgba(22,18,42,.6); padding:6px 14px; border-radius:16px; text-align:center; max-width:min(92vw,720px); }
+  #idealInfo { position:fixed; right:max(12px,env(safe-area-inset-right)); top:calc(max(12px,env(safe-area-inset-top)) + 222px); width:250px; background:rgba(12,12,18,.86); border-left:4px solid #2bd65a; border-radius:4px; padding:8px 12px; font:400 13px/1.35 "Titillium Web",Arial,sans-serif; color:#fff; z-index:4; }
+  #idealInfo b { font-weight:700; } #idealInfo .big { font-size:22px; font-weight:700; color:#ff6b5b; }
+  body.is-touch #idealInfo { top:auto; bottom:calc(max(12px,env(safe-area-inset-bottom)) + 96px); width:210px; font-size:12px; }
   #credits { position:fixed; right:max(8px,env(safe-area-inset-right)); bottom:2px; font:600 10px "Barlow Condensed",sans-serif; color:rgba(255,255,255,.85); text-shadow:0 1px 0 rgba(0,0,0,.5); z-index:4; }
   #credits a { color:inherit; }
   body.mode-drive #credits { bottom:auto; top:calc(max(12px,env(safe-area-inset-top)) + 150px); }
@@ -96,6 +99,7 @@
 <div class="hud" id="onboard"><div id="rpmled"></div><div class="obrow"><div class="obbars"><i><b id="thrbar"></b></i><i><b id="brkbar"></b></i></div><div class="obspd"><b id="spd">0</b><small>KM/H</small></div><div class="obgear" id="gear">N</div><div class="obdrs" id="drs">DRS</div></div></div>
 <canvas class="hud" id="mini" width="380" height="420"></canvas>
 <div class="hud" id="help"></div>
+<div id="idealInfo" hidden></div>
 <div id="credits">Concept non officiel · Données © contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL) · Orthophoto © IGN (Licence Ouverte)</div>
 
 <div id="modes">
@@ -113,6 +117,10 @@
     <button data-env="styl" aria-pressed="false">Stylisé</button>
     <button data-env="photo" aria-pressed="false">Photo IGN</button>
     <button data-env="osm" aria-pressed="true">OSM</button>
+  </div>
+  <div class="seg" role="group" aria-label="Piste">
+    <button data-piste="" aria-pressed="true">Piste actuelle</button>
+    <button data-piste="ideale" aria-pressed="false">Piste idéale</button>
   </div>
   <select id="tp" aria-label="Aller à"></select>
 </div>
@@ -378,6 +386,30 @@ const HW = new Float32Array(NS), VGL = new Float32Array(NS), VGR = new Float32Ar
   for (let i = 0; i < NS; i++) HW[i] = Math.min(HW[i], Math.max(w[i] / 2, Math.min(cl[i], cr[i]) - .9)); // jamais au-delà du libre mesuré, malgré le lissage
   for (let i = 0; i < NS; i++) { // le mur reste à 0,9 m au moins du premier obstacle ; accotement de 6,5 m quand il y a la place
     VGL[i] = clamp(cl[i] - .9 - HW[i], .6, 6.5); VGR[i] = clamp(cr[i] - .9 - HW[i], .6, 6.5);
+    URB[i] = Math.min(VGL[i], VGR[i]) < 2.5 ? 1 : 0;
+  }
+}
+// ---- variante « piste idéale » (?piste=ideale) : 15 m partout, 20 m dans les zones de freinage / dépassement ----
+const IDEAL = new URLSearchParams(location.search).get('piste') === 'ideale';
+const HW0 = HW.slice(), WALL0L = new Float32Array(NS), WALL0R = new Float32Array(NS); // état « sans abattre d'arbre »
+for (let i = 0; i < NS; i++) { WALL0L[i] = HW[i] + VGL[i]; WALL0R[i] = HW[i] + VGR[i]; }
+const OVT = new Uint8Array(NS); // zones de dépassement
+{
+  for (let i = 0; i < NS; i++) {
+    const k = Math.abs(K[i]); if (k < 1 / 90) continue;
+    let peak = true; for (let j = -40; j <= 40 && peak; j++) if (Math.abs(K[(i + j + NS) % NS]) > k) peak = false;
+    if (!peak) continue;
+    let st = 0; for (let j = 20; j <= 170; j++) st += Math.abs(K[(i - j + NS) % NS]); st /= 151;
+    if (st > 1 / 350) continue; // pas de vraie ligne droite avant : pas une zone de freinage
+    for (let j = -80; j <= 20; j++) OVT[(i + j + NS) % NS] = 1; // 160 m avant le virage → 40 m après
+  }
+}
+if (IDEAL) {
+  const tgt = new Float32Array(NS); for (let i = 0; i < NS; i++) tgt[i] = OVT[i] ? 20 : 15;
+  const t2 = tgt.slice(); for (let i = 0; i < NS; i++) { let m = 0; for (let j = -15; j <= 15; j++) m = Math.max(m, tgt[(i + j + NS) % NS]); t2[i] = m; }
+  for (let i = 0; i < NS; i++) { let a = 0; for (let j = -15; j <= 15; j++) a += t2[(i + j + NS) % NS]; HW[i] = Math.max(HW0[i], a / 31 / 2); }
+  for (let i = 0; i < NS; i++) { // le mur ne recule que si la piste l'impose : on n'abat que le strict nécessaire
+    VGL[i] = clamp(WALL0L[i] - HW[i], .6, 6.5); VGR[i] = clamp(WALL0R[i] - HW[i], .6, 6.5);
     URB[i] = Math.min(VGL[i], VGR[i]) < 2.5 ? 1 : 0;
   }
 }
@@ -1377,6 +1409,29 @@ for (let k = 0; k < 15; k++) { const e = document.createElement('i'); $('#rpmled
 $('#btnSnd').onclick = () => { soundOn = !soundOn; if (soundOn && !audio) initAudio(); if (audio) audio.ctx.resume(); $('#btnSnd').setAttribute('aria-pressed', soundOn); flash(soundOn ? 'Son moteur activé' : 'Son coupé'); };
 setMode('drive');
 document.querySelectorAll('[data-env]').forEach(b => b.onclick = () => setEnv(b.dataset.env));
+document.querySelectorAll('[data-piste]').forEach(b => { b.setAttribute('aria-pressed', (b.dataset.piste === 'ideale') === IDEAL); b.onclick = () => { const u = new URL(location.href); if (b.dataset.piste) u.searchParams.set('piste', b.dataset.piste); else u.searchParams.delete('piste'); location.href = u.toString(); }; });
+// bilan des arbres à abattre pour la piste idéale (arbres recensés un par un + surface de bois)
+if (IDEAL) fetch('osm.json').then(r => r.json()).then(O => {
+  const g = new Map(); P.forEach((p, i) => { const k = Math.floor(p.x / 30) + ',' + Math.floor(p.z / 30); (g.get(k) || g.set(k, []).get(k)).push(i); });
+  const nearest = (x, z) => { let best = 1e18, bi = -1; const gi = Math.floor(x / 30), gj = Math.floor(z / 30); for (let a = gi - 1; a <= gi + 1; a++) for (let b = gj - 1; b <= gj + 1; b++) { const c = g.get(a + ',' + b); if (c) for (const i of c) { const d = (P[i].x - x) ** 2 + (P[i].z - z) ** 2; if (d < best) { best = d; bi = i; } } } return [bi, Math.sqrt(best)]; };
+  const pts = O.trees.slice(); O.rows.forEach(r => { for (let k = 0; k < r.length - 1; k++) { const a = r[k], b = r[k + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let t = 0; t < l; t += 9) pts.push([a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l]); } });
+  let mapped = 0;
+  pts.forEach(t => { const [i, d] = nearest(t[0] - cx, t[1] - cz); if (i < 0) return; if (d >= HW0[i] + .9 && d < HW[i] + .9) mapped++; }); // hors de l'ancienne emprise, dans la nouvelle (piste + pied de mur)
+  // surface de bois prise par l'élargissement (bandes entre l'ancien et le nouveau bord, des deux côtés)
+  const woods = O.forest.concat(O.scrub).map(rs => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; rs[0].forEach(q => { x0 = Math.min(x0, q[0]); z0 = Math.min(z0, q[1]); x1 = Math.max(x1, q[0]); z1 = Math.max(z1, q[1]); }); return { rs, b: [x0, z0, x1, z1] }; });
+  const inWood = (x, z) => woods.some(w => { if (x < w.b[0] || x > w.b[2] || z < w.b[1] || z > w.b[3]) return false; let c = false; w.rs.forEach(r => { if (pip(x, z, r)) c = !c; }); return c; });
+  let area = 0, len = 0;
+  for (let i = 0; i < NS; i += 2) {
+    let any = false;
+    for (const s of [1, -1]) { const a = HW0[i] + .9, b = HW[i] + .9; for (let l = a + .5; l < b; l += 1) { const x = P[i].x + NL[i].x * s * l + cx, z = P[i].z + NL[i].z * s * l + cz; if (inWood(x, z)) { area += 2 * STEP; any = true; } } } // 1 m × 2 pas
+    if (any) len += 2 * STEP;
+  }
+  const est = Math.round(area / 25); // ≈ 400 arbres / ha en futaie du Bois de Boulogne (hypothèse)
+  let z20 = 0, wider = 0; for (let i = 0; i < NS; i++) { if (OVT[i]) z20 += STEP; if (HW[i] > HW0[i] + .25) wider += STEP; }
+  const box = $('#idealInfo'); box.hidden = false;
+  box.innerHTML = `<b>PISTE IDÉALE</b> · 15 m partout, 20 m sur ${Math.round(z20)} m de zones de freinage<br>Élargie sur <b>${(wider / 1000).toFixed(1)} km</b><br><span class="big">${mapped + est} arbres</span> à abattre environ<br>· <b>${mapped}</b> arbres recensés un par un (OSM)<br>· <b>${Math.round(area).toLocaleString('fr-FR')} m²</b> de bois (≈ ${est} arbres, à 400/ha)`;
+  window.__ideal = { mapped, area: Math.round(area), est, z20: Math.round(z20), wider: Math.round(wider), woodLen: Math.round(len) };
+});
 setEnv(location.hash === '#photo' ? 'photo' : location.hash === '#styl' ? 'styl' : 'osm'); // OpenStreetMap par défaut
 camPos.copy(player.pos).add(new THREE.Vector3(-Math.sin(player.h) * 7.6, 2.7, -Math.cos(player.h) * 7.6));
 window.__look = (n) => { const k = longest(n); const st = STANDS[k]; setMode('drone'); orbit.target.copy(st.mid); camera.position.copy(st.mid).add(new THREE.Vector3(0, 160, 0)).add(st.look.clone().sub(st.mid).setY(0).setLength(-120)); return st.name; };
