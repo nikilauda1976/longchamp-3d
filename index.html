@@ -322,6 +322,12 @@ const TRACK_PTS = (() => {
       cur = nx; if (!bad) break;
     }
   }
+  { // avenue de l'Hippodrome : l'axe est recentré entre les deux lisières (≈ 8 m libres à gauche, 4 m à droite)
+    const n = cur.length, near = (x, z) => { let b = 0, bd = Infinity; cur.forEach((p, k) => { const d = (p[0] - x) ** 2 + (p[1] - z) ** 2; if (d < bd) { bd = d; b = k; } }); return b; };
+    const ia = near(1359, 1262), ib = near(877, 875), len = (ib - ia + n) % n, sh = cur.map(p => p.slice());
+    for (let t = 0; t <= len; t++) { const k = (ia + t) % n, a = cur[(k - 1 + n) % n], b = cur[(k + 1) % n]; let tx = b[0] - a[0], tz = b[1] - a[1]; const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l; const ramp = Math.min(1, t / 12, (len - t) / 12); sh[k] = [cur[k][0] + tz * 1.9 * ramp, cur[k][1] - tx * 1.9 * ramp]; }
+    cur = sh;
+  }
   console.log('tracé : ' + m + ' points, ' + moved + ' recalés sur la route (max ' + maxMove.toFixed(1) + ' m)');
   return cur;
 })();
@@ -342,17 +348,20 @@ for (let i = 0; i < NS; i++) Kraw[i] = -wrapA(HD[(i + 1) % NS] - HD[(i - 1 + NS)
 for (let i = 0; i < NS; i++) { let s = 0; for (let j = -4; j <= 4; j++) s += Kraw[(i + j + NS) % NS]; K[i] = s / 9; }
 const HALF = 6.5; // (valeur moyenne, gardée pour compatibilité)
 // largeur réelle de la chaussée (mesurée sur l'orthophoto IGN et le plan), par tronçon, en m
+// 4e valeur = 1 : tronçon « circuit urbain » (murs au ras de la piste, toute la largeur libre entre les arbres est asphaltée)
 const WIDTH_KEYS = [
-  [265, 1034, 10, 'Route des Tribunes (ligne droite)'], [288, 947, 12, 'Carrefour des Tribunes'], [307, 890, 10, 'Route des Tribunes'],
-  [736, 668, 9, "Avenue de l'Hippodrome"], [775, 677, 16, 'Carrefours de Norvège et de Longchamp'], [1024, 699, 14, 'Allée de Longchamp'],
-  [1788, 303, 12, 'Allée de la Reine-Marguerite'], [1359, 1262, 9, "Avenue de l'Hippodrome (Grande Cascade)"], [877, 875, 12, 'Route de Sèvres à Neuilly / Mortemart'],
-  [303, 1902, 10, 'Route des Tribunes (retour)'],
+  [233, 1168, 15, 1, 'Route des Tribunes — grille de départ'], [265, 1034, 15, 1, 'Route des Tribunes — ligne droite'], [288, 947, 15, 1, 'Carrefour des Tribunes'],
+  [320, 860, 12, 1, 'Route des Tribunes'], [736, 668, 12, 1, "Avenue de l'Hippodrome (vers le carrefour)"],
+  [775, 677, 16, 0, 'Carrefours de Norvège et de Longchamp'], [1024, 699, 14, 0, 'Allée de Longchamp'],
+  [1788, 303, 12, 0, 'Allée de la Reine-Marguerite'], [1359, 1262, 11, 1, "Avenue de l'Hippodrome (Grande Cascade) — 11 m max entre les lisières"],
+  [877, 875, 12, 0, 'Route de Sèvres à Neuilly / Mortemart'], [303, 1902, 12, 1, 'Route des Tribunes (retour)'],
 ];
+const URB = new Uint8Array(NS);
 const HW = new Float32Array(NS); // demi-largeur par point
 {
-  const ks = WIDTH_KEYS.map(k => ({ i: nearestIdx(W([k[0], k[1]])), w: k[2] })).sort((a, b) => a.i - b.i);
+  const ks = WIDTH_KEYS.map(k => ({ i: nearestIdx(W([k[0], k[1]])), w: k[2], u: k[3] })).sort((a, b) => a.i - b.i);
   const raw = new Float32Array(NS);
-  for (let n = 0; n < ks.length; n++) { const a = ks[n], b = ks[(n + 1) % ks.length]; for (let i = a.i; i !== b.i; i = (i + 1) % NS) raw[i] = a.w; }
+  for (let n = 0; n < ks.length; n++) { const a = ks[n], b = ks[(n + 1) % ks.length]; for (let i = a.i; i !== b.i; i = (i + 1) % NS) { raw[i] = a.w; URB[i] = a.u; } }
   for (let i = 0; i < NS; i++) { let s = 0; for (let j = -20; j <= 20; j++) s += raw[(i + j + NS) % NS]; HW[i] = s / 41 / 2; }
 }
 const trackGrid = new Grid(25); P.forEach((p, i) => trackGrid.add(p.x, p.z, i));
@@ -379,17 +388,18 @@ const pitGrid = new Grid(25); PIT.forEach(p => pitGrid.add(p.x, p.z, p));
 const WALL = 13;
 const offL = new Float32Array(NS), offR = new Float32Array(NS), gapL = new Uint8Array(NS), gapR = new Uint8Array(NS);
 for (let i = 0; i < NS; i++) for (const s of [1, -1]) {
-  let off = HW[i] + 6.5;
+  const vg = URB[i] ? .6 : 6.5, vmin = URB[i] ? .6 : 2.5; // accotement : nul en mode urbain
+  let off = HW[i] + vg;
   const inner = (s === -1 && K[i] > 0) || (s === 1 && K[i] < 0);
   if (inner) off = Math.min(off, 0.55 / Math.abs(K[i]));
-  while (off > HW[i] + 2.5) {
+  while (off > HW[i] + vmin) {
     const wx = P[i].x + NL[i].x * s * off, wz = P[i].z + NL[i].z * s * off;
     // le mur doit rester plus près de « sa » portion de piste que de toute autre (ligne médiane)
     const lim = Math.max(HW[i] + 3, off - .3);
     if (!trackGrid.any(wx, wz, lim + 1, j => idxDist(i, j) > 4 && (P[j].x - wx) ** 2 + (P[j].z - wz) ** 2 < lim * lim)) break;
     off -= 0.5;
   }
-  off = Math.max(off, HW[i] + 2.5);
+  off = Math.max(off, HW[i] + vmin);
   const wx = P[i].x + NL[i].x * s * off, wz = P[i].z + NL[i].z * s * off;
   const clash = trackGrid.any(wx, wz, 12, j => idxDist(i, j) > 4 && (P[j].x - wx) ** 2 + (P[j].z - wz) ** 2 < Math.max(HW[i] + 2, off - .3) ** 2);
   const gap = clash || pitGrid.any(wx, wz, 8, p => (p.x - wx) ** 2 + (p.z - wz) ** 2 < 49) ? 1 : 0;
@@ -420,7 +430,7 @@ const VS = Array.from({ length: NS }, (_, i) => i * STEP);
       if (o && i0 < 0) i0 = k;
       if ((!o || k === NS) && i0 >= 0) {
         const A = [], B = [], v = [];
-        for (let kk = i0; kk < k; kk++) { const ii = kk % NS; const lim = s > 0 ? offL[ii] : offR[ii]; A.push(at(ii, s * HW[ii], .17)); B.push(at(ii, s * Math.min(HW[ii] + 1.6, lim - .5), .17)); v.push(kk * STEP / 4); }
+        for (let kk = i0; kk < k; kk++) { const ii = kk % NS; const lim = s > 0 ? offL[ii] : offR[ii]; A.push(at(ii, s * HW[ii], .17)); B.push(at(ii, s * Math.max(HW[ii], Math.min(HW[ii] + 1.6, lim - .5)), .17)); v.push(kk * STEP / 4); }
         if (A.length > 1) geos.push(strip(s > 0 ? A : B, s > 0 ? B : A, v, { up: true }));
         i0 = -1;
       }
@@ -458,13 +468,13 @@ const VS = Array.from({ length: NS }, (_, i) => i * STEP);
   const run = [], geos = [];
   for (const s of [1, -1]) {
     let r = [];
-    const flush = () => { if (r.length > 4) { const A = r.map(i => at(i, s * (HW[i] + 1.6), .115)), B = r.map(i => at(i, s * ((s > 0 ? offL[i] : offR[i]) - .7), .115)); geos.push(strip(s > 0 ? A : B, s > 0 ? B : A, r.map((i, k) => k * STEP / 9), { up: true })); } r = []; };
+    const flush = () => { if (r.length > 4) { const A = r.map(i => at(i, s * (HW[i] + 1.6), .115)), B = r.map(i => at(i, s * Math.max(HW[i] + 1.6, (s > 0 ? offL[i] : offR[i]) - .7), .115)); geos.push(strip(s > 0 ? A : B, s > 0 ? B : A, r.map((i, k) => k * STEP / 9), { up: true })); } r = []; };
     for (let k = 0; k <= NS; k++) { const i = k % NS; const gap = s > 0 ? gapL[i] : gapR[i]; if (k < NS && !gap && outerNear(i, s, 1 / 230, 18)) r.push(i); else flush(); }
   }
   if (geos.length) mesh(mergeGeometries(geos), new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xb9bbc2, roughness: .95 }), { to: scene });
   // barrières Tecpro (blocs rouges et bleus) devant le mur, à l'extérieur des virages rapides
   const tec = [];
-  for (const s of [1, -1]) for (let i = 0; i < NS; i++) { const gap = s > 0 ? gapL[i] : gapR[i]; if (!gap && outerNear(i, s, 1 / 120, 22)) tec.push([i, s]); }
+  for (const s of [1, -1]) for (let i = 0; i < NS; i++) { const gap = s > 0 ? gapL[i] : gapR[i]; if (!gap && !URB[i] && outerNear(i, s, 1 / 120, 22)) tec.push([i, s]); }
   const tg = new THREE.BoxGeometry(1.0, .95, 1.95); tg.translate(0, .475, 0);
   const ti = new THREE.InstancedMesh(tg, new THREE.MeshStandardMaterial({ roughness: .7 }), tec.length);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
@@ -914,7 +924,7 @@ function buildOSM() {
     const waterR = O.water;
     const wet = (x, z) => waterR.some(rings => { let c = false; rings.forEach(r => { if (pip(x, z, r)) c = !c; }); return c; });
     const trees = [];
-    const nearWall = (wx, wz) => trackGrid.any(wx, wz, 26, j => { const dx = wx - P[j].x, dz = wz - P[j].z; const lat = dx * NL[j].x + dz * NL[j].z; const lim = (lat > 0 ? offL[j] : offR[j]) + 10; return dx * dx + dz * dz < lim * lim; });
+    const nearWall = (wx, wz) => trackGrid.any(wx, wz, 26, j => { const dx = wx - P[j].x, dz = wz - P[j].z; const lat = dx * NL[j].x + dz * NL[j].z; const lim = (lat > 0 ? offL[j] : offR[j]) + (URB[j] ? 1.5 : 10); return dx * dx + dz * dz < lim * lim; }); // en mode urbain, les arbres restent au ras du mur
     const facingStand = (wx, wz) => placed.some(r => { const x = wx - r.c.x, z = wz - r.c.z, al = x * r.d.x + z * r.d.z, la = x * r.q.x + z * r.q.z; return Math.abs(al) < r.hl + 4 && la > -r.hd - 3 && la < r.hd + 45; });
     const ok = (x, z) => !blocked(x - cx, z - cz, 3) && !onRoad(x, z) && !nearWall(x - cx, z - cz) && !facingStand(x - cx, z - cz);
     O.trees.forEach(([x, z]) => { if (ok(x, z)) trees.push([x - cx, z - cz]); });
@@ -1353,7 +1363,7 @@ document.querySelectorAll('[data-env]').forEach(b => b.onclick = () => setEnv(b.
 setEnv(location.hash === '#photo' ? 'photo' : location.hash === '#styl' ? 'styl' : 'osm'); // OpenStreetMap par défaut
 camPos.copy(player.pos).add(new THREE.Vector3(-Math.sin(player.h) * 7.6, 2.7, -Math.cos(player.h) * 7.6));
 window.__look = (n) => { const k = longest(n); const st = STANDS[k]; setMode('drone'); orbit.target.copy(st.mid); camera.position.copy(st.mid).add(new THREE.Vector3(0, 160, 0)).add(st.look.clone().sub(st.mid).setY(0).setLength(-120)); return st.name; };
-window.__lc = { WIDTH_KEYS, setEnv, P, PIT, HW, NL, orbit, player, STANDS, setMode, NS, LEN, renderer, scene, camera };
+window.__lc = { URB, WIDTH_KEYS, setEnv, P, PIT, HW, NL, orbit, player, STANDS, setMode, NS, LEN, renderer, scene, camera };
 frame();
 $('#loading').style.opacity = 0; setTimeout(() => $('#loading').remove(), 700);
 flash('Pilote auto · appuie sur une flèche pour prendre le volant');
