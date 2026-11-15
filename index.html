@@ -33,6 +33,9 @@
   .btn[aria-pressed="true"] { background:var(--red); }
   select { font:700 15px "Barlow Condensed",sans-serif; background:rgba(22,18,42,.85); color:#fff; border:0; border-radius:18px; padding:7px 10px; max-width:230px; }
   #help { left:50%; transform:translateX(-50%); bottom:max(14px,env(safe-area-inset-bottom)); font-weight:600; font-size:15px; background:rgba(22,18,42,.6); padding:6px 14px; border-radius:16px; text-align:center; max-width:min(92vw,720px); }
+  #credits { position:fixed; right:max(8px,env(safe-area-inset-right)); bottom:2px; font:600 10px "Barlow Condensed",sans-serif; color:rgba(255,255,255,.85); text-shadow:0 1px 0 rgba(0,0,0,.5); z-index:4; }
+  #credits a { color:inherit; }
+  body.mode-drive #credits { bottom:auto; top:calc(max(12px,env(safe-area-inset-top)) + 150px); }
   #banner { left:50%; top:22%; transform:translateX(-50%); font-family:Anton,Impact,sans-serif; font-size:clamp(28px,6vw,64px); color:var(--yellow); opacity:0; transition:opacity .4s; text-align:center; line-height:1; }
   #loading { position:fixed; inset:0; display:grid; place-items:center; background:var(--violet); z-index:20; text-align:center; transition:opacity .6s; }
   #loading h1 { font-family:Anton,Impact,sans-serif; font-weight:400; font-size:clamp(34px,7vw,80px); margin:0; line-height:.95; text-transform:uppercase; }
@@ -66,6 +69,7 @@
 <div class="hud" id="speedo"><div id="spd">0<span>km/h</span></div><div id="gearbar"><i></i></div></div>
 <canvas class="hud" id="mini" width="380" height="420"></canvas>
 <div class="hud" id="help"></div>
+<div id="credits">Concept non officiel · Données © contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL) · Orthophoto © IGN (Licence Ouverte)</div>
 
 <div id="modes">
   <div class="seg" role="group" aria-label="Mode">
@@ -76,6 +80,11 @@
   <div style="display:flex;gap:6px">
     <button class="btn" id="btnAuto" aria-pressed="true">Pilote auto</button>
     <button class="btn" id="btnCam">Caméra</button>
+  </div>
+  <div class="seg" role="group" aria-label="Décor">
+    <button data-env="styl" aria-pressed="false">Stylisé</button>
+    <button data-env="photo" aria-pressed="false">Photo IGN</button>
+    <button data-env="osm" aria-pressed="true">OSM</button>
   </div>
   <select id="tp" aria-label="Aller à"></select>
 </div>
@@ -206,7 +215,8 @@ function flatShape(rings, y) { // rings en coordonnées carte
   if (!shapes.length) return null;
   const g = new THREE.ShapeGeometry(shapes); g.rotateX(-Math.PI / 2); g.translate(0, y, 0); return g;
 }
-function mesh(g, mat, o = {}) { if (o.flat !== false && g.attributes.normal && !o.cast) mat.side = THREE.DoubleSide; const m = new THREE.Mesh(g, mat); m.receiveShadow = o.receive !== false; m.castShadow = !!o.cast; scene.add(m); return m; }
+let TARGET = null; // groupe de décor en cours de construction (sinon la scène)
+function mesh(g, mat, o = {}) { if (o.flat !== false && g.attributes.normal && !o.cast) mat.side = THREE.DoubleSide; const m = new THREE.Mesh(g, mat); m.receiveShadow = o.receive !== false; m.castShadow = !!o.cast; (o.to || TARGET || scene).add(m); return m; }
 
 // ---------- piste ----------
 // Tracé : le plan a des côtés très inégaux (3 m à 700 m) → points réguliers tous les 10 m,
@@ -411,12 +421,16 @@ const START = nearestIdx(startRef);
 // ---------- sol, eau, pelouses, allées, bâtiments ----------
 const ground = new THREE.PlaneGeometry(16000, 16000); ground.rotateX(-Math.PI / 2);
 mesh(ground, new THREE.MeshStandardMaterial({ map: texGrass, roughness: 1 }));
+// trois décors interchangeables : stylisé (plan), photo IGN, OpenStreetMap
+const ENV = { styl: new THREE.Group(), photo: new THREE.Group(), osm: new THREE.Group() };
+Object.values(ENV).forEach(g => scene.add(g));
+TARGET = ENV.styl;
 { const g = flatShape([D.site], .03); if (g) mesh(g, new THREE.MeshStandardMaterial({ map: texLawn, roughness: 1 })); }
 { const gs = D.green.map(p => flatShape([p], .05)).filter(Boolean); if (gs.length) mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0x7cc65a, roughness: 1 })); }
 {
   const gs = []; D.roads.forEach(([w, pts]) => { const g = polyline2strip(pts.map(p => W(p)), w * .32, .08); if (g) gs.push(g); });
   mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0xb9b3a2, roughness: 1 }));
-  const pg = polyline2strip(PIT, 5, .11); mesh(pg, new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xc8c8cc, roughness: .9 }));
+  const pg = polyline2strip(PIT, 5, .11); mesh(pg, new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xc8c8cc, roughness: .9 }), { to: scene });
 }
 { const gs = D.water.map(r => flatShape(r, .1)).filter(Boolean); mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0x3b8fd6, roughness: .12, metalness: .15 })); }
 function extrude(poly, h, y = 0) {
@@ -425,7 +439,10 @@ function extrude(poly, h, y = 0) {
 }
 {
   const gs = D.bld.map(p => extrude(p, 6 + rand() * 10));
-  mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0xece4d6, roughness: .85 }), { cast: true });
+  const planBld = mergeGeometries(gs), planBldMat = new THREE.MeshStandardMaterial({ color: 0xece4d6, roughness: .85 });
+  mesh(planBld, planBldMat, { cast: true });
+  mesh(planBld, planBldMat, { cast: true, to: ENV.photo }); // mêmes bâtiments sur la photo
+  TARGET = null;
   mesh(extrude(D.garages, 7), new THREE.MeshStandardMaterial({ color: 0x2b2640, roughness: .6 }), { cast: true });
   mesh(extrude(D.garages, .6, 7), new THREE.MeshStandardMaterial({ color: 0xffffff }), { cast: true });
 }
@@ -730,6 +747,11 @@ mesh(mergeGeometries(roofGeos), new THREE.MeshStandardMaterial({ color: 0xffffff
     if (inWater(x, z)) continue;
     trees.push([wx, wz]);
   }
+  buildTrees(trees, ENV.styl);
+  // décor photo : pas d'arbres 3D sur la photo (ils y sont déjà), seulement autour
+  buildTrees(trees.filter(([x, z]) => { const mx = x + cx, mz = z + cz; return mx < 0 || mx > 2475 || mz < 0 || mz > 2829; }), ENV.photo);
+}
+function buildTrees(trees, group) {
   const trunkG = new THREE.CylinderGeometry(.25, .4, 1, 6); trunkG.translate(0, .5, 0);
   const leafG = new THREE.IcosahedronGeometry(1, 1); leafG.translate(0, 0, 0);
   const tI = new THREE.InstancedMesh(trunkG, new THREE.MeshStandardMaterial({ color: 0x6b4a2b, roughness: 1 }), trees.length);
@@ -745,8 +767,102 @@ mesh(mergeGeometries(roofGeos), new THREE.MeshStandardMaterial({ color: 0xffffff
     lI.setColorAt(k, col.setHex(greens[(rand() * greens.length) | 0]));
   });
   tI.castShadow = lI.castShadow = true; lI.receiveShadow = true;
-  scene.add(tI, lI);
+  group.add(tI, lI);
 }
+
+// ---------- décor « Photo IGN » : orthophoto 1 px = 1 m plaquée au sol ----------
+let photoReady = null;
+function buildPhoto() {
+  if (photoReady) return photoReady;
+  photoReady = new Promise((ok) => new THREE.TextureLoader().load('ortho.jpg', (t) => {
+    t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso;
+    const g = new THREE.PlaneGeometry(2475, 2829); g.rotateX(-Math.PI / 2);
+    const m = mesh(g, new THREE.MeshStandardMaterial({ map: t, roughness: 1, color: new THREE.Color(1.55, 1.55, 1.55) }), { to: ENV.photo });
+    m.position.set(2475 / 2 - cx, .06, 2829 / 2 - cz);
+    ok();
+  }, undefined, () => { flash('Photo introuvable'); ok(); }));
+  return photoReady;
+}
+
+// ---------- décor « OpenStreetMap » : bâtiments, forêts, pelouses, eau, chemins, arbres réels ----------
+let osmReady = null;
+function buildOSM() {
+  if (osmReady) return osmReady;
+  osmReady = fetch('osm.json').then(r => r.json()).then(O => {
+    const G = ENV.osm, V2 = (p) => new THREE.Vector3(p[0] - cx, 0, p[1] - cz);
+    const blocked = (x, z, m = 2) => { // emprise du circuit : piste + murs, stands, tribunes, garages
+      const v = new THREE.Vector3(x, 0, z);
+      return !trackClear(v) || pitGrid.any(x, z, 12, p => (p.x - x) ** 2 + (p.z - z) ** 2 < 144) || inPlaced(v, m) || pip(x + cx, z + cz, D.garages);
+    };
+    // sols
+    const layer = (list, y, mat) => { const gs = list.map(r => flatShape(r, y)).filter(Boolean); if (gs.length) mesh(mergeGeometries(gs), mat, { to: G }); };
+    layer(O.forest, .035, new THREE.MeshStandardMaterial({ color: 0x3f7d2e, roughness: 1 }));
+    layer(O.scrub, .04, new THREE.MeshStandardMaterial({ color: 0x5b8f3a, roughness: 1 }));
+    layer(O.grass, .045, new THREE.MeshStandardMaterial({ map: texLawn, roughness: 1 }));
+    layer(O.garden, .05, new THREE.MeshStandardMaterial({ color: 0x6dbb4f, roughness: 1 }));
+    layer(O.pitch, .055, new THREE.MeshStandardMaterial({ color: 0x5fae45, roughness: 1 }));
+    layer(O.water, .1, new THREE.MeshStandardMaterial({ color: 0x3b8fd6, roughness: .12, metalness: .15 }));
+    { const gs = O.stream.map(([w, r]) => polyline2strip(r.map(V2), w / 2, .095)).filter(Boolean); if (gs.length) mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0x3b8fd6, roughness: .2 }), { to: G }); }
+    // routes et chemins
+    { const road = [], path = []; O.roads.forEach(([w, r]) => { const g = polyline2strip(r.map(V2), w / 2, w >= 5 ? .085 : .08); if (g) (w >= 5 ? road : path).push(g); });
+      if (road.length) mesh(mergeGeometries(road), new THREE.MeshStandardMaterial({ color: 0x8a8c92, roughness: .95 }), { to: G });
+      if (path.length) mesh(mergeGeometries(path), new THREE.MeshStandardMaterial({ color: 0xd2c8ad, roughness: 1 }), { to: G }); }
+    // bâtiments (hauteurs OSM ; toits gris zinc, façades pierre)
+    {
+      const gs = [], stone = [0xefe6d4, 0xe6dcc6, 0xf3eee4, 0xd9cdb6, 0xe9e2d6], col = new THREE.Color(), roof = new THREE.Color(0x7d8794);
+      O.bld.forEach(([h, r]) => {
+        if (r.length < 3 || r.some(p => blocked(p[0] - cx, p[1] - cz, 1))) return;
+        let g; try { g = extrude(r, Math.max(3, h)); } catch (e) { return; }
+        if (g.index) g = g.toNonIndexed();
+        const n = g.attributes.normal, c = new Float32Array(n.count * 3); col.setHex(stone[(rand() * stone.length) | 0]);
+        for (let i = 0; i < n.count; i++) { const k = n.getY(i) > .5 ? roof : col; c.set([k.r, k.g, k.b], i * 3); }
+        g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.deleteAttribute('uv'); gs.push(g);
+      });
+      for (let i = 0; i < gs.length; i += 1500) mesh(mergeGeometries(gs.slice(i, i + 1500)), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .85 }), { cast: true, to: G });
+    }
+    // arbres : arbres recensés un par un + alignements + remplissage des forêts
+    const roadPts = new Grid(30);
+    O.roads.forEach(([w, r]) => { if (w < 3) return; for (let k = 0; k < r.length - 1; k++) { const a = r[k], b = r[k + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let t = 0; t <= l; t += 5) roadPts.add(a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l, [a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l, w / 2 + 2.5]); } });
+    const onRoad = (x, z) => roadPts.any(x, z, 12, q => (q[0] - x) ** 2 + (q[1] - z) ** 2 < q[2] * q[2]);
+    const waterR = O.water;
+    const wet = (x, z) => waterR.some(rings => { let c = false; rings.forEach(r => { if (pip(x, z, r)) c = !c; }); return c; });
+    const trees = [];
+    const nearWall = (wx, wz) => trackGrid.any(wx, wz, 26, j => { const dx = wx - P[j].x, dz = wz - P[j].z; const lat = dx * NL[j].x + dz * NL[j].z; const lim = (lat > 0 ? offL[j] : offR[j]) + 10; return dx * dx + dz * dz < lim * lim; });
+    const facingStand = (wx, wz) => placed.some(r => { const x = wx - r.c.x, z = wz - r.c.z, al = x * r.d.x + z * r.d.z, la = x * r.q.x + z * r.q.z; return Math.abs(al) < r.hl + 4 && la > -r.hd - 3 && la < r.hd + 45; });
+    const ok = (x, z) => !blocked(x - cx, z - cz, 3) && !onRoad(x, z) && !nearWall(x - cx, z - cz) && !facingStand(x - cx, z - cz);
+    O.trees.forEach(([x, z]) => { if (ok(x, z)) trees.push([x - cx, z - cz]); });
+    O.rows.forEach(r => { for (let k = 0; k < r.length - 1; k++) { const a = r[k], b = r[k + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let t = 0; t < l; t += 9) { const x = a[0] + (b[0] - a[0]) * t / l, z = a[1] + (b[1] - a[1]) * t / l; if (ok(x, z)) trees.push([x - cx, z - cz]); } } });
+    const area = (r) => { let s = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) s += (r[j][0] + r[i][0]) * (r[j][1] - r[i][1]); return Math.abs(s / 2); };
+    const fills = O.forest.map(rs => ({ rs, a: rs.reduce((s, r) => s + area(r), 0) })).filter(f => f.a > 50);
+    const total = fills.reduce((s, f) => s + f.a, 0), BUDGET = 26000;
+    fills.forEach(({ rs, a }) => {
+      const r0 = rs[0]; let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; r0.forEach(p => { x0 = Math.min(x0, p[0]); z0 = Math.min(z0, p[1]); x1 = Math.max(x1, p[0]); z1 = Math.max(z1, p[1]); });
+      const want = Math.min(Math.round(a / 110), Math.round(BUDGET * a / total) + 1);
+      for (let n = 0, got = 0; n < want * 4 && got < want; n++) {
+        const x = x0 + rand() * (x1 - x0), z = z0 + rand() * (z1 - z0);
+        let inside = false; rs.forEach(r => { if (pip(x, z, r)) inside = !inside; });
+        if (!inside || !ok(x, z) || wet(x, z)) continue;
+        trees.push([x - cx, z - cz]); got++;
+      }
+    });
+    buildTrees(trees, G);
+    console.log('OSM : ' + trees.length + ' arbres');
+  }).catch(e => { console.error(e); flash('Données OSM introuvables'); });
+  return osmReady;
+}
+
+let envName = 'styl';
+async function setEnv(e) {
+  envName = e;
+  document.querySelectorAll('[data-env]').forEach(b => b.setAttribute('aria-pressed', b.dataset.env === e));
+  if (e === 'photo') { flash('Chargement de la photo IGN…'); await buildPhoto(); }
+  if (e === 'osm') { flash('Chargement d’OpenStreetMap…'); await buildOSM(); }
+  if (envName !== e) return;
+  Object.entries(ENV).forEach(([k, g]) => g.visible = k === e);
+  flash({ styl: 'Décor stylisé', photo: 'Photo aérienne IGN', osm: 'OpenStreetMap' }[e]);
+  try { history.replaceState(null, '', e === 'osm' ? location.pathname + location.search : '#' + e); } catch (er) {}
+}
+ENV.photo.visible = ENV.osm.visible = false;
 
 // ---------- horizon : La Défense au nord, tour Eiffel à l'est ----------
 {
@@ -1049,9 +1165,11 @@ function frame() {
 }
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 setMode('drive');
+document.querySelectorAll('[data-env]').forEach(b => b.onclick = () => setEnv(b.dataset.env));
+setEnv(location.hash === '#photo' ? 'photo' : location.hash === '#styl' ? 'styl' : 'osm'); // OpenStreetMap par défaut
 camPos.copy(player.pos).add(new THREE.Vector3(-Math.sin(player.h) * 7.6, 2.7, -Math.cos(player.h) * 7.6));
 window.__look = (n) => { const k = longest(n); const st = STANDS[k]; setMode('drone'); orbit.target.copy(st.mid); camera.position.copy(st.mid).add(new THREE.Vector3(0, 160, 0)).add(st.look.clone().sub(st.mid).setY(0).setLength(-120)); return st.name; };
-window.__lc = { P, orbit, player, STANDS, setMode, NS, LEN, renderer, scene, camera };
+window.__lc = { setEnv, P, orbit, player, STANDS, setMode, NS, LEN, renderer, scene, camera };
 frame();
 $('#loading').style.opacity = 0; setTimeout(() => $('#loading').remove(), 700);
 flash('Pilote auto · appuie sur une flèche pour prendre le volant');
