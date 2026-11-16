@@ -864,7 +864,11 @@ nameLabels.forEach(l => { let best = null, bd = Infinity; structs.forEach(st => 
 const waterBoxes = D.water.map(rings => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; rings.forEach(r => r.forEach(q => { a = Math.min(a, q[0]); b = Math.min(b, q[1]); c = Math.max(c, q[0]); d = Math.max(d, q[1]); })); return { rings, box: [a, b, c, d] }; });
 const inWaterMap = (x, z) => waterBoxes.some(w => { if (x < w.box[0] || x > w.box[2] || z < w.box[1] || z > w.box[3]) return false; let c = false; w.rings.forEach(r => { if (pip(x, z, r)) c = !c; }); return c; });
 const bldPolys = D.bld.concat([D.garages]).map(p => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; p.forEach(q => { a = Math.min(a, q[0]); b = Math.min(b, q[1]); c = Math.max(c, q[0]); d = Math.max(d, q[1]); }); return { p, box: [a, b, c, d] }; });
-const inBldMap = (x, z) => bldPolys.some(o => x > o.box[0] - 2 && x < o.box[2] + 2 && z > o.box[1] - 2 && z < o.box[3] + 2 && pip(x, z, o.p));
+// bâtiments existants (OpenStreetMap) en plus de ceux du plan : aucune tribune ne se pose dessus ni ne regarde à travers
+const OSM_ALL = await fetch('osm.json').then(r => r.json()).catch(() => null);
+if (OSM_ALL) OSM_ALL.bld.forEach(([h, r]) => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; r.forEach(q => { a = Math.min(a, q[0]); b = Math.min(b, q[1]); c = Math.max(c, q[0]); d = Math.max(d, q[1]); }); if (c - a < 3 && d - b < 3) return; bldPolys.push({ p: r, box: [a, b, c, d] }); });
+const bldGrid = new Map(); bldPolys.forEach(o => { for (let i = Math.floor((o.box[0] - 2) / 40); i <= Math.floor((o.box[2] + 2) / 40); i++) for (let j = Math.floor((o.box[1] - 2) / 40); j <= Math.floor((o.box[3] + 2) / 40); j++) { const k = i + ',' + j; let a = bldGrid.get(k); if (!a) bldGrid.set(k, a = []); a.push(o); } });
+const inBldMap = (x, z) => { const a = bldGrid.get(Math.floor(x / 40) + ',' + Math.floor(z / 40)); return !!a && a.some(o => x > o.box[0] - 2 && x < o.box[2] + 2 && z > o.box[1] - 2 && z < o.box[3] + 2 && pip(x, z, o.p)); };
 const placed = []; // rectangles acceptés {c, d, q, hl, hd, sight}
 // lignes de vue : depuis 5 points du bord avant de chaque tribune jusqu'à la piste (points tous les 2 m)
 function sightOf(c, d, q, hl, hd) {
@@ -908,11 +912,40 @@ D.tribunesPoly.forEach((poly, n) => {
   const cc = c.clone().add(pr.clone().multiplyScalar((b0 + b1) / 2));
   segs.push({ a: cc.clone().add(ax.clone().multiplyScalar(a0)), b: cc.clone().add(ax.clone().multiplyScalar(a1)), name: structs[D.tribunesLine.length + n].name || 'PARISLONGCHAMP', depth: clamp(b1 - b0, 12, 24) });
 });
+{ // tribunes très longues découpées en tronçons (≤ 100 m) pour suivre la piste au plus près
+  const out = []; segs.forEach(s => { const L = s.a.distanceTo(s.b), n = Math.ceil(L / 100); for (let k = 0; k < n; k++) out.push({ ...s, a: s.a.clone().lerp(s.b, k / n), b: s.a.clone().lerp(s.b, (k + 1) / n) }); });
+  segs.length = 0; out.forEach(s => segs.push(s));
+}
 segs.forEach(s => { s.mid = s.a.clone().add(s.b).multiplyScalar(.5); s.dist = P[nearestIdx(s.mid)].distanceTo(s.mid); });
-segs.sort((x, y) => x.dist - y.dist); // les plus proches de la piste d'abord : celles de derrière cèdent la place
+{ const tot = {}; segs.forEach(s => tot[s.name] = (tot[s.name] || 0) + s.a.distanceTo(s.b)); const main = Object.keys(tot).sort((a, b) => tot[b] - tot[a])[0]; segs.forEach(s => s.main = s.name === main ? 1 : 0); }
+segs.sort((x, y) => (y.main - x.main) || x.dist - y.dist); // la grande tribune de la ligne droite d'abord, au bord de la piste // les plus proches de la piste d'abord : celles de derrière cèdent la place
 const REPORT = [];
 const SL = 4;
+// tribune rapprochée de la piste : parallèle à la ligne droite, bord avant à ~4 m du mur (si la portion est droite)
+const wallGap = (v, m) => !trackGrid.any(v.x, v.z, 30, j => { const dx = v.x - P[j].x, dz = v.z - P[j].z; const lat = dx * NL[j].x + dz * NL[j].z; const lim = (lat > 0 ? offL[j] : offR[j]) + m; return dx * dx + dz * dz < lim * lim; });
+let HUGWHY = '';
+function hugTrack(sg) { HUGWHY = '';
+  const d0 = sg.b.clone().sub(sg.a); const L = d0.length(); d0.normalize();
+  const ia = nearestIdx(sg.a), ib = nearestIdx(sg.b), im = nearestIdx(sg.mid);
+  const ch = P[ib].clone().sub(P[ia]).setY(0); if (ch.length() < L * .6) { HUGWHY = 'corde'; return null; }
+  const d = ch.normalize(); if (d.dot(d0) < 0) d.negate(); if (d.dot(d0) < Math.cos(30 * Math.PI / 180)) { HUGWHY = 'angle'; return null; }
+  let side = sg.mid.clone().sub(P[im]); const nrm = new THREE.Vector3(-d.z, 0, d.x); if (side.dot(nrm) < 0) nrm.negate(); // vers la tribune
+  // portion droite ?
+  let st = ia, span = (ib - ia + NS) % NS; if (span > NS / 2) { st = ib; span = NS - span; } // la ligne d'arrivée (indice 0) peut être au milieu
+  for (let k = 0; k <= span; k++) if (Math.abs(P[(st + k) % NS].clone().sub(P[im]).dot(nrm)) > 8) { HUGWHY = 'courbe'; return null; }
+  const C = P[im].clone().setY(0).add(sg.mid.clone().setY(0).sub(P[im].clone().setY(0)).projectOnVector(d)); // centre ramené en face du milieu
+  const oldFront = sg.mid.clone().sub(P[im]).dot(nrm) - sg.depth / 2;
+  for (let s = 8; s < oldFront - 6; s += 1) {
+    let ok = true;
+    for (let u = -L / 2; u <= L / 2 + .01 && ok; u += 3) { const v = C.clone().addScaledVector(d, u).addScaledVector(nrm, s); if (!wallGap(v, 4)) { ok = false; if (s < 30) HUGWHY += 'w'; } else if (pitGrid.any(v.x, v.z, 12, p => (p.x - v.x) ** 2 + (p.z - v.z) ** 2 < 144)) { ok = false; if (s < 30) HUGWHY += 'p'; }
+      for (let w = 0; w <= sg.depth && ok; w += 4) { const r = v.clone().addScaledVector(nrm, w); if (Math.abs(u) < L / 2 - 4 && inPlaced(r, 1)) { ok = false; if (s < 30) HUGWHY += 'o'; } else if (inBldMap(r.x + cx, r.z + cz)) { ok = false; if (s < 30) HUGWHY += 'b' + Math.round(r.x + cx) + ',' + Math.round(r.z + cz) + ' '; } else if (inWaterMap(r.x + cx, r.z + cz)) { ok = false; if (s < 30) HUGWHY += 'e'; } } }
+    if (ok) { const m = C.clone().addScaledVector(nrm, s + sg.depth / 2); return { a: m.clone().addScaledVector(d, -L / 2), b: m.clone().addScaledVector(d, L / 2), mid: m, moved: Math.round(oldFront - s) }; }
+  }
+  HUGWHY = 'pas de place ' + Math.round(oldFront) + ' ' + HUGWHY.slice(0, 200); return null;
+}
 segs.forEach(sg => {
+  const hug = hugTrack(sg); (window.__hug = window.__hug || []).push([sg.name, Math.round(sg.a.x + cx), Math.round(sg.a.z + cz), Math.round(sg.b.x + cx), Math.round(sg.b.z + cz), hug ? hug.moved : HUGWHY]);
+  if (hug) { sg.a = hug.a; sg.b = hug.b; sg.mid = hug.mid; sg.moved = hug.moved; }
   const d = sg.b.clone().sub(sg.a); const L = d.length(); d.normalize();
   let q = new THREE.Vector3(-d.z, 0, d.x); if (P[nearestIdx(sg.mid)].clone().sub(sg.mid).dot(q) < 0) q.negate();
   const n = Math.max(1, Math.round(L / SL)), sl = L / n;
@@ -942,7 +975,7 @@ segs.forEach(sg => {
     }
     i = j + 1;
   }
-  REPORT.push({ name: sg.name, plan: Math.round(L), gardé: Math.round(kept), raisons: [...new Set(res.filter(r => !r.f).map(r => r.why))].join(', ') });
+  REPORT.push({ name: sg.name, plan: Math.round(L), gardé: Math.round(kept), avancée_m: sg.moved || 0, raisons: [...new Set(res.filter(r => !r.f).map(r => r.why))].join(', ') });
 });
 // ---- tribunes impossibles à garder à leur place : déplacées vers l'emplacement libre le plus proche ----
 const byName = {};
