@@ -771,6 +771,46 @@ const START = (nearestIdx(startRef) - Math.round(120 / STEP) + NS) % NS; // recu
   }
 }
 
+// ---------- tribune de l'hippodrome (2018) : plateaux superposés, bandeaux bronze, terrasses vers la piste hippique ----------
+const TRIBUNE_HIPPO = { c: [402, 1000] };
+{
+  const poly = [[444, 934], [389, 1075], [384, 1074], [376, 1097], [347, 1085], [406, 936], [413, 939], [418, 924]]; // emprise OSM, vérifiée sur l'orthophoto IGN
+  let mx = 0, mz = 0; poly.forEach(p => { mx += p[0]; mz += p[1]; }); mx /= poly.length; mz /= poly.length;
+  let sxx = 0, szz = 0, sxz = 0; poly.forEach(p => { const x = p[0] - mx, z = p[1] - mz; sxx += x * x; szz += z * z; sxz += x * z; });
+  const ang = .5 * Math.atan2(2 * sxz, sxx - szz), u = [Math.cos(ang), Math.sin(ang)]; let v = [-u[1], u[0]]; if (v[0] < 0) v = [-v[0], -v[1]]; // v : vers l'est (piste hippique)
+  let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9; poly.forEach(p => { const x = p[0] - mx, z = p[1] - mz, a = x * u[0] + z * u[1], b = x * v[0] + z * v[1]; a0 = Math.min(a0, a); a1 = Math.max(a1, a); b0 = Math.min(b0, b); b1 = Math.max(b1, b); });
+  const L = a1 - a0, Wd = b1 - b0, cc = [mx + u[0] * (a0 + a1) / 2 + v[0] * (b0 + b1) / 2, mz + u[1] * (a0 + a1) / 2 + v[1] * (b0 + b1) / 2];
+  TRIBUNE_HIPPO.c = cc;
+  const G = new THREE.Group(); G.position.copy(W(cc)); G.rotation.y = -Math.atan2(u[1], u[0]) + (-u[1] < 0 ? Math.PI : 0); // axe local x = longueur, z = vers la piste hippique (est)
+  // repère local : x le long, z vers l'est ; G.rotation transforme (1,0,0) en u
+  const slatTex = ctex(256, 64, (g, w, h) => { g.fillStyle = '#8a6a43'; g.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 8) { g.fillStyle = x % 16 ? '#b48a55' : '#6f5435'; g.fillRect(x, 0, 4, h); } });
+  slatTex.repeat.set(L / 6, 1);
+  const bronze = new THREE.MeshStandardMaterial({ map: slatTex, color: 0xffffff, roughness: .55, metalness: .1 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xece8e0, roughness: .6 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x5d7180, roughness: .15, metalness: .2 });
+  const solar = new THREE.MeshStandardMaterial({ color: 0x27344a, roughness: .3, metalness: .5 });
+  const box = (w, h, d, x, y, z, m) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; G.add(o); return o; };
+  const FL = 5, NF = 5; // 5 plateaux de 5 m
+  for (let k = 0; k < NF; k++) {
+    const y = k * FL, sh = (k % 2 ? 1.6 : -1.2), dep = Wd - 6 - (k === NF - 1 ? 4 : 0);
+    box(L - 2, FL - .7, dep, 0, y + (FL - .7) / 2, sh, glass);                                // façade vitrée en retrait
+    box(L + (k % 2 ? 2 : 0), .7, Wd + (k % 2 ? 3 : 1), 0, y + FL - .35, sh * .6, white);      // dalle blanche débordante
+    box(L - 1, (FL - .7) * .55, .5, 0, y + (FL - .7) * .55, sh - dep / 2 - .4, bronze);         // bandeau bronze côté route (dos)
+    if (k > 0) box(L - 1, 1.1, .3, 0, y + .55, sh + dep / 2 + 1.2, white);                    // garde-corps des balcons côté piste
+    box(L - 1, 1.2, .4, 0, y + FL - 1.3, sh + dep / 2 + .3, bronze);                          // sous-face bronze des plateaux, côté piste
+  }
+  // grande toiture débordante (panneaux solaires)
+  box(L + 6, .9, Wd + 10, 0, NF * FL + .8, 3, white);
+  box(L - 6, .2, Wd - 2, 0, NF * FL + 1.35, 3, solar);
+  // poteaux fins sous le débord, côté piste hippique
+  for (let x = -L / 2 + 6; x <= L / 2 - 6; x += 12) box(.5, NF * FL + .5, .5, x, (NF * FL) / 2, Wd / 2 + 6.5, white);
+  // gradins en terrasses devant la tribune (vers la piste hippique)
+  for (let r = 0; r < 8; r++) box(L - 20, .45 * (r + 1), 1.6, 0, .225 * (r + 1), Wd / 2 + 18 - r * 1.6, white);
+  // escaliers/rampe d'accès aux extrémités
+  for (const sx of [-1, 1]) box(8, 14, 12, sx * (L / 2 + 4), 7, -4, bronze);
+  scene.add(G);
+}
+
 // ---------- sol, eau, pelouses, allées, bâtiments ----------
 const ground = new THREE.PlaneGeometry(16000, 16000); ground.rotateX(-Math.PI / 2);
 mesh(ground, new THREE.MeshStandardMaterial({ map: texGrass, roughness: 1 }));
@@ -1523,6 +1563,7 @@ function buildOSM() {
       const gs = [], stone = [0xefe6d4, 0xe6dcc6, 0xf3eee4, 0xd9cdb6, 0xe9e2d6], col = new THREE.Color(), roof = new THREE.Color(0x7d8794);
       O.bld.forEach(([h, r]) => {
         if (r.length < 3 || r.some(p => blocked(p[0] - cx, p[1] - cz, 1))) return;
+        { let mx = 0, mz = 0; r.forEach(p => { mx += p[0]; mz += p[1]; }); mx /= r.length; mz /= r.length; if (Math.hypot(mx - TRIBUNE_HIPPO.c[0], mz - TRIBUNE_HIPPO.c[1]) < 25) return; } // remplacée par la maquette de la tribune
         let g; try { g = extrude(r, Math.max(3, h)); } catch (e) { return; }
         if (g.index) g = g.toNonIndexed();
         const n = g.attributes.normal, c = new Float32Array(n.count * 3); col.setHex(stone[(rand() * stone.length) | 0]);
