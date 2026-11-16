@@ -555,9 +555,18 @@ const pitCurve = (() => {
   const edge = (i, lat) => new THREE.Vector3(P[i].x + NL[i].x * lat, 0, P[i].z + NL[i].z * lat);
   const iS = nearestIdx(raw[0]), iE = nearestIdx(raw[raw.length - 1]);
   const sS = Math.sign(raw[0].clone().sub(P[iS]).dot(NL[iS])) || 1, sE = Math.sign(raw[raw.length - 1].clone().sub(P[iE]).dot(NL[iE])) || 1;
-  const a0 = (iS - 70 + NS) % NS, a1 = (iS - 40 + NS) % NS, b1 = (iE + 40) % NS, b0 = (iE + 70) % NS;
-  Object.assign(PIT_ENTRY, { i: a0, side: sS }); Object.assign(PIT_EXIT, { i: b0, side: sE });
-  const pts = [edge(a0, sS * (HW[a0] - 3)), edge(a1, sS * (HW[a1] + 5)), ...raw.slice(1, -1), edge(b1, sE * (HW[b1] + 5)), edge(b0, sE * (HW[b0] - 3))];
+  const a0 = (iS - 70 + NS) % NS, a1 = (iS - 40 + NS) % NS, b1 = (iE + 40) % NS;
+  // sortie des stands : la voie longe la piste derrière un muret et ne rejoint la piste que là où la trajectoire
+  // de course est du côté opposé, sur une portion peu courbée (jamais en sortie de virage)
+  let b0 = (iE + 70) % NS, best = Infinity;
+  for (let k = 80; k <= 230; k += 2) {
+    const m = (iE + k) % NS; let worst = -Infinity, kmax = 0;
+    for (let j = -10; j <= 25; j++) { const i = (m + j) % NS; worst = Math.max(worst, LAT[i] * sE); kmax = Math.max(kmax, Math.abs(K[i])); }
+    const score = worst + (kmax > 1 / 150 ? 50 : 0) + k * .004; if (score < best) { best = score; b0 = m; }
+  }
+  const par = []; for (let k = 40; ; k += 15) { const i = (iE + k) % NS; if ((b0 - i + NS) % NS < 30) break; par.push(edge(i, sE * (HW[i] + 6))); }
+  Object.assign(PIT_ENTRY, { i: a0, side: sS }); Object.assign(PIT_EXIT, { i: b0, side: sE, from: (iE + 40) % NS, lane: (b0 - 30 + NS) % NS });
+  const pts = [edge(a0, sS * (HW[a0] - 3)), edge(a1, sS * (HW[a1] + 5)), ...raw.slice(1, -1), ...par, edge(b0, sE * (HW[b0] - 3))];
   return new THREE.CatmullRomCurve3(pts, false, 'centripetal');
 })();
 const PIT = pitCurve.getSpacedPoints(Math.round(pitCurve.getLength() / 3));
@@ -833,6 +842,13 @@ const PITVIEW = {};
   // lignes de la voie des stands : séparation voie rapide / zone de travail
   const offsetPit = (d) => PIT.map((p, i) => { const a = PIT[Math.max(0, i - 1)], b = PIT[Math.min(PIT.length - 1, i + 1)]; const tt = b.clone().sub(a).setY(0).normalize(); const n = new THREE.Vector3(tt.z, 0, -tt.x); const g = W(D.garages[2]); if (g.clone().sub(p).dot(n) < 0) n.negate(); return p.clone().addScaledVector(n, d); });
   for (const d of [-1.2, 4.6]) mesh(polyline2strip(offsetPit(d), .15, .13), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+  { // sortie des stands : muret entre la piste et la voie, puis ligne blanche continue à ne pas franchir
+    const sE = PIT_EXIT.side, conc = new THREE.MeshStandardMaterial({ color: 0xe8e8ea, roughness: .8 }), gs = [];
+    for (let i = PIT_EXIT.from; i !== PIT_EXIT.lane; i = (i + 1) % NS) { const a = at(i, sE * (HW[i] + 2.6), 0), b = at((i + 1) % NS, sE * (HW[(i + 1) % NS] + 2.6), 0), l = a.distanceTo(b); const g = new THREE.BoxGeometry(.6, .9, l + .05); const m = new THREE.Matrix4().lookAt(a, b, new THREE.Vector3(0, 1, 0)); g.applyMatrix4(m); g.translate((a.x + b.x) / 2, .45, (a.z + b.z) / 2); gs.push(g); }
+    if (gs.length) mesh(mergeGeometries(gs), conc, { cast: true });
+    const A = [], B = []; for (let k = -30; k <= 45; k++) { const i = (PIT_EXIT.i + k + NS) % NS; A.push(at(i, sE * (HW[i] - 3.4), .145)); B.push(at(i, sE * (HW[i] - 3.75), .145)); }
+    mesh(strip(sE > 0 ? A : B, sE > 0 ? B : A, A.map((_, k) => k), { up: true }), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .6 }));
+  }
   // panneaux de limitation 80 km/h à l'entrée et à la sortie
   const limTex = ctex(256, 256, (g) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(128, 128, 120, 0, 7); g.fill(); g.lineWidth = 26; g.strokeStyle = '#e2231a'; g.beginPath(); g.arc(128, 128, 104, 0, 7); g.stroke(); g.fillStyle = '#16122a'; g.font = '900 120px "Barlow Condensed", Arial Narrow, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('80', 128, 136); });
   for (const i of [3, PIT.length - 4]) {
