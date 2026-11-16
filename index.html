@@ -122,6 +122,10 @@
     <button data-piste="" aria-pressed="true">Piste F1</button>
     <button data-piste="ideale" aria-pressed="false">Piste idéale</button>
   </div>
+  <div class="seg" role="group" aria-label="Tribunes">
+    <button data-trib="plan" aria-pressed="false">Tribunes du plan</button>
+    <button data-trib="" aria-pressed="true">Tribunes max</button>
+  </div>
   <select id="tp" aria-label="Aller à"></select>
 </div>
 
@@ -482,6 +486,31 @@ const trackGrid = new Grid(25); P.forEach((p, i) => trackGrid.add(p.x, p.z, i));
 function nearestIdx(v) { let best = 0, bd = Infinity; for (let i = 0; i < NS; i++) { const d = (P[i].x - v.x) ** 2 + (P[i].z - v.z) ** 2; if (d < bd) { bd = d; best = i; } } return best; }
 const idxDist = (a, b) => { const d = Math.abs(a - b); return Math.min(d, NS - d); };
 
+// ---------- trajectoire de course : extérieur à l'entrée, corde au point de corde, extérieur en sortie ----------
+// « élastique tendu » dans les limites de piste (chemin le plus court), puis lissé → proche de la trajectoire à courbure minimale
+const LAT = new Float32Array(NS), KL = new Float32Array(NS), DSL = new Float32Array(NS);
+{
+  const B = i => Math.max(0, HW[i] - 1.5); // marge : demi-largeur de la voiture + 0,5 m
+  // courbure minimale (relaxation biharmonique dans les limites de piste), du grossier au fin : 20 m → 10 m → 2 m
+  let lat = null, prevStep = 0;
+  for (const [stp, its] of [[10, 9000], [5, 5000], [1, 1500]]) {
+    const M = Math.floor(NS / stp), idx = Array.from({ length: M }, (_, k) => k * stp);
+    const L = new Float32Array(M);
+    if (lat) for (let k = 0; k < M; k++) { const f = idx[k] / prevStep, a = Math.floor(f), t = f - a, n = lat.length; L[k] = lat[a % n] * (1 - t) + lat[(a + 1) % n] * t; }
+    const bx = idx.map(i => P[i].x), bz = idx.map(i => P[i].z), nx = idx.map(i => NL[i].x), nz = idx.map(i => NL[i].z), bb = idx.map(B);
+    const X = k => bx[(k + M) % M] + nx[(k + M) % M] * L[(k + M) % M], Z = k => bz[(k + M) % M] + nz[(k + M) % M] * L[(k + M) % M];
+    for (let it = 0; it < its; it++) for (let k = 0; k < M; k++) {
+      const tx = (4 * (X(k - 1) + X(k + 1)) - X(k - 2) - X(k + 2)) / 6, tz = (4 * (Z(k - 1) + Z(k + 1)) - Z(k - 2) - Z(k + 2)) / 6;
+      L[k] = clamp((tx - bx[k]) * nx[k] + (tz - bz[k]) * nz[k], -bb[k], bb[k]);
+    }
+    lat = L; prevStep = stp;
+  }
+  for (let i = 0; i < NS; i++) LAT[i] = lat[i % lat.length];
+  const RX = new Float32Array(NS), RZ = new Float32Array(NS); for (let i = 0; i < NS; i++) { RX[i] = P[i].x + NL[i].x * LAT[i]; RZ[i] = P[i].z + NL[i].z * LAT[i]; }
+  const H = new Float32Array(NS); for (let i = 0; i < NS; i++) { const a = (i - 1 + NS) % NS, b = (i + 1) % NS; H[i] = Math.atan2(RX[b] - RX[a], RZ[b] - RZ[a]); DSL[i] = Math.hypot(RX[b] - RX[i], RZ[b] - RZ[i]) || STEP; }
+  const kr = new Float32Array(NS); for (let i = 0; i < NS; i++) { const a = (i - 1 + NS) % NS, b = (i + 1) % NS; kr[i] = -wrapA(H[b] - H[a]) / (DSL[a] + DSL[i]); }
+  for (let i = 0; i < NS; i++) { let t = 0; for (let j = -3; j <= 3; j++) t += kr[(i + j + NS) % NS]; KL[i] = t / 7; }
+}
 // voie des stands
 // voie des stands reliée à la piste : bretelle d'entrée depuis le bord de piste, bretelle de sortie qui y revient
 const PIT_ENTRY = {}, PIT_EXIT = {};
@@ -596,8 +625,7 @@ const VS = Array.from({ length: NS }, (_, i) => i * STEP);
   tec.forEach(([i, s], k) => { const p = at(i, s * ((s > 0 ? offL[i] : offR[i]) - .6), 0); q.setFromAxisAngle(up, HD[i]); m4.compose(p, q, new THREE.Vector3(1, 1, 1)); ti.setMatrixAt(k, m4); ti.setColorAt(k, col.setHex(i % 2 ? 0xd7262b : 0x1f4fbf)); });
   ti.castShadow = true; ti.receiveShadow = true; scene.add(ti);
   // trajectoire gommée (bande plus sombre sur la ligne idéale)
-  const rl = new Float32Array(NS); for (let i = 0; i < NS; i++) rl[i] = -Math.sign(K[(i + 6) % NS]) * clamp(Math.abs(K[(i + 6) % NS]) * 120, 0, Math.max(0, HW[i] - 2.5));
-  const rs = rl.slice(); for (let i = 0; i < NS; i++) { let t = 0; for (let j = -12; j <= 12; j++) t += rl[(i + j + NS) % NS]; rs[i] = t / 25; }
+  const rs = LAT; // trajectoire gommée = trajectoire de course
   const A = [], B = []; for (let i = 0; i < NS; i++) { A.push(at(i, rs[i] + 1.1, .125)); B.push(at(i, rs[i] - 1.1, .125)); }
   const rub = mesh(strip(A, B, VS, { closed: true, up: true }), new THREE.MeshStandardMaterial({ color: 0x1c1c20, transparent: true, opacity: .32, depthWrite: false, roughness: .6 }), { to: scene }); rub.renderOrder = 1;
   // postes de commissaires (cabine orange, drapeau vert) tous les ~300 m
@@ -801,7 +829,19 @@ const waterBoxes = D.water.map(rings => { let a = Infinity, b = Infinity, c = -I
 const inWaterMap = (x, z) => waterBoxes.some(w => { if (x < w.box[0] || x > w.box[2] || z < w.box[1] || z > w.box[3]) return false; let c = false; w.rings.forEach(r => { if (pip(x, z, r)) c = !c; }); return c; });
 const bldPolys = D.bld.concat([D.garages]).map(p => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; p.forEach(q => { a = Math.min(a, q[0]); b = Math.min(b, q[1]); c = Math.max(c, q[0]); d = Math.max(d, q[1]); }); return { p, box: [a, b, c, d] }; });
 const inBldMap = (x, z) => bldPolys.some(o => x > o.box[0] - 2 && x < o.box[2] + 2 && z > o.box[1] - 2 && z < o.box[3] + 2 && pip(x, z, o.p));
-const placed = []; // rectangles acceptés {c, d, q, hl, hd}
+const placed = []; // rectangles acceptés {c, d, q, hl, hd, sight}
+// lignes de vue : depuis 5 points du bord avant de chaque tribune jusqu'à la piste (points tous les 2 m)
+function sightOf(c, d, q, hl, hd) {
+  const pts = [];
+  const n = Math.max(2, Math.ceil(hl * 2 * .95 / 8));
+  for (let k = 0; k <= n; k++) { const u = (k / n - .5) * .99; // un rayon tous les ~8 m le long du bord avant
+    const f = c.clone().addScaledVector(q, hd).addScaledVector(d, u * 2 * hl), tp = P[nearestIdx(f)], L = tp.distanceTo(f);
+    for (let t = 1; t < L - 7; t += 2) pts.push(f.clone().lerp(tp, t / L));
+  }
+  return pts;
+}
+const addPlaced = (c, d, q, hl, hd) => placed.push({ c, d, q, hl, hd, sight: sightOf(c, d, q, hl, hd) });
+const blocksOthers = (c, d, q, hl, hd) => placed.some(r => r.sight.some(v => { const x = v.x - c.x, z = v.z - c.z; return Math.abs(x * d.x + z * d.z) < hl + .5 && Math.abs(x * q.x + z * q.z) < hd + .5; }));
 const inPlaced = (v, m = 1) => placed.some(r => { const x = v.x - r.c.x, z = v.z - r.c.z; return Math.abs(x * r.d.x + z * r.d.z) < r.hl + m && Math.abs(x * r.q.x + z * r.q.z) < r.hd + m; });
 function trackClear(v) { // distance au mur le plus proche ≥ 2 m
   return !trackGrid.any(v.x, v.z, 18, j => { const dx = v.x - P[j].x, dz = v.z - P[j].z; const lat = dx * NL[j].x + dz * NL[j].z; const lim = (lat > 0 ? offL[j] : offR[j]) + 2; return dx * dx + dz * dz < lim * lim; });
@@ -818,7 +858,8 @@ function sliceOK(f, d, q, len, depth) { // f = milieu du bord avant, d = axe, q 
   }
   const ti = nearestIdx(f), tp = P[ti]; const dist = tp.distanceTo(f);
   if (dist > 70) return 'trop loin';
-  for (let s = 3; s < dist - 6; s += 3) { const v = f.clone().lerp(tp, s / dist); if (inPlaced(v, 0) || inBldMap(v.x + cx, v.z + cz)) return 'vue bouchée'; }
+  for (let k = 0, n = Math.max(2, Math.ceil(len * .95 / 8)); k <= n; k++) { const u = (k / n - .5) * .99; const fu = f.clone().addScaledVector(d, u * len), tu = P[nearestIdx(fu)], du = tu.distanceTo(fu); for (let s = 2; s < du - 7; s += 2) { const v = fu.clone().lerp(tu, s / du); if (inPlaced(v, 0) || inBldMap(v.x + cx, v.z + cz)) return 'vue bouchée'; } }
+  if (blocksOthers(c, d, q, len / 2, depth / 2)) return 'masquerait une autre tribune';
   return null;
 }
 const segs = [];
@@ -859,7 +900,7 @@ segs.forEach(sg => {
     if (runL >= 12) {
       const dep = res[i].dep, f0 = sg.a.clone().addScaledVector(d, i * sl).addScaledVector(q, sg.depth / 2 - res[i].back - dep / 2);
       const f1 = sg.a.clone().addScaledVector(d, (j + 1) * sl).addScaledVector(q, sg.depth / 2 - res[i].back - dep / 2);
-      placed.push({ c: f0.clone().add(f1).multiplyScalar(.5), d: d.clone(), q: q.clone(), hl: runL / 2, hd: dep / 2 });
+      addPlaced(f0.clone().add(f1).multiplyScalar(.5), d.clone(), q.clone(), runL / 2, dep / 2);
       grandstand(f0, f1, dep, sg.name, q);
       kept += runL;
     }
@@ -891,11 +932,58 @@ Object.entries(byName).forEach(([name, o]) => {
   }
   if (done) {
     const c = done.f.clone().addScaledVector(done.q, -DEP / 2);
-    placed.push({ c, d: done.d.clone(), q: done.q.clone(), hl: want / 2, hd: DEP / 2 });
+    addPlaced(c, done.d.clone(), done.q.clone(), want / 2, DEP / 2);
     grandstand(c.clone().addScaledVector(done.d, -want / 2), c.clone().addScaledVector(done.d, want / 2), DEP, name, done.q);
     REPORT.push({ name, plan: 0, gardé: Math.round(want), raisons: 'déplacée de ' + Math.round(Math.abs(done.i - home) * STEP) + ' m' });
   } else REPORT.push({ name, plan: 0, gardé: 0, raisons: 'aucun emplacement libre' });
 });
+// ---- gradins au maximum : on remplit les espaces libres le long de la piste (sans eau, bâtiment, route, arbre ni bois) ----
+const TRIB_MAX = new URLSearchParams(location.search).get('tribunes') !== 'plan';
+const seatsOf = list => Math.round(list.reduce((s, st) => s + st.rows * st.len / .55, 0) / 100) * 100; // ≈ 1 place / 55 cm par rang
+const SEATS_PLAN = seatsOf(STANDS), N_PLAN = STANDS.length;
+const OSMD = TRIB_MAX ? await fetch('osm.json').then(r => r.json()).catch(() => null) : null;
+if (OSMD) {
+  const tg = new Grid(10); OSMD.trees.forEach(t => tg.add(t[0], t[1], t)); OSMD.rows.forEach(r => { for (let k = 0; k < r.length - 1; k++) { const a = r[k], b = r[k + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let t = 0; t < l; t += 6) tg.add(a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l, [a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l]); } });
+  const boxed = list => list.map(rs => { let a = 1e9, b = 1e9, c = -1e9, e = -1e9; rs.forEach(r => r.forEach(q => { a = Math.min(a, q[0]); b = Math.min(b, q[1]); c = Math.max(c, q[0]); e = Math.max(e, q[1]); })); return { rs, box: [a, b, c, e] }; });
+  const woods = boxed(OSMD.forest.concat(OSMD.scrub, OSMD.water)), blds = boxed(OSMD.bld.map(([h, r]) => [r]));
+  const inAny = (list, x, z) => list.some(w => { if (x < w.box[0] - 1 || x > w.box[2] + 1 || z < w.box[1] - 1 || z > w.box[3] + 1) return false; let c = false; w.rs.forEach(r => { if (pip(x, z, r)) c = !c; }); return c; });
+  const rg = new Grid(20); OSMD.roads.forEach(([w, r]) => { if (w < 5) return; for (let k = 0; k < r.length - 1; k++) { const a = r[k], b = r[k + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let t = 0; t <= l; t += 3) rg.add(a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l, [a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l, w / 2 + 1]); } });
+  const freeRect = (c, d, q, hl, hd) => {
+    for (let u = -hl; u <= hl + .01; u += 4) for (let v = -hd; v <= hd + .01; v += 4) {
+      const w = c.clone().addScaledVector(d, u).addScaledVector(q, v), x = w.x + cx, z = w.z + cz;
+      if (tg.any(x, z, 4, t => (t[0] - x) ** 2 + (t[1] - z) ** 2 < 12)) return false;   // arbre recensé à < 3,5 m
+      if (rg.any(x, z, 15, r => (r[0] - x) ** 2 + (r[1] - z) ** 2 < r[2] * r[2])) return false; // route
+      if (inAny(woods, x, z) || inAny(blds, x, z)) return false;                      // bois, eau, bâtiment
+    }
+    return true;
+  };
+  let added = 0;
+  for (const side of [1, -1]) for (let i0 = 0; i0 < NS; ) {
+    let ok = false;
+    for (const len of [150, 110, 80, 55, 35]) {
+      const nS = Math.round(len / STEP), i1 = (i0 + nS) % NS, a = P[i0], b = P[i1], dd = b.clone().sub(a).setY(0), L = dd.length(); if (L < len * .9) continue; dd.normalize();
+      const nrm = new THREE.Vector3(dd.z, 0, -dd.x).multiplyScalar(side);
+      let far = -1e9, dev = 0, gap = false;
+      for (let k = 0; k <= nS; k++) { const ii = (i0 + k) % NS, rel = P[ii].clone().sub(a), lat = rel.dot(nrm); dev = Math.max(dev, Math.abs(lat)); const sameSide = side * NL[ii].dot(nrm) > 0; far = Math.max(far, lat + (sameSide ? (side > 0 ? offL[ii] : offR[ii]) : (side > 0 ? offR[ii] : offL[ii]))); if (side > 0 ? gapL[ii] : gapR[ii]) gap = true; }
+      if (dev > 5 || gap) continue; // portion trop courbe, ou entrée/sortie des stands
+      const f = a.clone().addScaledVector(dd, L / 2).addScaledVector(nrm, far + 4), q = nrm.clone().negate();
+      for (const dep of [24, 16, 10]) {
+        const c = f.clone().addScaledVector(q, -dep / 2);
+        if (!freeRect(c, dd, q, L / 2, dep / 2) || sliceOK(f, dd, q, L, dep)) continue;
+        addPlaced(c, dd.clone(), q.clone(), L / 2, dep / 2);
+        let nm = '', bdn = Infinity; nameLabels.forEach(l => { const d2 = (l[1] - cx - c.x) ** 2 + (l[2] - cz - c.z) ** 2; if (d2 < bdn) { bdn = d2; nm = l[0]; } });
+        grandstand(c.clone().addScaledVector(dd, -L / 2), c.clone().addScaledVector(dd, L / 2), dep, nm, q);
+        STANDS[STANDS.length - 1].extra = true; added++; ok = true; i0 += nS + 4; break;
+      }
+      if (ok) break;
+    }
+    if (!ok) i0 += 8;
+  }
+  REPORT.push({ name: 'AJOUTÉES', plan: 0, gardé: added, raisons: 'tribunes ajoutées dans les espaces libres' });
+}
+const SEATS_ALL = seatsOf(STANDS);
+window.__placed = placed;
+window.__seats = { plan: SEATS_PLAN, all: SEATS_ALL, nPlan: N_PLAN, nAll: STANDS.length };
 console.table(REPORT);
 window.__standsReport = REPORT;
 // ---- berges remblayées : l'eau ne touche jamais la piste, les murs ni les tribunes ----
@@ -1177,10 +1265,10 @@ const aLat = v => MU + KA * v * v;
 const aBrk = v => Math.min(50, 22 + .0034 * v * v);
 const aAcc = v => Math.max(0, Math.min(13.5, 937 / Math.max(v, 5)) - .0011 * v * v);
 const VP = new Float32Array(NS);
-for (let i = 0; i < NS; i++) { const k = Math.abs(K[i]); VP[i] = k > KA + 1e-5 ? Math.min(VMAX, Math.sqrt(MU / (k - KA))) : VMAX; }
+for (let i = 0; i < NS; i++) { const k = Math.abs(KL[i]); VP[i] = k > KA + 1e-5 ? Math.min(VMAX, Math.sqrt(MU / (k - KA))) : VMAX; }
 for (let pass = 0; pass < 3; pass++) {
-  for (let i = NS - 1; i >= 0; i--) { const j = (i + 1) % NS; VP[i] = Math.min(VP[i], Math.sqrt(VP[j] ** 2 + 2 * aBrk(VP[j]) * .85 * STEP)); }
-  for (let i = 0; i < NS; i++) { const j = (i - 1 + NS) % NS; VP[i] = Math.min(VP[i], Math.sqrt(VP[j] ** 2 + 2 * Math.max(aAcc(VP[j]), .5) * STEP)); }
+  for (let i = NS - 1; i >= 0; i--) { const j = (i + 1) % NS; VP[i] = Math.min(VP[i], Math.sqrt(VP[j] ** 2 + 2 * aBrk(VP[j]) * .85 * DSL[i])); }
+  for (let i = 0; i < NS; i++) { const j = (i - 1 + NS) % NS; VP[i] = Math.min(VP[i], Math.sqrt(VP[j] ** 2 + 2 * Math.max(aAcc(VP[j]), .5) * DSL[j])); }
 }
 // zones DRS : lignes droites d'au moins 300 m
 const DRSZ = new Uint8Array(NS);
@@ -1317,7 +1405,7 @@ function stepPlayer(dt) {
   let thr = 0, brk = 0, st = 0;
   if (c.auto) {
     const la = 8 + c.v * .45; const j = (c.idx + Math.round(la / STEP)) % NS;
-    const tgt = at(j, -Math.sign(K[j]) * clamp(Math.abs(K[j]) * 120, 0, Math.max(0, HW[j] - 2.5)), 0);
+    const tgt = at(j, LAT[j], 0); // suit la trajectoire de course
     const hd = Math.atan2(tgt.x - c.pos.x, tgt.z - c.pos.z); st = clamp(wrapA(hd - c.h) * 2.4, -1, 1);
     let vt = Infinity; for (let k = 0; k < 6; k++) vt = Math.min(vt, VP[(c.idx + k) % NS]); vt *= .98;
     thr = clamp((vt - c.v) / 2.5, 0, 1); brk = clamp((c.v - vt - .5) / 3, 0, 1);
@@ -1379,9 +1467,9 @@ function stepAI(dt) {
     const i = Math.floor(a.s / STEP) % NS;
     const vt = VP[(i + 3) % NS] * a.skill;
     a.v += clamp(vt - a.v, -aBrk(a.v) * .9 * dt, Math.max(aAcc(a.v), .5) * dt);
-    a.s = (a.s + a.v * dt) % LEN; a.dist += a.v * dt;
+    const adv = a.v * dt * STEP / DSL[i]; a.s = (a.s + adv) % LEN; a.dist += adv; // vitesse mesurée le long de la trajectoire
     const f = (a.s / STEP) % NS, i0 = Math.floor(f), i1 = (i0 + 1) % NS, t = f - i0;
-    a.lat += (clamp(-Math.sign(K[(i0 + 10) % NS]) * clamp(Math.abs(K[(i0 + 10) % NS]) * 120, 0, 3) + Math.sin(a.phase + a.s * .004) * 1.2, -(HW[i0] - 1.8), HW[i0] - 1.8) - a.lat) * Math.min(1, dt * 1.5);
+    { const lane = DRSZ[i0] ? Math.sin(a.phase + a.s * .003) * 2.2 : 0, b = Math.max(0, HW[i0] - 1.5); a.lat += (clamp(LAT[(i0 + 2) % NS] + lane, -b, b) - a.lat) * Math.min(1, dt * 4); } // trajectoire de course ; écarts seulement en ligne droite
     const p = at(i0, a.lat, .12).lerp(at(i1, a.lat, .12), t);
     a.car.position.copy(p); a.car.rotation.y = HD[i0] + wrapA(HD[i1] - HD[i0]) * t;
     a.car.userData.wheels.forEach(w => w.rotation.x += a.v * dt / .37);
@@ -1494,6 +1582,7 @@ for (let k = 0; k < 15; k++) { const e = document.createElement('i'); $('#rpmled
 $('#btnSnd').onclick = () => { soundOn = !soundOn; if (soundOn && !audio) initAudio(); if (audio) audio.ctx.resume(); $('#btnSnd').setAttribute('aria-pressed', soundOn); flash(soundOn ? 'Son moteur activé' : 'Son coupé'); };
 setMode('drive');
 document.querySelectorAll('[data-env]').forEach(b => b.onclick = () => setEnv(b.dataset.env));
+document.querySelectorAll('[data-trib]').forEach(b => { b.setAttribute('aria-pressed', (b.dataset.trib === '') === TRIB_MAX); b.onclick = () => { const u = new URL(location.href); if (b.dataset.trib) u.searchParams.set('tribunes', b.dataset.trib); else u.searchParams.delete('tribunes'); location.href = u.toString(); }; });
 document.querySelectorAll('[data-piste]').forEach(b => { b.setAttribute('aria-pressed', (b.dataset.piste === 'ideale') === IDEAL); b.onclick = () => { const u = new URL(location.href); if (b.dataset.piste) u.searchParams.set('piste', b.dataset.piste); else u.searchParams.delete('piste'); location.href = u.toString(); }; });
 // bilan des arbres à abattre pour la piste idéale (arbres recensés un par un + surface de bois)
 fetch('osm.json').then(r => r.json()).then(O => { // bilan : arbres à retirer entre la chaussée existante et les murs
@@ -1515,6 +1604,7 @@ fetch('osm.json').then(r => r.json()).then(O => { // bilan : arbres à retirer e
   let z20 = 0, wider = 0; for (let i = 0; i < NS; i++) { if (OVT[i]) z20 += STEP; if (HW[i] > HW0[i] + .25) wider += STEP; }
   const box = $('#idealInfo'); box.hidden = false;
   box.innerHTML = (IDEAL ? `<b>PISTE IDÉALE</b> · 15 m partout, 20 m sur ${Math.round(z20)} m de zones de freinage<br>` : `<b>PISTE F1</b> · 14 m de large (15 m sur la ligne droite), murs à 3 m, dégagements de 7 m dans les virages<br>`) + `<span class="big">${mapped + est} arbres</span> à abattre environ<br>· <b>${mapped}</b> arbres recensés un par un (OSM)<br>· <b>${Math.round(area).toLocaleString('fr-FR')} m²</b> de bois (≈ ${est} arbres, à 400/ha)`;
+  box.innerHTML += TRIB_MAX ? `<br><b>TRIBUNES MAX</b> · ${STANDS.length} tribunes, ≈ ${SEATS_ALL.toLocaleString('fr-FR')} places<br>(plan seul : ${N_PLAN} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places)` : `<br><b>TRIBUNES DU PLAN</b> · ${STANDS.length} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places`;
   window.__ideal = { mapped, area: Math.round(area), est, z20: Math.round(z20), wider: Math.round(wider), woodLen: Math.round(len) };
 });
 setEnv(location.hash === '#photo' ? 'photo' : location.hash === '#styl' ? 'styl' : 'osm'); // OpenStreetMap par défaut
