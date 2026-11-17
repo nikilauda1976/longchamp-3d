@@ -103,6 +103,30 @@
   #lights b.r { background:radial-gradient(circle at 40% 35%,#ff8a80,#e10600 55%,#7a0000); box-shadow:0 0 18px #ff2b1a; }
   #ghostTag { left:50%; top:calc(max(12px,env(safe-area-inset-top)) + 44px); transform:translateX(-50%); font:700 15px "Titillium Web",Arial,sans-serif; background:rgba(12,12,18,.84); padding:4px 12px; border-radius:4px; display:none; font-variant-numeric:tabular-nums; }
   #ghostTag.on { display:block; }
+  /* mode présentation */
+  body.pitch #modes, body.pitch #help, body.pitch #mini, body.pitch #idealInfo, body.pitch #tower, body.pitch #ghostTag, body.pitch #where, body.pitch .touch { display:none !important; }
+  #pitch { position:fixed; left:max(16px,env(safe-area-inset-left)); bottom:max(16px,env(safe-area-inset-bottom)); width:min(92vw,440px); z-index:12; background:rgba(12,12,18,.88); border-left:6px solid #e10600; border-radius:6px; padding:12px 16px 14px; font-family:"Titillium Web",Arial,sans-serif; backdrop-filter:blur(4px); }
+  #pitch .pk { display:flex; align-items:center; gap:10px; font-size:12px; letter-spacing:.1em; color:#c9c9d1; }
+  #pBar { flex:1; height:3px; background:rgba(255,255,255,.15); border-radius:2px; overflow:hidden; } #pBar i { display:block; height:100%; background:#e10600; transition:width .4s; }
+  #pitch .pk button { font:700 12px "Titillium Web",Arial,sans-serif; letter-spacing:.06em; color:#fff; background:rgba(255,255,255,.12); border:0; border-radius:4px; padding:4px 8px; cursor:pointer; }
+  #pitch .pk button[aria-pressed="true"] { background:#e10600; }
+  #pT { font:400 30px/1.05 Anton,Impact,sans-serif; text-transform:uppercase; margin:8px 0 6px; letter-spacing:.01em; }
+  #pX { font-size:15px; line-height:1.45; margin:0 0 10px; color:#e6e6ee; }
+  #pC { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; } #pC span { font-weight:700; font-size:14px; background:rgba(255,210,31,.14); color:#ffd21f; border-radius:4px; padding:3px 8px; }
+  #pitch .pgo { display:flex; gap:8px; } #pitch .pgo[hidden] { display:none; } #pitch .pgo + .pgo { margin-top:8px; }
+  #pitch .pgo button { flex:1; font:800 18px "Barlow Condensed",sans-serif; letter-spacing:.06em; text-transform:uppercase; border:0; border-radius:5px; padding:10px; cursor:pointer; color:#fff; background:rgba(255,255,255,.12); }
+  #pitch .pgo button.main { flex:3; background:#e10600; } #pitch .pgo button:disabled { opacity:.35; cursor:default; }
+  body.is-touch #pitch { width:calc(100vw - 24px); left:12px; padding:10px 12px 12px; } body.is-touch #pT { font-size:24px; } body.is-touch #pX { font-size:13px; }
+  body.pitch #credits { bottom:auto; top:max(4px,env(safe-area-inset-top)); left:8px; right:8px; text-align:center; }
+  body.pitch.mode-drive #onboard { bottom:auto; top:max(14px,env(safe-area-inset-top)); }
+  /* fiche projet */
+  #fiche { position:fixed; inset:0; display:none; place-items:center; z-index:16; background:rgba(10,8,24,.55); backdrop-filter:blur(3px); }
+  #fiche.on { display:grid; }
+  #fiche .gpanel { width:min(94vw,620px); max-height:88vh; overflow:auto; -webkit-user-select:text; user-select:text; touch-action:pan-y; }
+  #fiche h4 { font:700 13px "Titillium Web",Arial,sans-serif; letter-spacing:.12em; text-transform:uppercase; color:#ffd21f; margin:16px 0 6px; }
+  #fiche table { width:100%; border-collapse:collapse; font-size:14px; } #fiche td { padding:5px 6px; border-bottom:1px solid rgba(255,255,255,.08); vertical-align:top; }
+  #fiche td:first-child { color:#c9c9d1; width:44%; } #fiche a { color:#8fb8ff; font-size:12px; } #fiche .ok { color:#2bd65a; }
+  #fiche .note { font-size:12px; color:#a9a9b6; line-height:1.45; margin:6px 0 0; }
 </style>
 <script type="importmap">
 { "imports": {
@@ -135,7 +159,14 @@
 </div></div>
 <div id="results"><div class="gpanel"><h2 id="resT">Arrivée</h2><p class="sub" id="resS"></p><table id="resTab"></table>
   <div class="go"><button class="main" id="rAgain">Rejouer</button><button id="rMenu">Menu</button><button id="rFree">Explorer</button></div></div></div>
-<div id="credits">Concept non officiel · Données © contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL) · Orthophoto © IGN (Licence Ouverte)</div>
+<div id="pitch" hidden>
+  <div class="pk"><span id="pN"></span><div id="pBar"><i></i></div><button id="pAuto" aria-pressed="false" title="Lecture automatique">Auto</button><button id="pQuit" title="Quitter (Échap)">✕</button></div>
+  <h3 id="pT"></h3><p id="pX"></p><div id="pC"></div>
+  <div class="pgo"><button id="pPrev">◀</button><button id="pNext" class="main">Suivant ▶</button></div>
+  <div class="pgo" id="pEnd" hidden><button id="pExplore">Explorer librement</button><button id="pFiche">Fiche projet</button></div>
+</div>
+<div id="fiche"><div class="gpanel fp"></div></div>
+<div id="credits">Concept non officiel · Marques affichées à titre illustratif, sans partenariat · Données © contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL) · Orthophoto © IGN (Licence Ouverte)</div>
 
 <div id="modes">
   <div class="seg" role="group" aria-label="Mode">
@@ -144,10 +175,17 @@
     <button data-mode="drone" aria-pressed="false">Survol</button>
   </div>
   <div style="display:flex;gap:6px">
+    <button class="btn gbtn" id="btnPitch">Présenter</button>
+    <button class="btn" id="btnFiche">Fiche projet</button>
     <button class="btn gbtn" id="btnPlay">Jouer</button>
     <button class="btn" id="btnAuto" aria-pressed="true">Pilote auto</button>
     <button class="btn" id="btnCam">Caméra</button>
     <button class="btn" id="btnSnd" aria-pressed="false">Son</button>
+  </div>
+  <div class="seg" role="group" aria-label="Ambiance">
+    <button data-amb="jour" aria-pressed="true">Jour</button>
+    <button data-amb="coucher" aria-pressed="false">Coucher de soleil</button>
+    <button data-amb="nuit" aria-pressed="false">Nuit</button>
   </div>
   <div class="seg" role="group" aria-label="Décor">
     <button data-env="styl" aria-pressed="false">Stylisé</button>
@@ -211,15 +249,15 @@ const maxAniso = renderer.capabilities.getMaxAnisotropy();
 // ciel
 const sky = new THREE.Mesh(new THREE.SphereGeometry(11000, 32, 16), new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
-  uniforms: { top: { value: new THREE.Color(0x3d7fd6) }, bot: { value: new THREE.Color(0xdde9f2) } },
+  uniforms: { top: { value: new THREE.Color(0x3d7fd6) }, bot: { value: new THREE.Color(0xdde9f2) }, ct: { value: new THREE.Color(1, 1, 1) } },
   vertexShader: 'varying vec3 vp; void main(){ vp = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
-  fragmentShader: 'uniform vec3 top; uniform vec3 bot; varying vec3 vp;'
+  fragmentShader: 'uniform vec3 top; uniform vec3 bot; uniform vec3 ct; varying vec3 vp;'
     + 'float hs(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }'
     + 'float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(hs(i), hs(i + vec2(1, 0)), f.x), mix(hs(i + vec2(0, 1)), hs(i + vec2(1, 1)), f.x), f.y); }'
     + 'float fbm(vec2 p){ float a = .5, s = 0.; for (int k = 0; k < 5; k++) { s += a * vn(p); p *= 2.03; a *= .5; } return s; }'
     + 'void main(){ float h = clamp(vp.y, 0., 1.); vec3 c = mix(bot, top, pow(h, .5));'
     + ' vec2 uv = vp.xz / (vp.y + .12) * 1.6; float n = fbm(uv + vec2(3.1, 7.4)); float cl = smoothstep(.48, .78, n) * smoothstep(.0, .18, vp.y);'
-    + ' vec3 cc = mix(vec3(.72, .75, .8), vec3(1.), smoothstep(.5, .9, fbm(uv * 1.7 + 11.)));'
+    + ' vec3 cc = mix(vec3(.72, .75, .8), vec3(1.), smoothstep(.5, .9, fbm(uv * 1.7 + 11.))) * ct;'
     + ' gl_FragColor = vec4(mix(c, cc, cl * .9), 1.);\n#include <colorspace_fragment>\n}'
 }));
 sky.renderOrder = -10; scene.add(sky);
@@ -251,7 +289,8 @@ const texKerb = ctex(64, 128, (g, w, h) => { g.fillStyle = '#e0261c'; g.fillRect
 const texChecker = ctex(64, 16, (g, w, h) => { for (let x = 0; x < 16; x++) for (let y = 0; y < 4; y++) { g.fillStyle = (x + y) % 2 ? '#111' : '#fff'; g.fillRect(x * 4, y * 4, 4, 4); } });
 // partenaires mondiaux de la F1 (saison 2026) : noms en typographie libre, pas de reproduction de logos
 const SERIF = '"Bodoni 72", Didot, "Playfair Display", Georgia, serif', SANS = '"Titillium Web", "Helvetica Neue", Arial, sans-serif';
-const ADS = [
+const PUB_LIBRE = new URLSearchParams(location.search).get('pubs') === 'libre';
+const ADS_F1 = [
   ['LOUIS VUITTON', '#4A2F1B', '#E9DCC0', '600 34px ' + SERIF],
   ['ARAMCO', '#ffffff', '#00843D', '700 46px ' + SANS],
   ['MSC CRUISES', '#0B1F45', '#ffffff', '700 40px ' + SANS],
@@ -267,6 +306,7 @@ const ADS = [
   ['LVMH', '#ffffff', '#111111', '600 44px ' + SERIF],
   ['CRYPTO.COM', '#002D74', '#ffffff', '700 38px ' + SANS],
 ];
+const ADS = PUB_LIBRE ? ADS_F1.map((a, k) => ['VOTRE MARQUE ICI', ['#26115C', '#E2231A', '#16122A', '#1E7FD8'][k % 4], '#ffffff', '700 34px ' + SANS]) : ADS_F1;
 const ADS_PERIOD = ADS.length * 10; // un panneau tous les 10 m
 const texAds = ctex(4096, 64, (g, w, h) => { const pw = w / ADS.length; ADS.forEach(([t, bg, fg, font], i) => { g.fillStyle = bg; g.fillRect(i * pw, 0, pw, h); g.fillStyle = fg; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; const k = (pw / h) / 8; let sz = parseInt(font.match(/(\d+)px/)[1]); while (g.measureText(t).width * k > pw * .86 && sz > 14) { sz -= 2; g.font = font.replace(/\d+px/, sz + 'px'); } g.save(); g.translate(i * pw + pw / 2, h / 2 + 2); g.scale(k, 1); g.fillText(t, 0, 0); g.restore(); /* compensé : un panneau de 10 m × 1,25 m */ g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(i * pw, 0, 3, h); }); });
 const texFence = ctex(64, 64, (g, w, h) => { g.clearRect(0, 0, w, h); g.strokeStyle = 'rgba(70,74,80,.85)'; g.lineWidth = 2; for (let i = -64; i < 128; i += 10) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 64, 64); g.stroke(); g.beginPath(); g.moveTo(i + 64, 0); g.lineTo(i, 64); g.stroke(); } g.fillStyle = '#5b5f66'; g.fillRect(0, 0, 4, h); });
@@ -889,7 +929,7 @@ function groundGeo() {
   for (const s of [1, -1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(.6, 8, .6), dark); post.castShadow = true; post.position.copy(at(i, s > 0 ? offL[i] + 1 : -offR[i] - 1, 4)); scene.add(post); }
   const red = new THREE.MeshStandardMaterial({ color: 0xff2a1a, emissive: 0xff1a0a, emissiveIntensity: 1.6 });
   for (let k = -2; k <= 2; k++) { const l = new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .2, 16), red); l.rotation.x = Math.PI / 2; l.position.copy(at((i - 1 + NS) % NS, k * 1.4, 8)); l.rotation.z = 0; l.lookAt(at((i - 8 + NS) % NS, k * 1.4, 8)); l.rotateX(Math.PI / 2); scene.add(l); }
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.6), new THREE.MeshBasicMaterial({ map: textTex('GRAND PRIX DE PARIS · TAG HEUER', '#26115C', '#FFD21F', 1024, 128), side: THREE.DoubleSide }));
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.6), new THREE.MeshBasicMaterial({ map: textTex(PUB_LIBRE ? 'GRAND PRIX DE PARIS' : 'GRAND PRIX DE PARIS · TAG HEUER', '#26115C', '#FFD21F', 1024, 128), side: THREE.DoubleSide }));
   sign.position.copy(at((i + 1) % NS, 0, 9.6)); sign.lookAt(at((i - 20 + NS) % NS, 0, 9.6)); scene.add(sign);
   const white = new THREE.MeshStandardMaterial({ color: 0xffffff });
   for (let r = 0; r < 22; r++) { const ii = (i - 4 - r * 4 + NS * 2) % NS; const s = r % 2 ? -1 : 1; const gg = new THREE.PlaneGeometry(3.2, .25); gg.rotateX(-Math.PI / 2); const mm = mesh(gg, white); mm.position.copy(at(ii, s * HW[ii] * .4, .15)); mm.rotation.y = HD[ii] + Math.PI / 2; }
@@ -1811,7 +1851,7 @@ ENV.photo.visible = ENV.osm.visible = false;
   for (const y of [57, 115]) { const p = new THREE.Mesh(new THREE.BoxGeometry(y < 60 ? 70 : 42, 5, y < 60 ? 70 : 42), iron); p.position.y = y; p.rotation.y = Math.PI / 4; eif.add(p); }
   eif.position.set(4500, 0, 300); // remplacée par la tour Eiffel géoréférencée
   const cloudTex = ctex(256, 128, (g, w, h) => { for (let i = 0; i < 14; i++) { const x = 40 + rand() * 176, y = 50 + rand() * 40, r = 20 + rand() * 30; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); } });
-  for (let k = 0; k < 40; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, fog: false, depthWrite: false, opacity: .9 })); const a = rand() * 6.28, r = 1500 + rand() * 5000; s.position.set(Math.cos(a) * r, 500 + rand() * 600, Math.sin(a) * r); s.scale.set(700 + rand() * 600, 260 + rand() * 160, 1); scene.add(s); }
+  for (let k = 0; k < 40; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, fog: false, depthWrite: false, opacity: .9 })); s.userData.cloud = true; const a = rand() * 6.28, r = 1500 + rand() * 5000; s.position.set(Math.cos(a) * r, 500 + rand() * 600, Math.sin(a) * r); s.scale.set(700 + rand() * 600, 260 + rand() * 160, 1); scene.add(s); }
 }
 
 // ---------- monoplaces ----------
@@ -2323,7 +2363,7 @@ let hudT = 0, placeT = 0;
 function frame() {
   if (window.__FILM) { requestAnimationFrame(frame); return; }
   const dt = Math.min(clock.getDelta(), .05);
-  gameTick(dt); stepPlayer(dt); stepAI(dt); updateCamera(dt);
+  gameTick(dt); stepPlayer(dt); stepAI(dt); if (!pitchCam(dt)) updateCamera(dt);
   const focus = mode === 'drone' ? orbit.target : camera.position;
   sun.position.copy(focus).add(SUN_OFF); sun.target.position.copy(focus); sun.target.updateMatrixWorld();
   if (mode === 'drone') { const d = camera.position.distanceTo(orbit.target); const s = clamp(d * .6, 110, 900); Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s }); sun.shadow.camera.updateProjectionMatrix(); }
@@ -2385,6 +2425,178 @@ fetch('osm.json').then(r => r.json()).then(O => { // bilan : arbres à retirer e
 });
 setEnv(location.hash === '#photo' ? 'photo' : location.hash === '#styl' ? 'styl' : 'osm'); // OpenStreetMap par défaut
 camPos.copy(player.pos).add(new THREE.Vector3(-Math.sin(player.h) * 7.6, 2.7, -Math.cos(player.h) * 7.6));
+// ================== AMBIANCES : jour, coucher de soleil, course de nuit ==================
+const HEMI = scene.children.find(o => o.isHemisphereLight);
+const AMB = {
+  jour:    { top: 0x3d7fd6, bot: 0xdde9f2, ct: [1, 1, 1],      fog: 0xcfe4f5, hs: 0xe4f2ff, hg: 0x56763a, hi: 1.1,  sc: 0xfff6e6, si: 2.6, off: [-260, 520, -180], exp: 1.0,  lamps: false },
+  coucher: { top: 0x26386e, bot: 0xf4a15a, ct: [1, .74, .58],  fog: 0xe9b48a, hs: 0xffc597, hg: 0x4d4a38, hi: .8,   sc: 0xffa463, si: 2.5, off: [-640, 140, 160],  exp: 1.05, lamps: false },
+  nuit:    { top: 0x03081a, bot: 0x16203d, ct: [.09, .1, .15], fog: 0x0b1226, hs: 0xdde6ff, hg: 0x283222, hi: 1.0,  sc: 0xeef2ff, si: 1.4, off: [90, 620, 60],     exp: 1.15, lamps: true },
+};
+let ambName = 'jour';
+const LAMPS = new THREE.Group(); LAMPS.visible = false; scene.add(LAMPS);
+{ // mâts d'éclairage tous les 40 m, en quinconce, comme à Singapour ou Las Vegas
+  const spots = []; for (let i = 0, k = 0; i < NS; i += Math.round(40 / STEP), k++) { const s = k % 2 ? 1 : -1, off = (s > 0 ? offL[i] : offR[i]) + 2.2, p = at(i, s * off, 0); spots.push([p.x, p.z, HD[i] + (s > 0 ? -Math.PI / 2 : Math.PI / 2)]); }
+  const pole = new THREE.InstancedMesh(new THREE.BoxGeometry(.32, 16, .32).translate(0, 8, 0), new THREE.MeshStandardMaterial({ color: 0x5a5e66, roughness: .6 }), spots.length);
+  const head = new THREE.InstancedMesh(new THREE.BoxGeometry(2.6, .5, .9).translate(0, 16, .6), new THREE.MeshBasicMaterial({ color: 0xfff8e8 }), spots.length);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
+  spots.forEach(([x, z, r], k) => { q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), r); m4.compose(new THREE.Vector3(x, H(x, z), z), q, new THREE.Vector3(1, 1, 1)); pole.setMatrixAt(k, m4); head.setMatrixAt(k, m4); });
+  LAMPS.add(pole, head);
+}
+function setAmb(n) {
+  const a = AMB[n]; if (!a) return; ambName = n;
+  const u = sky.material.uniforms; u.top.value.setHex(a.top); u.bot.value.setHex(a.bot); u.ct.value.setRGB(...a.ct);
+  scene.fog.color.setHex(a.fog); HEMI.color.setHex(a.hs); HEMI.groundColor.setHex(a.hg); HEMI.intensity = a.hi;
+  sun.color.setHex(a.sc); sun.intensity = a.si; scene.traverse(o => { if (o.userData.cloud) o.material.color.setRGB(...a.ct); }); SUN_OFF.set(...a.off); renderer.toneMappingExposure = a.exp; LAMPS.visible = a.lamps;
+  document.querySelectorAll('[data-amb]').forEach(b => b.setAttribute('aria-pressed', b.dataset.amb === n));
+}
+document.querySelectorAll('[data-amb]').forEach(b => b.onclick = () => setAmb(b.dataset.amb));
+
+// ================== CHIFFRES DU PROJET (calculés sur le modèle) ==================
+const STATS = (() => {
+  let vmax = 0, tl = 0, hmin = Infinity, hmax = -Infinity, wmin = Infinity, wmax = 0;
+  for (let i = 0; i < NS; i++) { vmax = Math.max(vmax, VP[i]); tl += STEP / Math.max(VP[i], 5); hmin = Math.min(hmin, HT[i]); hmax = Math.max(hmax, HT[i]); wmin = Math.min(wmin, HW[i] * 2); wmax = Math.max(wmax, HW[i] * 2); }
+  // virages marqués : tronçons de rayon < 200 m ; chaque changement de sens compte (chicanes)
+  let turns = 0, last = 0, gap = 1e9, run = 0, best = 0, cur = 0;
+  for (let k = 0; k < NS; k++) {
+    const i = (START + k) % NS, kk = K[i], on = Math.abs(kk) > 1 / 200, sg = Math.sign(kk);
+    if (on) { if (sg !== last || gap > 30) turns++; last = sg; gap = 0; } else gap += STEP;
+    if (Math.abs(kk) < 1 / 1000) { cur += STEP; best = Math.max(best, cur); } else cur = 0;
+  }
+  let drs = 0, drsL = 0; for (let i = 0; i < NS; i++) { if (DRSZ[i]) { drsL += STEP; if (!DRSZ[(i - 1 + NS) % NS]) drs++; } }
+  tl *= 1.063; // calé sur les tours mesurés du pilote automatique (1:28.8 sur le tracé par défaut)
+  return { len: LEN, vmax: vmax * 3.6, lap: tl, avg: LEN / tl * 3.6, dz: hmax - hmin, wmin, wmax, turns, straight: best, drs, drsL };
+})();
+const fmtLap = s => Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0');
+const nf = (v, d = 0) => v.toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
+const SEATS = TRIB_MAX ? SEATS_ALL : SEATS_PLAN;
+
+// ================== FICHE PROJET ==================
+function ficheHTML() {
+  const I = window.__ideal, ok = '<b class="ok">✓</b>', T = STATS;
+  const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
+  return `<h2>Fiche projet</h2><p class="sub">Circuit ParisLongchamp · Grand Prix de Paris · projet conceptuel non officiel</p>
+  <h4>Le circuit</h4><table>
+  ${row('Longueur', nf(T.len / 1000, 2) + ' km')}
+  ${row('Virages marqués (rayon < 200 m)', T.turns + (T1V ? ' (avec la chicane du virage 1)' : ''))}
+  ${row('Vitesse de pointe estimée', '≈ ' + nf(T.vmax) + ' km/h')}
+  ${row('Temps au tour estimé (simulation)', '≈ ' + fmtLap(T.lap) + ' · moyenne ≈ ' + nf(T.avg) + ' km/h')}
+  ${row('Plus longue ligne droite', '≈ ' + nf(T.straight) + ' m')}
+  ${row('Zones DRS', T.drs + ' · ' + nf(T.drsL) + ' m au total')}
+  ${row('Largeur de piste', nf(T.wmin, 0) + ' à ' + nf(T.wmax, 0) + ' m')}
+  ${row('Dénivelé', nf(T.dz, 1) + ' m (relief IGN RGE ALTI)')}
+  </table>
+  <h4>Spectateurs et site</h4><table>
+  ${row('Places en tribune', '≈ ' + nf(SEATS) + (TRIB_MAX ? ' (dont ≈ ' + nf(SEATS_ROOF) + ' sur les toits de l\'hippodrome)' : ''))}
+  ${row('Portes d\'accès', AMEN.gates.length + ' · ' + AMEN.bridges.length + ' passerelles au-dessus de la piste')}
+  ${row('Transports', 'Tram T2 · Métro 10 · navette fluviale sur la Seine · bus et navettes · vélos · taxis/VTC')}
+  ${row('Zones d\'animation', AMEN.zones.map(z => z[5].toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase())).join(' · '))}
+  ${row('Postes de commissaires', AMEN.marshals.length)}
+  ${I ? row('Arbres à abattre (estimation)', '≈ ' + nf(I.mapped + I.est) + (IDEAL ? ' (piste idéale)' : '')) : ''}
+  </table>
+  <h4>Critères FIA pour un nouveau circuit (indicatif)</h4><table>
+  ${row(ok + ' Longueur ≤ 7 km', nf(T.len / 1000, 2) + ' km')}
+  ${row(ok + ' Largeur ≥ 12 m', 'minimum ' + nf(T.wmin, 0) + ' m')}
+  ${row(ok + ' Départ → 1er virage ≥ 250 m', 'ligne de départ reculée en conséquence')}
+  ${row((T.straight <= 2000 ? ok : '⚠') + ' Ligne droite ≤ 2 km', '≈ ' + nf(T.straight) + ' m')}
+  </table><p class="note">Vérification faite sur le modèle, pas une homologation. Une homologation FIA (grade 1) demande une étude détaillée des dégagements, barrières et voies de service.</p>
+  <h4>Repères : d'autres Grands Prix</h4><table>
+  ${row('Silverstone 2025', '500 000 spectateurs sur 4 jours, record de l\'épreuve <a href="https://gpdestinations.com/500000-attend-2025-british-grand-prix-weekend/" target="_blank" rel="noopener">source</a>')}
+  ${row('Melbourne 2025', '≈ 465 000 spectateurs sur 4 jours <a href="https://gpdestinations.com/ranked-the-top-attended-formula-1-races-in-2025/" target="_blank" rel="noopener">source</a>')}
+  ${row('Saison F1 2025', '6,7 millions de spectateurs sur 24 Grands Prix <a href="https://www.formula1.com/en/latest/article/formula-1s-record-breaking-2025-season-in-numbers.irq7aR8PcyAw7ysO72vJn" target="_blank" rel="noopener">source</a>')}
+  ${row('Las Vegas', '≈ 1,5 Md$ de retombées en 2023, ≈ 934 M$ en 2024 (études Applied Analysis) <a href="https://www.planetf1.com/news/las-vegas-gp-economic-impact-highlighted-economic-report" target="_blank" rel="noopener">source</a>')}
+  </table><p class="note">Ordres de grandeur d'autres épreuves, pas une projection pour Paris. Ces études sont souvent commandées par les organisateurs : à confronter à une étude indépendante.</p>
+  <h4>Avertissements</h4><p class="note">Projet conceptuel, sans lien avec la FIA, Formula 1, France Galop ni la Ville de Paris. ${PUB_LIBRE ? 'Les panneaux publicitaires sont des emplacements libres.' : 'Les marques sur les panneaux (partenaires mondiaux de la F1) sont affichées à titre illustratif : aucune n\'est partenaire du projet.'} Vitesses et temps calculés avec une physique simplifiée.</p>
+  <div class="go"><button id="fPubs">${PUB_LIBRE ? 'Afficher les partenaires F1' : 'Panneaux « votre marque ici »'}</button><button class="main" id="fClose">Fermer</button></div>`;
+}
+function openFiche() { const f = $('#fiche'); f.querySelector('.gpanel').innerHTML = ficheHTML(); f.classList.add('on'); $('#fClose').onclick = () => f.classList.remove('on'); $('#fPubs').onclick = () => { const u = new URL(location.href); if (PUB_LIBRE) u.searchParams.delete('pubs'); else u.searchParams.set('pubs', 'libre'); location.href = u.toString(); }; }
+$('#btnFiche').onclick = openFiche;
+$('#fiche').addEventListener('click', e => { if (e.target.id === 'fiche') e.target.classList.remove('on'); });
+
+// ================== MODE PRÉSENTATION GUIDÉ ==================
+const AT = (i, lat = 0, y = 0) => { const v = at(((Math.round(i) % NS) + NS) % NS, lat, y); v.y += H(v.x, v.z); return v; };
+const WP = (p, y = 0) => { const v = W(p); v.y = H(v.x, v.z) + y; return v; };
+const zoneC = n => { const z = AMEN.zones.find(z => z[5] === n); return z ? WP([z[0] + z[2] / 2, z[1] + z[3] / 2]) : new THREE.Vector3(); };
+const iT1 = nearestIdx(W(AMEN.turns[0])), tribC = WP(TRIBUNE_HIPPO.c, 12), iTrib = nearestIdx(tribC);
+const seatStand = STANDS.reduce((b, s) => (!b || s.base > b.base || (s.base === b.base && s.len > b.len)) ? s : b, null);
+const seatPos = (() => { const s = seatStand, r = Math.max(0, s.rows - 2), v = new THREE.Vector3(s.sgn * (s.depth / 2 - (r + .5) * s.rd), 0, 0).applyMatrix4(s.M); v.y = H(v.x, v.z) + s.base + s.rowsInfo[r] + 3.2; return v; })();
+const seatLook = seatStand.look.clone().setY(H(seatStand.look.x, seatStand.look.z) + 1);
+const pad = zoneC('PADDOCK VILLAGE');
+const boat = WP(AMEN.transports.find(t => t[2] === 'boat').slice(0, 2));
+const iWood = nearestIdx(W(AMEN.turns[3]));
+const orbitCam = (c, r, h, a0, w) => t => { const a = a0 + t * w; return [new THREE.Vector3(c.x + Math.cos(a) * r, c.y + h, c.z + Math.sin(a) * r), c]; };
+const alongCam = (i0, v, up, ahead) => t => { const i = i0 + t * v / STEP; return [AT(i, 0, up), AT(i + ahead / STEP, 0, up * .3)]; };
+const STEPS = [
+  { t: 'Grand Prix de Paris', x: `Un circuit de Formule 1 de ${nf(STATS.len / 1000, 2)} km dans le Bois de Boulogne, autour de l'hippodrome de ParisLongchamp. La tour Eiffel est à 4,7 km, La Défense à 3,5 km.`,
+    c: [nf(STATS.len / 1000, 2) + ' km', STATS.turns + ' virages marqués', '≈ ' + nf(SEATS) + ' places'], amb: 'jour', cam: orbitCam(new THREE.Vector3(0, 0, 0), 2300, 1250, 2.35, .025) },
+  { t: 'Le tracé', x: `Une piste rapide et fluide, faite de longues lignes droites et de virages de moyenne vitesse. Elle utilise en grande partie les routes du Bois de Boulogne, élargies.`,
+    c: ['≈ ' + nf(STATS.vmax) + ' km/h en pointe', '≈ ' + fmtLap(STATS.lap) + ' au tour', '≈ ' + nf(STATS.avg) + ' km/h de moyenne', STATS.drs + ' zones DRS'], cam: t => [new THREE.Vector3(Math.sin(t * .02) * 200, 3300, 900 + Math.cos(t * .02) * 200), new THREE.Vector3(0, 0, 60)] },
+  { t: 'Un tour embarqué', x: `La caméra embarquée suit le pilote automatique (physique simplifiée). Les vitesses s'affichent en direct, comme en retransmission.`,
+    c: ['Caméra T-cam', 'Vitesse en direct'], drive: true, dur: 30 },
+  { t: T1V ? 'La chicane du virage 1' : 'Le virage 1', x: T1V ? `Après la ligne droite des stands, une chicane gauche-droite à ≈ 70 km/h : un gros freinage et la principale zone de dépassement. Couper par l'échappatoire fait perdre du temps et invalide le tour.` : `Au bout de la ligne droite des stands, le plus gros freinage du circuit et la principale zone de dépassement, avec le DRS.`,
+    c: ['Freinage depuis ≈ ' + nf(STATS.vmax) + ' km/h', 'Zone de dépassement'], cam: t => [AT(iT1 - 150 / STEP + t * 3 / STEP, -30, 38), AT(iT1, 0, 0)] },
+  { t: 'La tribune de l\'hippodrome', x: `La grande tribune de ParisLongchamp (2018) fait face à la ligne droite des stands. Les toits des bâtiments existants accueillent aussi des gradins, sans construction nouvelle au sol.`,
+    c: ['≈ ' + nf(SEATS) + ' places au total', TRIB_MAX ? '≈ ' + nf(SEATS_ROOF) + ' sur les toits' : STANDS.length + ' tribunes'], cam: t => { const p = P[iTrib], d = p.clone().sub(tribC).setY(0).setLength(110); return [p.clone().add(d).setY(H(p.x, p.z) + 42 + t * .4).add(new THREE.Vector3(d.z, 0, -d.x).setLength(t * 2.5)), tribC]; } },
+  { t: 'Vue depuis les gradins', x: `Depuis le haut de la tribune la plus élevée : la piste au premier plan, le Bois de Boulogne et les tours de La Défense à l'horizon.`,
+    c: ['Vue réelle d\'un siège', 'Horizon de Paris'], cam: t => [seatPos, seatLook.clone().add(new THREE.Vector3(Math.sin(t * .15) * 25, 0, Math.cos(t * .15) * 25))] },
+  { t: 'Paddock et fan zones', x: `Le paddock village, la pelouse de Longchamp, la Grande Cascade, un espace famille à Bagatelle et un village à Roland-Garros : des animations sur tout le site, avec scènes, écrans géants et restauration.`,
+    c: [AMEN.zones.length + ' zones d\'animation', AMEN.screens.length + ' écrans géants'], cam: orbitCam(pad, 230, 140, .6, .05) },
+  { t: 'Venir au circuit', x: `Tram T2, métro 10, navettes fluviales sur la Seine, bus et navettes depuis les gares, parkings vélos et taxis : ${AMEN.gates.length} portes d'accès et ${AMEN.bridges.length} passerelles au-dessus de la piste.`,
+    c: ['Tram T2 · Métro 10', 'Navette fluviale', AMEN.gates.length + ' portes'], cam: t => [boat.clone().add(new THREE.Vector3(-60 + t * 3, 90, 120)), boat.clone().add(new THREE.Vector3(500, 0, 0))] },
+  { t: 'Au cœur du Bois de Boulogne', x: `Le tracé suit au plus près les routes existantes. Le relief est celui du terrain réel (relevé IGN), et le nombre d'arbres à abattre est estimé arbre par arbre.`,
+    c: () => ['Dénivelé ' + nf(STATS.dz, 1) + ' m', window.__ideal ? '≈ ' + nf(window.__ideal.mapped + window.__ideal.est) + ' arbres à abattre' : 'Relief IGN'], cam: alongCam(iWood - 120 / STEP, 14, 22, 70) },
+  { t: 'Au coucher du soleil', x: `La ligne droite des stands et la tribune à la tombée du jour : le moment des retransmissions en Europe.`,
+    c: ['Ligne droite des stands'], amb: 'coucher', cam: t => [AT(iTrib - 260 / STEP + t * 5 / STEP, 20, 26), AT(iTrib + 40 / STEP, -10, 6)] },
+  { t: 'Course de nuit', x: `Une option à la façon de Singapour ou Las Vegas : des mâts d'éclairage tout le long de la piste, avec Paris illuminé en toile de fond.`,
+    c: ['Éclairage de piste', 'Option nocturne'], amb: 'nuit', cam: alongCam(iT1 - 300 / STEP, 22, 9, 60) },
+  { t: 'Explorer le projet', x: `Projet conceptuel, sans lien avec la FIA, Formula 1, France Galop ni la Ville de Paris. ${PUB_LIBRE ? '' : 'Les marques des panneaux sont affichées à titre illustratif. '}La fiche projet rassemble les chiffres et les sources.`,
+    c: [], amb: 'jour', end: true, cam: orbitCam(new THREE.Vector3(0, 0, 0), 2000, 1000, 4.2, .025) },
+];
+const PITCH = { on: false, k: 0, t: 0, from: null, auto: false, prevAmb: 'jour' };
+const pFrom = { p: new THREE.Vector3(), l: new THREE.Vector3() };
+function pitchShow(k) {
+  k = clamp(k, 0, STEPS.length - 1); const s = STEPS[k]; PITCH.k = k; PITCH.t = 0;
+  pFrom.p.copy(camera.position); pFrom.l.copy(mode === 'drive' ? camLook : orbit.target);
+  PITCH.blend = !s.drive;
+  setAmb(s.amb || 'jour');
+  if (s.drive) { setMode('drive'); camMode = 0; setAuto(true); } else if (mode !== 'drone') { setMode('drone'); }
+  orbit.enabled = false;
+  $('#pN').textContent = (k + 1) + ' / ' + STEPS.length; $('#pBar i').style.width = (k + 1) / STEPS.length * 100 + '%';
+  $('#pT').textContent = s.t; $('#pX').textContent = s.x; $('#pC').innerHTML = (typeof s.c === 'function' ? s.c() : s.c).map(c => `<span>${c}</span>`).join('');
+  $('#pPrev').disabled = k === 0; $('#pNext').textContent = s.end ? 'Fiche projet' : 'Suivant ▶';
+  $('#pEnd').hidden = !s.end;
+}
+function startPitch() {
+  if ($('#gameMenu').classList.contains('on')) $('#gameMenu').classList.remove('on');
+  if (game.kind) endGame();
+  PITCH.on = true; PITCH.prevAmb = ambName; document.body.classList.add('pitch'); $('#pitch').hidden = false; pitchShow(0);
+}
+function stopPitch() {
+  PITCH.on = false; PITCH.auto = false; $('#pAuto').setAttribute('aria-pressed', false); document.body.classList.remove('pitch'); $('#pitch').hidden = true;
+  setAmb(PITCH.prevAmb); setMode('drone'); orbit.enabled = true; orbit.target.set(0, 0, 0); camera.position.set(-1600, 1100, 1500);
+}
+function pitchCam(dt) {
+  if (!PITCH.on) return false;
+  const s = STEPS[PITCH.k]; PITCH.t += dt;
+  if (PITCH.auto && PITCH.t > (s.dur || 11) && !s.end) pitchShow(PITCH.k + 1);
+  if (s.drive) return false;
+  const [p, l] = s.cam(PITCH.t), e = PITCH.blend ? clamp(PITCH.t / 2.2, 0, 1) : 1, w = e * e * (3 - 2 * e);
+  camera.position.lerpVectors(pFrom.p, p, w); orbit.target.lerpVectors(pFrom.l, l, w);
+  const g = H(camera.position.x, camera.position.z) + 2; if (camera.position.y < g) camera.position.y = g;
+  camera.fov = 55; camera.updateProjectionMatrix(); camera.lookAt(orbit.target);
+  return true;
+}
+$('#btnPitch').onclick = startPitch;
+$('#pNext').onclick = () => STEPS[PITCH.k].end ? openFiche() : pitchShow(PITCH.k + 1);
+$('#pPrev').onclick = () => pitchShow(PITCH.k - 1);
+$('#pQuit').onclick = stopPitch; $('#pExplore').onclick = stopPitch; $('#pFiche').onclick = openFiche;
+$('#pAuto').onclick = () => { PITCH.auto = !PITCH.auto; $('#pAuto').setAttribute('aria-pressed', PITCH.auto); };
+addEventListener('keydown', e => {
+  if (!PITCH.on || $('#fiche').classList.contains('on')) return;
+  const k = e.key; if (k === 'ArrowRight' || k === ' ' || k === 'PageDown') { if (!STEPS[PITCH.k].end) pitchShow(PITCH.k + 1); } else if (k === 'ArrowLeft' || k === 'PageUp') pitchShow(PITCH.k - 1); else if (k === 'Escape') stopPitch(); else return;
+  e.preventDefault(); e.stopImmediatePropagation();
+}, true);
+window.__pitch = { pitchCam, STATS, STEPS, startPitch, stopPitch, pitchShow, setAmb, PITCH };
+
 window.__look = (n) => { const k = longest(n); const st = STANDS[k]; setMode('drone'); orbit.target.copy(st.mid); camera.position.copy(st.mid).add(new THREE.Vector3(0, 160, 0)).add(st.look.clone().sub(st.mid).setY(0).setLength(-120)); return st.name; };
 window.__film = { H, HT, GRADE, at, HD, K, offL, offR, VP, START, NS, STEP, LEN, W, GEARS, TRIB: W(TRIBUNE_HIPPO.c), STANDS,
   render(focus, ext = 110) { sun.position.copy(focus).add(SUN_OFF); sun.target.position.copy(focus); sun.target.updateMatrixWorld(); Object.assign(sun.shadow.camera, { left: -ext, right: ext, top: ext, bottom: -ext }); sun.shadow.camera.updateProjectionMatrix(); sky.position.copy(camera.position); camera.updateProjectionMatrix(); renderer.render(scene, camera); } };
@@ -2394,7 +2606,7 @@ window.__lc = { URB, WIDTH_KEYS, setEnv, P, PIT, HW, NL, orbit, player, STANDS, 
 frame();
 $('#loading').style.opacity = 0; setTimeout(() => $('#loading').remove(), 700);
 flash('Pilote auto · appuie sur une flèche pour prendre le volant');
-if (!new URLSearchParams(location.search).has('film')) setTimeout(openMenu, 900);
+{ const q = new URLSearchParams(location.search); if (q.has('pitch')) setTimeout(startPitch, 700); else if (!q.has('film')) setTimeout(openMenu, 900); }
 </script>
 <script>
 // message si les modules ne se chargent pas (hors ligne)
