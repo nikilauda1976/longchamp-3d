@@ -249,8 +249,26 @@ const texLawn = ctex(256, 256, (g, w, h) => { noise(g, w, h, '#63a147', ['#6dab5
 texLawn.repeat.set(1 / 24, 1 / 24);
 const texKerb = ctex(64, 128, (g, w, h) => { g.fillStyle = '#e0261c'; g.fillRect(0, 0, w, h / 2); g.fillStyle = '#f4f4f4'; g.fillRect(0, h / 2, w, h / 2); g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(0, 0, 6, h); });
 const texChecker = ctex(64, 16, (g, w, h) => { for (let x = 0; x < 16; x++) for (let y = 0; y < 4; y++) { g.fillStyle = (x + y) % 2 ? '#111' : '#fff'; g.fillRect(x * 4, y * 4, 4, 4); } });
-const ADS = [['GRAND PRIX DE PARIS', '#26115C', '#FFD21F'], ['PARISLONGCHAMP', '#E2231A', '#ffffff'], ['BOIS DE BOULOGNE', '#1BA34B', '#ffffff'], ['PARIS À PLEINE VITESSE', '#1E7FD8', '#ffffff'], ['SAISON 2027', '#16122A', '#F28C28'], ['LA SEINE', '#ffffff', '#26115C']];
-const texAds = ctex(2048, 64, (g, w, h) => { const pw = w / ADS.length; ADS.forEach(([t, bg, fg], i) => { g.fillStyle = bg; g.fillRect(i * pw, 0, pw, h); g.fillStyle = fg; g.font = 'italic 900 44px "Barlow Condensed", Arial Narrow, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, i * pw + pw / 2, h / 2 + 2); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(i * pw, 0, 3, h); }); });
+// partenaires mondiaux de la F1 (saison 2026) : noms en typographie libre, pas de reproduction de logos
+const SERIF = '"Bodoni 72", Didot, "Playfair Display", Georgia, serif', SANS = '"Titillium Web", "Helvetica Neue", Arial, sans-serif';
+const ADS = [
+  ['LOUIS VUITTON', '#4A2F1B', '#E9DCC0', '600 34px ' + SERIF],
+  ['ARAMCO', '#ffffff', '#00843D', '700 46px ' + SANS],
+  ['MSC CRUISES', '#0B1F45', '#ffffff', '700 40px ' + SANS],
+  ['DHL', '#FFCC00', '#D40511', 'italic 900 52px "Barlow Condensed", sans-serif'],
+  ['TAG HEUER', '#0d0d0d', '#ffffff', '700 42px ' + SANS],
+  ['HEINEKEN 0.0', '#1C5B2E', '#ffffff', '700 40px ' + SANS],
+  ['AWS', '#232F3E', '#FF9900', '700 50px ' + SANS],
+  ['PIRELLI', '#0d0d0d', '#FFD100', 'italic 900 50px "Barlow Condensed", sans-serif'],
+  ['MOËT & CHANDON', '#111111', '#C9A85C', '600 32px ' + SERIF],
+  ['QATAR AIRWAYS', '#5C0632', '#ffffff', '600 38px ' + SANS],
+  ['SALESFORCE', '#00A1E0', '#ffffff', '700 40px ' + SANS],
+  ['LENOVO', '#E2231A', '#ffffff', '700 44px ' + SANS],
+  ['LVMH', '#ffffff', '#111111', '600 44px ' + SERIF],
+  ['CRYPTO.COM', '#002D74', '#ffffff', '700 38px ' + SANS],
+];
+const ADS_PERIOD = ADS.length * 10; // un panneau tous les 10 m
+const texAds = ctex(4096, 64, (g, w, h) => { const pw = w / ADS.length; ADS.forEach(([t, bg, fg, font], i) => { g.fillStyle = bg; g.fillRect(i * pw, 0, pw, h); g.fillStyle = fg; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; const k = (pw / h) / 8; let sz = parseInt(font.match(/(\d+)px/)[1]); while (g.measureText(t).width * k > pw * .86 && sz > 14) { sz -= 2; g.font = font.replace(/\d+px/, sz + 'px'); } g.save(); g.translate(i * pw + pw / 2, h / 2 + 2); g.scale(k, 1); g.fillText(t, 0, 0); g.restore(); /* compensé : un panneau de 10 m × 1,25 m */ g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(i * pw, 0, 3, h); }); });
 const texFence = ctex(64, 64, (g, w, h) => { g.clearRect(0, 0, w, h); g.strokeStyle = 'rgba(70,74,80,.85)'; g.lineWidth = 2; for (let i = -64; i < 128; i += 10) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 64, 64); g.stroke(); g.beginPath(); g.moveTo(i + 64, 0); g.lineTo(i, 64); g.stroke(); } g.fillStyle = '#5b5f66'; g.fillRect(0, 0, 4, h); });
 const texChevron = ctex(256, 128, (g, w, h) => { g.fillStyle = '#FFD21F'; g.fillRect(0, 0, w, h); g.fillStyle = '#16122A'; for (let i = 0; i < 3; i++) { const x = 30 + i * 75; g.beginPath(); g.moveTo(x, 14); g.lineTo(x + 40, h / 2); g.lineTo(x, h - 14); g.lineTo(x + 22, h - 14); g.lineTo(x + 62, h / 2); g.lineTo(x + 22, 14); g.fill(); } });
 function textTex(text, bg, fg, w = 512, h = 128, font = 'italic 900 86px') {
@@ -678,7 +696,7 @@ if (T1V_INFO) {
     for (let l = -6; l <= 2.2; l += 1.4) { const p = c.clone().addScaledVector(q, sd * l); for (let h = 0; h < 3; h++) { const m = new THREE.Mesh(cyl, h % 2 ? wht : org); m.position.set(p.x, .2 + h * .4, p.z); m.castShadow = true; scene.add(m); } } });
   { // mur et grillage le long du bord extérieur de l'échappatoire
     const km = N >> 1; let so = 1; if (pts[km].clone().addScaledVector(perp(km), 7).distanceTo(apx) < pts[km].clone().addScaledVector(perp(km), -7).distanceTo(apx)) so = -1;
-    const A = [], B = [], E = [], v = []; pts.forEach((p, k) => { const q = perp(k), b = p.clone().addScaledVector(q, so * 7.5); A.push(b.clone().setY(0)); B.push(b.clone().setY(1.25)); E.push(p.clone().addScaledVector(q, so * 7.8).setY(4.2)); v.push(k * 2 / 60); });
+    const A = [], B = [], E = [], v = []; pts.forEach((p, k) => { const q = perp(k), b = p.clone().addScaledVector(q, so * 7.5); A.push(b.clone().setY(0)); B.push(b.clone().setY(1.25)); E.push(p.clone().addScaledVector(q, so * 7.8).setY(4.2)); v.push(k * 2 / ADS_PERIOD); });
     mesh(strip(A, B, v, { swap: true }), new THREE.MeshStandardMaterial({ map: texAds, side: THREE.DoubleSide, roughness: .6 }), { cast: true });
     mesh(strip(B, E, v.map(x => x * 24), { swap: true }), new THREE.MeshStandardMaterial({ map: texFence, side: THREE.DoubleSide, transparent: true, alphaTest: .3, depthWrite: false }));
   }
@@ -715,7 +733,7 @@ if (T1V_INFO) {
       if (run.length > 2) {
         const A = run.map(i => at(i, s * off[i], 0)), B = run.map(i => at(i, s * off[i], 1.25));
         const C = run.map(i => at(i, s * off[i], 1.25)), E = run.map(i => at(i, s * (off[i] + .3), 4.2));
-        const v = run.map((i, k) => k * STEP / 60);
+        const v = run.map((i, k) => k * STEP / ADS_PERIOD);
         walls.push(strip(A, B, v, { swap: true })); fences.push(strip(C, E, run.map((i, k) => k * STEP / 2.5), { swap: true }));
       }
       run = [];
@@ -871,7 +889,7 @@ function groundGeo() {
   for (const s of [1, -1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(.6, 8, .6), dark); post.castShadow = true; post.position.copy(at(i, s > 0 ? offL[i] + 1 : -offR[i] - 1, 4)); scene.add(post); }
   const red = new THREE.MeshStandardMaterial({ color: 0xff2a1a, emissive: 0xff1a0a, emissiveIntensity: 1.6 });
   for (let k = -2; k <= 2; k++) { const l = new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .2, 16), red); l.rotation.x = Math.PI / 2; l.position.copy(at((i - 1 + NS) % NS, k * 1.4, 8)); l.rotation.z = 0; l.lookAt(at((i - 8 + NS) % NS, k * 1.4, 8)); l.rotateX(Math.PI / 2); scene.add(l); }
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.6), new THREE.MeshBasicMaterial({ map: textTex('GRAND PRIX DE PARIS', '#26115C', '#FFD21F', 1024, 128), side: THREE.DoubleSide }));
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.6), new THREE.MeshBasicMaterial({ map: textTex('GRAND PRIX DE PARIS · TAG HEUER', '#26115C', '#FFD21F', 1024, 128), side: THREE.DoubleSide }));
   sign.position.copy(at((i + 1) % NS, 0, 9.6)); sign.lookAt(at((i - 20 + NS) % NS, 0, 9.6)); scene.add(sign);
   const white = new THREE.MeshStandardMaterial({ color: 0xffffff });
   for (let r = 0; r < 22; r++) { const ii = (i - 4 - r * 4 + NS * 2) % NS; const s = r % 2 ? -1 : 1; const gg = new THREE.PlaneGeometry(3.2, .25); gg.rotateX(-Math.PI / 2); const mm = mesh(gg, white); mm.position.copy(at(ii, s * HW[ii] * .4, .15)); mm.rotation.y = HD[ii] + Math.PI / 2; }
@@ -1495,14 +1513,16 @@ mesh(mergeGeometries(roofGeos.filter(Boolean)), new THREE.MeshStandardMaterial({
     f.box('yellow', .5, .5, 10, 0, 2.2, -2.5, -.55); f.box('black', .05, 3, .05, 0, 4.2, -7);
   });
   // --- passerelles OP1 à OP6 et pont de secours : franchissent la piste, appuis derrière les murs ---
-  const bridge = (mx, mz, h, w, key, label) => {
+  const bridge = (mx, mz, h, w, key, label, brand) => {
     const i = nearT(mx, mz), half = Math.max(offL[i], offR[i]) + 5, ry = Math.atan2(NL[i].x, NL[i].z), f = frame(P[i].x, P[i].z, ry);
     f.box(key, w, .7, half * 2, 0, h);
-    for (const s of [-1, 1]) { f.box('white', .15, 1.3, half * 2, s * w / 2, h + .7); f.sign(label, '#26115C', '#ffffff', Math.min(half * 2 - 8, 22), 1.15, s * (w / 2 + .1), h + 1.35, 0, s * Math.PI / 2); }
+    const tg = P[(i + 1) % NS].clone().sub(P[i]), xa = new THREE.Vector3(1, 0, 0).applyAxisAngle(UP, ry), toward = xa.dot(tg) < 0 ? 1 : -1; // côté vu par les voitures qui arrivent
+    for (const s of [-1, 1]) { f.box('white', .15, 1.3, half * 2, s * w / 2, h + .7); const sp = brand && s === toward; f.sign(sp ? brand[0] : label, sp ? brand[1] : '#26115C', sp ? brand[2] : '#ffffff', Math.min(half * 2 - 8, 22), 1.15, s * (w / 2 + .1), h + 1.35, 0, s * Math.PI / 2); }
     for (const s of [-1, 1]) { f.box('grey', 4.6, h + 1.3, 4.6, 0, 0, s * (half + 2.3)); f.box(key, 4.8, .4, 4.8, 0, h + 1.3, s * (half + 2.3)); }
     AMEN_R.push([P[i].x + cx, P[i].z + cz, half + 6]);
   };
-  AMEN.bridges.forEach(b => { const m = M([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]); bridge(m[0], m[1], 6.5, 3.4, 'lgrey', 'PASSERELLE ' + b[4]); });
+  const BRIDGE_ADS = [ADS[1], ADS[3], ADS[5], ADS[2], ADS[7], ADS[9]]; // Aramco, DHL, Heineken 0.0, MSC, Pirelli, Qatar
+  AMEN.bridges.forEach((b, k) => { const m = M([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]); bridge(m[0], m[1], 6.5, 3.4, 'lgrey', 'PASSERELLE ' + b[4], BRIDGE_ADS[k % BRIDGE_ADS.length]); });
   AMEN.rescue.forEach(b => { const m = M([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]); bridge(m[0], m[1], 5.2, 4.6, 'red', 'PONT DE SECOURS · 4,5 m'); });
   // --- plateformes PMR ---
   AMEN.pmr.forEach(pl => { for (let k = 0; k < pl.length - 1; k++) {
