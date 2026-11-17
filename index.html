@@ -464,7 +464,7 @@ const TRACK_PTS = (() => {
     const wetMap = (x, z) => D.water.some(rings => { let c = false; rings.forEach(r => { if (pip(x, z, r)) c = !c; }); return c; });
     const nrm = k => { const a = cur[(s0 + k - 2 + n) % n], b = cur[(s0 + k + 2) % n], l = Math.hypot(b[0] - a[0], b[1] - a[1]); return [(b[1] - a[1]) / l, -(b[0] - a[0]) / l]; };
     // chicane faite d'arcs de rayon RC : décalage DOFF sur RAMP mètres (deux arcs opposés), palier HOLD, puis retour
-    const S1 = 200, RC = 26, DOFF = 20, HOLD = 6, AL = Math.acos(1 - DOFF / (2 * RC)), RAMP = 2 * RC * Math.sin(AL);
+    const S1 = 200, RC = 20, DOFF = 30, HOLD = 10, AL = Math.acos(1 - DOFF / (2 * RC)), RAMP = 2 * RC * Math.sin(AL);
     const half = u => { const h = RAMP / 2; if (u <= h) return RC * (1 - Math.cos(Math.asin(Math.min(1, u / RC)))); return DOFF - RC * (1 - Math.cos(Math.asin(Math.min(1, (RAMP - u) / RC)))); };
     const bump = m => { const u = m - S1; if (u <= 0 || u >= 2 * RAMP + HOLD) return 0; return (u < RAMP ? half(u) : u < RAMP + HOLD ? DOFF : half(2 * RAMP + HOLD - u)) / DOFF; };
     let side = 0;
@@ -648,7 +648,7 @@ if (T1V_INFO) {
     let bd = Infinity, bq = null; pre.forEach(q => { const d = (q.x - P[i].x) ** 2 + (q.z - P[i].z) ** 2; if (d < bd) { bd = d; bq = q; } });
     const lat = bq.clone().sub(P[i]).dot(NL[i]); if (Math.abs(lat) < 1) continue;
     ESC[i] = lat; const sd = lat > 0 ? 1 : -1, w = Math.abs(lat) + HW[i] + 3;
-    if (sd > 0) { offL[i] = Math.max(offL[i], w); gapL[i] = 0; } else { offR[i] = Math.max(offR[i], w); gapR[i] = 0; }
+    if (sd > 0) { offL[i] = Math.max(offL[i], w); gapL[i] = 1; } else { offR[i] = Math.max(offR[i], w); gapR[i] = 1; } // côté échappatoire : pas de mur le long de la piste, il borde l'échappatoire
   }
 }
 
@@ -663,22 +663,27 @@ const VS = Array.from({ length: NS }, (_, i) => i * STEP);
   const line = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: .8 });
   for (const s of [1, -1]) { const A = [], B = []; for (let i = 0; i < NS; i++) { A.push(at(i, s * (HW[i] - .25), .14)); B.push(at(i, s * (HW[i] - .65), .14)); } mesh(strip(s > 0 ? A : B, s > 0 ? B : A, VS, { closed: true, up: true }), line); }
 }
-// échappatoire de la chicane : asphalte, zébras et plots à contourner
+// échappatoire de la chicane : voie droite dans le prolongement de la ligne des stands, slalom de plots, zone lente
+const ESC_PATH = [];
 if (T1V_INFO) {
-  const ix = []; for (let i = 0; i < NS; i++) if (ESC[i]) ix.push(i);
-  const runs = []; ix.forEach(i => { const r = runs[runs.length - 1]; if (r && i === r[r.length - 1] + 1) r.push(i); else runs.push([i]); });
-  const runM = new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xb9b9b9, roughness: .95 });
-  runs.forEach(r => { if (r.length < 3) return; const sd = ESC[r[(r.length / 2) | 0]] > 0 ? 1 : -1; const A = [], B = [], v = [];
-    r.forEach(i => { A.push(at(i, sd * (HW[i] + .05), .115)); B.push(at(i, sd * (Math.abs(ESC[i]) + HW[i] + 2.5), .115)); v.push(i * STEP / 9); });
-    mesh(strip(sd > 0 ? A : B, sd > 0 ? B : A, v, { up: true }), runM);
-    // plots : rangée en travers au point le plus large, on doit les contourner côté mur
-    let im = r[0]; r.forEach(i => { if (Math.abs(ESC[i]) > Math.abs(ESC[im])) im = i; });
-    const org = new THREE.MeshStandardMaterial({ color: 0xff6a00, roughness: .6 }), wht = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .6 });
-    const wEsc = Math.abs(ESC[im]) + HW[im];
-    for (let l = HW[im] + 2; l < wEsc - 3; l += 2.2) { const p = at(im, sd * l, 0); for (let h = 0; h < 3; h++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(.45, .5, .4, 12), h % 2 ? wht : org); c.position.copy(p).setY(.2 + h * .4); c.castShadow = true; scene.add(c); } }
-    const sg = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.4), new THREE.MeshBasicMaterial({ map: textTex('→ CONTOURNER', '#ff6a00', '#ffffff', 512, 160, '900 64px'), side: THREE.DoubleSide }));
-    sg.position.copy(at((im - 6 + NS) % NS, sd * (wEsc - 1.5), 1.6)); sg.lookAt(at((im - 30 + NS) % NS, sd * (wEsc - 1.5), 1.6)); scene.add(sg);
-  });
+  const pre = TRACK_PRE_V1.map(q => W(q)), apx = W(T1V_INFO.apex), n = pre.length;
+  let k0 = 0, bd = Infinity; pre.forEach((q, k) => { const d = q.distanceToSquared(apx); if (d < bd) { bd = d; k0 = k; } });
+  const raw = []; for (let k = -60; k <= 60; k++) { const q = pre[(k0 + k + n) % n]; if (q.distanceTo(pre[k0]) < 80) raw.push(q); }
+  const cv = new THREE.CatmullRomCurve3(raw), pts = cv.getSpacedPoints(Math.round(cv.getLength() / 2)); ESC_PATH.push(...pts);
+  mesh(polyline2strip(pts, 6, .115), new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xb9b9b9, roughness: .95 }));
+  const org = new THREE.MeshStandardMaterial({ color: 0xff6a00, roughness: .6 }), wht = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .6 }), cyl = new THREE.CylinderGeometry(.45, .5, .4, 12);
+  const N = pts.length, perp = k => { const a = pts[Math.max(0, k - 2)], b = pts[Math.min(N - 1, k + 2)], t = b.clone().sub(a).normalize(); return new THREE.Vector3(t.z, 0, -t.x); };
+  // trois rangées de plots décalées : on ne peut passer qu'en zigzag, au pas
+  [[.36, 1], [.5, -1], [.64, 1]].forEach(([f, sd]) => { const k = Math.round(f * (N - 1)), c = pts[k], q = perp(k);
+    for (let l = -6; l <= 2.2; l += 1.4) { const p = c.clone().addScaledVector(q, sd * l); for (let h = 0; h < 3; h++) { const m = new THREE.Mesh(cyl, h % 2 ? wht : org); m.position.set(p.x, .2 + h * .4, p.z); m.castShadow = true; scene.add(m); } } });
+  { // mur et grillage le long du bord extérieur de l'échappatoire
+    const km = N >> 1; let so = 1; if (pts[km].clone().addScaledVector(perp(km), 7).distanceTo(apx) < pts[km].clone().addScaledVector(perp(km), -7).distanceTo(apx)) so = -1;
+    const A = [], B = [], E = [], v = []; pts.forEach((p, k) => { const q = perp(k), b = p.clone().addScaledVector(q, so * 7.5); A.push(b.clone().setY(0)); B.push(b.clone().setY(1.25)); E.push(p.clone().addScaledVector(q, so * 7.8).setY(4.2)); v.push(k * 2 / 60); });
+    mesh(strip(A, B, v, { swap: true }), new THREE.MeshStandardMaterial({ map: texAds, side: THREE.DoubleSide, roughness: .6 }), { cast: true });
+    mesh(strip(B, E, v.map(x => x * 24), { swap: true }), new THREE.MeshStandardMaterial({ map: texFence, side: THREE.DoubleSide, transparent: true, alphaTest: .3, depthWrite: false }));
+  }
+  const k = Math.round(.26 * (N - 1)), sg = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 1.6), new THREE.MeshBasicMaterial({ map: textTex('ZONE LENTE · 60', '#ff6a00', '#ffffff', 640, 200, '900 64px'), side: THREE.DoubleSide }));
+  sg.position.copy(pts[k]).add(perp(k).multiplyScalar(-5)).setY(1.8); sg.lookAt(pts[Math.max(0, k - 20)].clone().add(perp(k).multiplyScalar(-5)).setY(1.8)); scene.add(sg);
 }
 // vibreurs
 {
@@ -2025,6 +2030,11 @@ function stepPlayer(dt) {
     if (c.brk > .5 && c.v <= .3 && !c.auto) a -= 4; // marche arrière
   } else { a += c.thr * 10; if (c.brk > .5) a -= 3; }
   if (off) a -= Math.sign(c.v) * (1.5 + av * .3);
+  // échappatoire de la chicane : slalom de plots, 60 km/h maximum ; couper ne fait jamais gagner de temps
+  const inEsc = !!ESC[c.idx] && lat * ESC[c.idx] > 0 && Math.abs(lat) > HW[c.idx] + 1.6;
+  if (inEsc && c.v > 16.7) a -= 32;
+  if (inEsc && !c.escT) { c.escT = 1; if (!c.auto) { flash('CHICANE COUPÉE · zone lente' + (game.kind ? ' · tour invalidé' : '')); if (game.kind) game.inval = true; } }
+  if (!inEsc && c.escT) c.escT = 0;
   const slope = GRADE[c.idx] * Math.cos(c.h - HD[c.idx]); a -= 9.81 * slope; // la pente freine en montée, pousse en descente
   c.v = Math.max(-8, c.v + a * dt); if (frozen) c.v = 0; if (c.thr < .05 && c.brk < .05 && Math.abs(c.v) < .3) c.v = 0;
   c.steer += (st - c.steer) * Math.min(1, dt * (c.auto ? 10 : 6));
@@ -2349,7 +2359,7 @@ fetch('osm.json').then(r => r.json()).then(O => { // bilan : arbres à retirer e
   let z20 = 0, wider = 0; for (let i = 0; i < NS; i++) { if (OVT[i]) z20 += STEP; if (HW[i] > HW0[i] + .25) wider += STEP; }
   const box = $('#idealInfo'); box.hidden = false;
   box.innerHTML = (IDEAL ? `<b>PISTE IDÉALE</b> · 15 m partout, 20 m sur ${Math.round(z20)} m de zones de freinage<br>` : `<b>PISTE F1</b> · 14 m de large (15 m sur la ligne droite), murs à 3 m, dégagements de 7 m dans les virages<br>`) + `<span class="big">${mapped + est} arbres</span> à abattre environ<br>· <b>${mapped}</b> arbres recensés un par un (OSM)<br>· <b>${Math.round(area).toLocaleString('fr-FR')} m²</b> de bois (≈ ${est} arbres, à 400/ha)`;
-  if (T1V_INFO) box.innerHTML += `<br><b>VARIANTE VIRAGE 1</b> · chicane à ${T1V_INFO.debut_m + 120} m de la ligne de départ (règle FIA : ≥ 250 m) : deux virages de ${T1V_INFO.angle}° (rayon ${T1V_INFO.rayon_m} m), côté opposé à l'étang, échappatoire avec plots dans l'axe de la ligne droite`;
+  if (T1V_INFO) box.innerHTML += `<br><b>VARIANTE VIRAGE 1</b> · chicane à ${T1V_INFO.debut_m + 120} m de la ligne de départ (règle FIA : ≥ 250 m) : deux virages de ${T1V_INFO.angle}° (rayon ${T1V_INFO.rayon_m} m), côté opposé à l'étang, échappatoire dans l'axe de la ligne droite : slalom de plots, zone lente à 60 km/h, tour invalidé si on coupe`;
   box.innerHTML += TRIB_MAX ? `<br><b>TRIBUNES MAX</b> · ${STANDS.length} tribunes, ≈ ${SEATS_ALL.toLocaleString('fr-FR')} places<br>dont toits de l'hippodrome : ≈ ${SEATS_ROOF.toLocaleString('fr-FR')} places<br>(plan seul : ${N_PLAN} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places)` : `<br><b>TRIBUNES DU PLAN</b> · ${STANDS.length} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places`;
   window.__ideal = { mapped, area: Math.round(area), est, z20: Math.round(z20), wider: Math.round(wider), woodLen: Math.round(len) };
 });
