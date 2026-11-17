@@ -905,6 +905,13 @@ function groundGeo() {
 
 // ---------- tribune de l'hippodrome (2018) : plateaux superposés, bandeaux bronze, terrasses vers la piste hippique ----------
 const TRIBUNE_HIPPO = { c: [402, 1000] };
+// bâtiments existants de l'hippodrome dont le toit plat (9 m) reçoit des gradins tournés vers la ligne droite (emprises OSM)
+const ROOF_BLD = [
+  { name: 'GALERIE', h: 9, poly: [[438, 791], [413, 854], [407, 852], [381, 916], [386, 918], [384, 924], [346, 909], [341, 924], [380, 939], [378, 942], [373, 940], [348, 929], [342, 928], [335, 948], [332, 946], [370, 962], [370, 964], [331, 949], [325, 965], [332, 967], [363, 979], [350, 1010], [323, 1082], [337, 1087], [451, 797]] },
+  { name: 'PAVILLONS', h: 9, poly: [[278, 1247], [321, 1139], [317, 1138], [282, 1225], [240, 1208], [291, 1078], [287, 1076], [270, 1122], [266, 1121], [258, 1140], [262, 1142], [234, 1215], [236, 1216], [232, 1228], [237, 1231], [241, 1222], [245, 1223], [270, 1234], [274, 1234], [270, 1244]] },
+];
+ROOF_BLD.forEach(b => { b.c = b.poly.reduce((a, p) => [a[0] + p[0] / b.poly.length, a[1] + p[1] / b.poly.length], [0, 0]); });
+const isRoofBld = r => { const c = r.reduce((a, p) => [a[0] + p[0] / r.length, a[1] + p[1] / r.length], [0, 0]); return ROOF_BLD.some(b => Math.hypot(c[0] - b.c[0], c[1] - b.c[1]) < 14); };
 {
   const poly = [[444, 934], [389, 1075], [384, 1074], [376, 1097], [347, 1085], [406, 936], [413, 939], [418, 924]]; // emprise OSM, vérifiée sur l'orthophoto IGN
   let mx = 0, mz = 0; poly.forEach(p => { mx += p[0]; mz += p[1]; }); mx /= poly.length; mz /= poly.length;
@@ -912,7 +919,7 @@ const TRIBUNE_HIPPO = { c: [402, 1000] };
   const ang = .5 * Math.atan2(2 * sxz, sxx - szz), u = [Math.cos(ang), Math.sin(ang)]; let v = [-u[1], u[0]]; if (v[0] < 0) v = [-v[0], -v[1]]; // v : vers l'est (piste hippique)
   let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9; poly.forEach(p => { const x = p[0] - mx, z = p[1] - mz, a = x * u[0] + z * u[1], b = x * v[0] + z * v[1]; a0 = Math.min(a0, a); a1 = Math.max(a1, a); b0 = Math.min(b0, b); b1 = Math.max(b1, b); });
   const L = a1 - a0, Wd = b1 - b0, cc = [mx + u[0] * (a0 + a1) / 2 + v[0] * (b0 + b1) / 2, mz + u[1] * (a0 + a1) / 2 + v[1] * (b0 + b1) / 2];
-  TRIBUNE_HIPPO.c = cc;
+  TRIBUNE_HIPPO.c = cc; Object.assign(TRIBUNE_HIPPO, { L, Wd });
   const G = new THREE.Group(); G.position.copy(W(cc)); G.rotation.y = -Math.atan2(u[1], u[0]) + (-u[1] < 0 ? Math.PI : 0); // axe local x = longueur, z = vers la piste hippique (est)
   // repère local : x le long, z vers l'est ; G.rotation transforme (1,0,0) en u
   const slatTex = ctex(256, 64, (g, w, h) => { g.fillStyle = '#8a6a43'; g.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 8) { g.fillStyle = x % 16 ? '#b48a55' : '#6f5435'; g.fillRect(x, 0, 4, h); } });
@@ -933,14 +940,14 @@ const TRIBUNE_HIPPO = { c: [402, 1000] };
   }
   // grande toiture débordante (panneaux solaires)
   box(L + 6, .9, Wd + 10, 0, NF * FL + .8, 3, white);
-  box(L - 6, .2, Wd - 2, 0, NF * FL + 1.35, 3, solar);
+  box(L - 6, .2, (Wd - 2) / 2, 0, NF * FL + 1.35, 3 + (Wd - 2) / 4, solar); // panneaux solaires sur la moitié est ; la moitié ouest reçoit des gradins
   // poteaux fins sous le débord, côté piste hippique
   for (let x = -L / 2 + 6; x <= L / 2 - 6; x += 12) box(.5, NF * FL + .5, .5, x, (NF * FL) / 2, Wd / 2 + 6.5, white);
   // gradins en terrasses devant la tribune (vers la piste hippique)
   for (let r = 0; r < 8; r++) box(L - 20, .45 * (r + 1), 1.6, 0, .225 * (r + 1), Wd / 2 + 18 - r * 1.6, white);
   // escaliers/rampe d'accès aux extrémités
   for (const sx of [-1, 1]) box(8, 14, 12, sx * (L / 2 + 4), 7, -4, bronze);
-  scene.add(G);
+  scene.add(G); G.updateMatrixWorld(true); Object.assign(TRIBUNE_HIPPO, { G, roofY: NF * FL + 1.25, roofZ0: 3 - (Wd + 10) / 2 });
 }
 
 // ---------- sol, eau, pelouses, allées, bâtiments ----------
@@ -962,11 +969,12 @@ function extrude(poly, h, y = 0) {
   const g = new THREE.ExtrudeGeometry(sh, { depth: h, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, y, 0); return g;
 }
 {
-  const gs = D.bld.map(p => extrude(p, 6 + rand() * 10));
+  const gs = D.bld.map(p => { const h = 6 + rand() * 10; return isRoofBld(p) ? null : extrude(p, h); }).filter(Boolean); // les bâtiments à gradins sur le toit sont construits à part, à hauteur fixe
   const planBld = mergeGeometries(gs), planBldMat = new THREE.MeshStandardMaterial({ color: 0xece4d6, roughness: .85 });
   mesh(planBld, planBldMat, { cast: true });
   mesh(planBld, planBldMat, { cast: true, to: ENV.photo }); // mêmes bâtiments sur la photo
   TARGET = null;
+  { const m = new THREE.MeshStandardMaterial({ color: 0xe9e1d2, roughness: .85 }); ROOF_BLD.forEach(b => mesh(extrude(b.poly, b.h), m, { cast: true, to: scene })); }
   mesh(extrude(D.garages, 7), new THREE.MeshStandardMaterial({ color: 0x2b2640, roughness: .6 }), { cast: true });
   mesh(extrude(D.garages, .6, 7), new THREE.MeshStandardMaterial({ color: 0xffffff }), { cast: true });
 }
@@ -1073,14 +1081,14 @@ const NAMES = new Set(['ARNOUX', 'PIRONI', 'GASLY', 'JABOUILLE', 'OCON', 'LAFFIT
 const nameLabels = D.labels.filter(l => NAMES.has(l[0]));
 const STANDS = []; // pour la hauteur en mode balade
 const standGeos = [], roofGeos = [], people = [];
-function grandstand(a, b, depth, name, toward) {
+function grandstand(a, b, depth, name, toward, base = 0) {
   const d = b.clone().sub(a); const len = d.length(); if (len < 6) return; d.normalize();
   const mid = a.clone().add(b).multiplyScalar(.5);
   const ti = nearestIdx(mid);
   const h = Math.atan2(d.x, d.z);
   const lx = new THREE.Vector3(d.z, 0, -d.x); // axe local x
   const sgn = (toward || P[ti].clone().sub(mid)).dot(lx) > 0 ? 1 : -1; // côté piste en x local
-  const M = new THREE.Matrix4().makeRotationY(h).setPosition(mid);
+  mid.y = base; const M = new THREE.Matrix4().makeRotationY(h).setPosition(mid);
   const rows = Math.max(4, Math.round(depth / 2.4)), rd = depth / rows;
   const box = (sx, sy, sz, x, y, z, arr) => { const g = new THREE.BoxGeometry(sx, sy, sz); g.translate(x, y, z); g.applyMatrix4(M); arr.push(g); };
   const rowsInfo = [];
@@ -1096,6 +1104,7 @@ function grandstand(a, b, depth, name, toward) {
   }
   const topH = 1.2 + rows * .95;
   box(.4, topH + 1.5, len, -sgn * depth / 2, (topH + 1.5) / 2, 0, standGeos);
+  const r0 = roofGeos.length; let signM = null;
   if (len > 14) {
     box(depth + 3, .35, len + 1, sgn * 1.5, topH + 6.5, 0, roofGeos);
     for (let z = -len / 2 + 2; z <= len / 2 - 1; z += 16) box(.5, topH + 6.5, .5, -sgn * (depth / 2 - .3), (topH + 6.5) / 2, z, roofGeos);
@@ -1104,9 +1113,9 @@ function grandstand(a, b, depth, name, toward) {
   if (len > 14) {
     const wS = Math.min(len * .8, 26), sign = new THREE.Mesh(new THREE.PlaneGeometry(wS, wS / 4), new THREE.MeshBasicMaterial({ map: textTex('TRIBUNE ' + nm, '#26115C', '#ffffff') }));
     const front = new THREE.Vector3(sgn * (depth / 2 + 1.6), topH + 5.2, 0).applyMatrix4(M);
-    sign.position.copy(front); sign.lookAt(front.clone().add(lx.clone().multiplyScalar(sgn))); scene.add(sign);
+    sign.position.copy(front); sign.lookAt(front.clone().add(lx.clone().multiplyScalar(sgn))); scene.add(sign); signM = sign;
   }
-  STANDS.push({ M, inv: M.clone().invert(), len, depth, rows, rd, sgn, rowsInfo, name: nm, mid, ti, look: P[ti].clone(), topH });
+  STANDS.push({ M, inv: M.clone().invert(), len, depth, rows, rd, sgn, rowsInfo, name: nm, mid, ti, look: P[ti].clone(), topH, base, r0, r1: roofGeos.length, sign: signM });
 }
 function segDist(px, pz, a, b) { const dx = b[0] - a[0], dz = b[1] - a[1], l = dx * dx + dz * dz || 1; const t = clamp(((px - a[0]) * dx + (pz - a[1]) * dz) / l, 0, 1); return Math.hypot(px - a[0] - t * dx, pz - a[1] - t * dz); }
 const structs = [...D.tribunesLine.map(l => ({ line: l })), ...D.tribunesPoly.map(p => ({ poly: p }))];
@@ -1306,9 +1315,29 @@ if (OSMD) {
   }
   REPORT.push({ name: 'AJOUTÉES', plan: 0, gardé: added, raisons: 'tribunes ajoutées dans les espaces libres' });
 }
+// ---- gradins sur les toits existants de l'hippodrome, tournés vers la ligne droite des stands ----
+const ROOF_STANDS = [];
+if (TRIB_MAX) {
+  const add = (a, b, dep, nm, base) => { const n = STANDS.length; grandstand(W(a), W(b), dep, nm, null, base); if (STANDS.length > n) { STANDS[n].roof = true; ROOF_STANDS.push(STANDS[n]); } };
+  // galerie de 310 m entre la route des Tribunes et la grande tribune : 14 m de large, 3 tronçons séparés par les escaliers
+  { const A = [444.5, 794], B = [330, 1084.5], L = Math.hypot(B[0] - A[0], B[1] - A[1]), u = [(B[0] - A[0]) / L, (B[1] - A[1]) / L], gap = 6, seg = (L - 4 * gap) / 3;
+    for (let k = 0; k < 3; k++) { const t0 = gap + k * (seg + gap), t1 = t0 + seg; add([A[0] + u[0] * t0, A[1] + u[1] * t0], [A[0] + u[0] * t1, A[1] + u[1] * t1], 11, 'GALERIE', 9); } }
+  // aile ouest des pavillons du paddock : 4 m de large, à quelques mètres de la piste
+  add([289, 1081], [242, 1203], 4, 'PADDOCK', 9);
+  // moitié ouest du toit de la tribune 2018 (les panneaux solaires restent sur la moitié est)
+  { const T = TRIBUNE_HIPPO, z = T.roofZ0 + 1 + 9, p = x => { const v = new THREE.Vector3(x, 0, z).applyMatrix4(T.G.matrixWorld); return [v.x + cx, v.z + cz]; };
+    add(p(-T.L / 2 + 8), p(T.L / 2 - 8), 18, 'TOIT 2018', T.roofY); }
+}
+// pas d'auvent sur les tribunes situées juste devant une tribune en hauteur : il masquerait la piste
+ROOF_STANDS.forEach(R => {
+  const ax = new THREE.Vector3(0, 0, 1).transformDirection(R.M), fx = new THREE.Vector3(R.sgn, 0, 0).transformDirection(R.M);
+  STANDS.forEach(S => { if (S === R || S.base >= R.base) return; const d = S.mid.clone().sub(R.mid); d.y = 0; const al = d.dot(ax), fr = d.dot(fx);
+    if (Math.abs(al) < R.len / 2 + 10 && fr > 0 && fr < 90) { for (let k = S.r0; k < S.r1; k++) roofGeos[k] = null; if (S.sign) S.sign.removeFromParent(); S.open = true; } });
+});
+const SEATS_ROOF = seatsOf(ROOF_STANDS);
 const SEATS_ALL = seatsOf(STANDS);
 window.__placed = placed;
-window.__seats = { plan: SEATS_PLAN, all: SEATS_ALL, nPlan: N_PLAN, nAll: STANDS.length };
+window.__seats = { roof: SEATS_ROOF, roofN: ROOF_STANDS.length, plan: SEATS_PLAN, all: SEATS_ALL, nPlan: N_PLAN, nAll: STANDS.length };
 console.table(REPORT);
 window.__standsReport = REPORT;
 // ---- berges remblayées : l'eau ne touche jamais la piste, les murs ni les tribunes ----
@@ -1331,7 +1360,7 @@ function carveWater(rings) {
 window.__carveWater = carveWater;
 { const gs = D.water.map(r => flatShape(carveWater(r), .1)).filter(Boolean); mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0x3b8fd6, roughness: .12, metalness: .15 }), { to: ENV.styl }); }
 mesh(mergeGeometries(standGeos), new THREE.MeshStandardMaterial({ color: 0xb9bcc6, roughness: .8 }), { cast: true });
-mesh(mergeGeometries(roofGeos), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .5 }), { cast: true });
+mesh(mergeGeometries(roofGeos.filter(Boolean)), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .5 }), { cast: true });
 {
   const g = new THREE.BoxGeometry(.48, .9, .36);
   const im = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ roughness: .9 }), people.length);
@@ -1693,7 +1722,7 @@ function buildOSM() {
     {
       const gs = [], stone = [0xefe6d4, 0xe6dcc6, 0xf3eee4, 0xd9cdb6, 0xe9e2d6], col = new THREE.Color(), roof = new THREE.Color(0x7d8794);
       O.bld.forEach(([h, r]) => {
-        if (r.length < 3 || r.some(p => blocked(p[0] - cx, p[1] - cz, 1))) return;
+        if (r.length < 3 || isRoofBld(r) || r.some(p => blocked(p[0] - cx, p[1] - cz, 1))) return;
         { let mx = 0, mz = 0; r.forEach(p => { mx += p[0]; mz += p[1]; }); mx /= r.length; mz /= r.length; if (Math.hypot(mx - TRIBUNE_HIPPO.c[0], mz - TRIBUNE_HIPPO.c[1]) < 25) return; } // remplacée par la maquette de la tribune
         let g; try { g = extrude(r, Math.max(3, h)); } catch (e) { return; }
         if (g.index) g = g.toNonIndexed();
@@ -1923,13 +1952,13 @@ function longest(n) { let k = -1; STANDS.forEach((s, i) => { if (s.name === n &&
 function teleport(k) {
   const s = STANDS[k]; if (!s) return;
   const r = s.rows - 2; const x = s.sgn * (s.depth / 2 - (r + .5) * s.rd);
-  walker.pos.set(x, 0, 0).applyMatrix4(s.M); walker.ground = s.rowsInfo[r];
+  walker.pos.set(x, 0, 0).applyMatrix4(s.M); walker.ground = s.base + s.rowsInfo[r];
   const d = s.look.clone().sub(walker.pos); walker.yaw = Math.atan2(-d.x, -d.z); walker.pitch = -.12; walker.init = true;
   flash('Tribune ' + s.name);
 }
 function groundAt(x, z) {
   const v = new THREE.Vector3();
-  for (const s of STANDS) { v.set(x, 0, z).applyMatrix4(s.inv); if (Math.abs(v.z) < s.len / 2 && Math.abs(v.x) < s.depth / 2) { const r = clamp(Math.floor((s.depth / 2 - v.x * s.sgn) / s.rd), 0, s.rows - 1); return s.rowsInfo[r]; } }
+  for (const s of STANDS) { v.set(x, 0, z).applyMatrix4(s.inv); if (Math.abs(v.z) < s.len / 2 && Math.abs(v.x) < s.depth / 2) { const r = clamp(Math.floor((s.depth / 2 - v.x * s.sgn) / s.rd), 0, s.rows - 1); return s.base + s.rowsInfo[r]; } }
   return 0;
 }
 
@@ -2321,7 +2350,7 @@ fetch('osm.json').then(r => r.json()).then(O => { // bilan : arbres à retirer e
   const box = $('#idealInfo'); box.hidden = false;
   box.innerHTML = (IDEAL ? `<b>PISTE IDÉALE</b> · 15 m partout, 20 m sur ${Math.round(z20)} m de zones de freinage<br>` : `<b>PISTE F1</b> · 14 m de large (15 m sur la ligne droite), murs à 3 m, dégagements de 7 m dans les virages<br>`) + `<span class="big">${mapped + est} arbres</span> à abattre environ<br>· <b>${mapped}</b> arbres recensés un par un (OSM)<br>· <b>${Math.round(area).toLocaleString('fr-FR')} m²</b> de bois (≈ ${est} arbres, à 400/ha)`;
   if (T1V_INFO) box.innerHTML += `<br><b>VARIANTE VIRAGE 1</b> · chicane à ${T1V_INFO.debut_m + 120} m de la ligne de départ (règle FIA : ≥ 250 m) : deux virages de ${T1V_INFO.angle}° (rayon ${T1V_INFO.rayon_m} m), côté opposé à l'étang, échappatoire avec plots dans l'axe de la ligne droite`;
-  box.innerHTML += TRIB_MAX ? `<br><b>TRIBUNES MAX</b> · ${STANDS.length} tribunes, ≈ ${SEATS_ALL.toLocaleString('fr-FR')} places<br>(plan seul : ${N_PLAN} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places)` : `<br><b>TRIBUNES DU PLAN</b> · ${STANDS.length} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places`;
+  box.innerHTML += TRIB_MAX ? `<br><b>TRIBUNES MAX</b> · ${STANDS.length} tribunes, ≈ ${SEATS_ALL.toLocaleString('fr-FR')} places<br>dont toits de l'hippodrome : ≈ ${SEATS_ROOF.toLocaleString('fr-FR')} places<br>(plan seul : ${N_PLAN} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places)` : `<br><b>TRIBUNES DU PLAN</b> · ${STANDS.length} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places`;
   window.__ideal = { mapped, area: Math.round(area), est, z20: Math.round(z20), wider: Math.round(wider), woodLen: Math.round(len) };
 });
 setEnv(location.hash === '#photo' ? 'photo' : location.hash === '#styl' ? 'styl' : 'osm'); // OpenStreetMap par défaut
