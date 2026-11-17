@@ -1872,10 +1872,17 @@ function stepPlayer(dt) {
   const c = player;
   let thr = 0, brk = 0, st = 0;
   if (c.auto) {
-    const la = 5 + c.v * .32; const j = (c.idx + Math.round(la / STEP)) % NS;
-    const tgt = at(j, LAT[j], 0); // suit la trajectoire de course
-    const hd = Math.atan2(tgt.x - c.pos.x, tgt.z - c.pos.z); st = clamp(wrapA(hd - c.h) * 2.4, -1, 1);
-    let vt = Infinity; for (let k = 0; k < 6; k++) vt = Math.min(vt, VP[(c.idx + k) % NS]); vt *= .98;
+    // poursuite pure : on vise un point de la trajectoire de course et on braque pour la courbure exacte qui y mène
+    const la = 8 + c.v * .22; const j = (c.idx + Math.round(la / STEP)) % NS;
+    const tgt = at(j, LAT[j], 0), dx = tgt.x - c.pos.x, dz = tgt.z - c.pos.z, ld = Math.max(4, Math.hypot(dx, dz));
+    const kap = 2 * Math.sin(wrapA(Math.atan2(dx, dz) - c.h)) / ld;
+    const av0 = Math.max(Math.abs(c.v), 3), ym = Math.min(1.4, aLat(av0) / av0);
+    st = clamp(kap * av0 / ym, -1, 1);
+    let vt = Infinity; for (let k = 0; k < 8; k++) vt = Math.min(vt, VP[(c.idx + k) % NS]); vt *= .97;
+    // marge de sécurité : adhérence presque saturée, ou mur proche → on lève le pied
+    const need = Math.abs(kap * av0 / ym); if (need > .8) vt = Math.min(vt, Math.max(14, c.v * Math.sqrt(.8 / need)));
+    const l0 = c.pos.clone().sub(P[c.idx]).dot(NL[c.idx]), room = (l0 > 0 ? offL[c.idx] : offR[c.idx]) - 1.1 - Math.abs(l0);
+    if (room < 2.5 && Math.abs(l0) > HW[c.idx] * .6) vt = Math.min(vt, Math.max(14, c.v * .9));
     thr = clamp((vt - c.v) / 2.5, 0, 1); brk = clamp((c.v - vt - .5) / 3, 0, 1);
   } else {
     thr = keys.up ? 1 : 0; brk = (keys.down || keys.brake) ? 1 : 0; st = (keys.left ? 1 : 0) - (keys.right ? 1 : 0);
