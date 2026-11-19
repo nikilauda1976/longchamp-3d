@@ -749,6 +749,14 @@ const pitCurve = (() => {
 })();
 const PIT = pitCurve.getSpacedPoints(Math.round(pitCurve.getLength() / 3));
 const pitGrid = new Grid(25); PIT.forEach(p => pitGrid.add(p.x, p.z, p));
+// paddock des équipes : dalle de 72 m de profondeur derrière le bâtiment des stands (coordonnées du plan)
+const PADDOCK = (() => {
+  const G = D.garages, f0 = G[0], f1 = G[4], L = Math.hypot(f1[0] - f0[0], f1[1] - f0[1]), d = [(f1[0] - f0[0]) / L, (f1[1] - f0[1]) / L];
+  let q = [-d[1], d[0]]; if ((G[9][0] - f0[0]) * q[0] + (G[9][1] - f0[1]) * q[1] < 0) q = [-q[0], -q[1]];
+  const back = Math.max(...G.map(p => (p[0] - f0[0]) * q[0] + (p[1] - f0[1]) * q[1])) + 3, DEP = 72;
+  const pt = (u, v) => [f0[0] + d[0] * u + q[0] * (back + v), f0[1] + d[1] * u + q[1] * (back + v)];
+  return { L, DEP, d, q, pt, poly: [pt(0, 0), pt(L, 0), pt(L, DEP), pt(0, DEP)], ry: Math.atan2(q[0], q[1]) };
+})();
 
 // distance aux murs, par côté (1 = gauche, -1 = droite)
 const WALL = 13;
@@ -1144,7 +1152,9 @@ const PITVIEW = {};
     ['LONGCHAMP MOTORSPORT', '#e2231a', '#ffffff', '#16122a'], ['AUTEUIL GP', '#1ba34b', '#ffd21f', '#ffffff'],
     ['SURESNES F1', '#f28c28', '#1e7fd8', '#ffffff'], ['BOULOGNE TEAM', '#ffffff', '#26115c', '#e58ac7'],
     ['CASCADE RACING', '#16122a', '#2ec4c4', '#ffffff'], ['MORTEMART GP', '#7e57c2', '#ffffff', '#ffd21f'],
+    ['PASSY RACING', '#c9a227', '#16122a', '#ffffff'], ['MOULIN GP', '#2ec4c4', '#16122a', '#ffffff'], ['ROUTE DES LACS', '#0e6b4a', '#ffffff', '#ffd21f'],
   ];
+  window.__TEAMS = TEAMS;
   const garageTex = TEAMS.map(([name, c1, c2]) => ctex(512, 320, (g, w, h) => {
     const gr = g.createLinearGradient(0, 60, 0, h); gr.addColorStop(0, '#d9dce3'); gr.addColorStop(.62, '#c4c8d0'); gr.addColorStop(.63, '#8f949e'); gr.addColorStop(1, '#a9aeb7');
     g.fillStyle = gr; g.fillRect(0, 0, w, h);
@@ -1720,6 +1730,32 @@ mesh(mergeGeometries(roofGeos.filter(Boolean)), new THREE.MeshStandardMaterial({
     cars.forEach(([x, z, r], k) => { q.setFromAxisAngle(UP, r); m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(1, 1, 1)); im.setMatrixAt(k, m4); im.setColorAt(k, col.setHex(pal[(rand() * pal.length) | 0])); });
     im.castShadow = true; scene.add(im);
   }
+  // --- paddock des équipes : camions et bureaux, 2 rangées de motorhomes face à face, bâtiment FIA ---
+  {
+    const PD = PADDOCK, TM = window.__TEAMS || [];
+    TM.forEach((t, k) => { MAT['tm' + k] = std(parseInt(t[1].slice(1), 16)); });
+    const W2 = (u, v) => M(PD.pt(u, v));
+    { const [x, z] = W2(PD.L / 2, PD.DEP / 2); const g = new THREE.PlaneGeometry(PD.L, PD.DEP); g.rotateX(-Math.PI / 2); g.rotateY(PD.ry); g.translate(x, .14, z);
+      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xb9bbc1, roughness: .95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); m.receiveShadow = true; scene.add(m); }
+    const n = TM.length, step = (PD.L - 20) / n;
+    TM.forEach((t, k) => { // bande arrière des garages : 2 semi-remorques + 1 bureau mobile par écurie
+      const [x, z] = W2(10 + (k + .5) * step, 9), f = frame(x, z, PD.ry);
+      for (const s of [-1, 1]) { f.box('tm' + k, 2.6, 4, 13.6, s * 4.5, .4, -1.2); f.box('white', 2.5, 3.2, 2.4, s * 4.5, .4, 6.9); }
+      f.box('lgrey', 6, 3, 10, 0, 0, -2); f.box('tm' + k, 6.1, .5, 10.1, 0, 3, -2);
+    });
+    const home = (k, u, v, face) => { // motorhome sur 3 niveaux, terrasse côté allée
+      const [x, z] = W2(u, v), f = frame(x, z, PD.ry), c = 'tm' + k, t = TM[k];
+      f.box(c, 24, 3.6, 15); f.box('glass', 23.6, 2.8, 14.6, 0, 3.6); f.box(c, 24, 3, 15, 0, 6.4); f.box('white', 25, .4, 16, 0, 9.4);
+      f.box('canvas', 20, .25, 4, 0, 3.4, face * 9.5); for (const s of [-1, 1]) f.box('lgrey', .2, 3.4, .2, s * 9.5, 0, face * 11.3);
+      f.sign(t[0], t[1], t[2], 18, 1.8, 0, 7.9, face * 7.56);
+    };
+    const rowA = Math.ceil(n / 2), sA = (PD.L - 20) / rowA, sB = (PD.L - 20) / (n - rowA + 1);
+    for (let k = 0; k < rowA; k++) home(k, 10 + (k + .5) * sA, 30, 1);
+    for (let k = rowA; k < n; k++) home(k, 10 + (k - rowA + .5) * sB, 59, -1);
+    { const [x, z] = W2(10 + (n - rowA + .5) * sB, 59), f = frame(x, z, PD.ry); // FIA / FOM
+      f.box('navy', 24, 3.6, 15); f.box('glass', 23.6, 2.8, 14.6, 0, 3.6); f.box('navy', 24, .4, 15, 0, 6.4); f.sign('FIA · F1 · DIRECTION SPORTIVE', '#1E3A6E', '#ffffff', 20, 1.6, 0, 4.9, -7.56); }
+    for (const u of [4, PD.L - 4]) { const [x, z] = W2(u, 44.5), f = frame(x, z, PD.ry); for (const s of [-1, 1]) f.box('white', .6, 5, .6, 0, 0, s * 6); f.box('dark', .8, 1.6, 13, 0, 5); f.sign('PADDOCK · ACCÈS ACCRÉDITÉS', '#16122A', '#ffffff', 12, 1.3, 0, 5.8, 0, Math.PI / 2); }
+  }
   // --- quartiers d'activités ---
   const ZONE = {};
   AMEN.zones.forEach(([x, y, w, h, col, name]) => {
@@ -1800,7 +1836,7 @@ mesh(mergeGeometries(roofGeos.filter(Boolean)), new THREE.MeshStandardMaterial({
     if (pitGrid.any(wx, wz, 16, p => (p.x - wx) ** 2 + (p.z - wz) ** 2 < 256)) continue;
     if (roadPts.any(x, z, 20, r => (r[0] - x) ** 2 + (r[1] - z) ** 2 < r[2] * r[2])) continue;
     if (bldBoxes.some(b => x > b[0] && x < b[2] && z > b[1] && z < b[3])) continue;
-    if ([[0, 0], [7, 0], [-7, 0], [0, 7], [0, -7]].some(([u, v]) => pip(x + u, z + v, D.garages))) continue; // pas d'arbre dans le bâtiment des stands
+    if ([[0, 0], [7, 0], [-7, 0], [0, 7], [0, -7]].some(([u, v]) => pip(x + u, z + v, D.garages) || pip(x + u, z + v, PADDOCK.poly))) continue; // pas d'arbre dans le bâtiment des stands ni le paddock
     if (inAmenMap(x, z)) continue;
     if (STANDS.some(s => s.mid.distanceToSquared(new THREE.Vector3(wx, 0, wz)) < (s.len / 2 + 20) ** 2)) continue;
     if (inWater(x, z)) continue;
@@ -1863,7 +1899,7 @@ function buildOSM() {
     const G = ENV.osm, V2 = (p) => new THREE.Vector3(p[0] - cx, 0, p[1] - cz);
     const blocked = (x, z, m = 2) => { // emprise du circuit : piste + murs, stands, tribunes, garages
       const v = new THREE.Vector3(x, 0, z);
-      return !trackClear(v) || pitGrid.any(x, z, 12, p => (p.x - x) ** 2 + (p.z - z) ** 2 < 144) || inPlaced(v, m) || pip(x + cx, z + cz, D.garages);
+      return !trackClear(v) || pitGrid.any(x, z, 12, p => (p.x - x) ** 2 + (p.z - z) ** 2 < 144) || inPlaced(v, m) || pip(x + cx, z + cz, D.garages) || pip(x + cx, z + cz, PADDOCK.poly);
     };
     // sols
     const layer = (list, y, mat) => { const gs = list.map(r => flatShape(r, y)).filter(Boolean); if (gs.length) mesh(mergeGeometries(gs), mat, { to: G }); };
@@ -2747,6 +2783,7 @@ AMEN.parkLabels.forEach(([n, x, y]) => addI([x, y], TXT.park(n), 700));
 AMEN.zones.forEach(([x, y, w, h, c, n]) => addI([x + w / 2, y + h / 2], TXT.zone(n), 4000));
 [...new Set(STANDS.map(s => s.name))].forEach(n => { const st = STANDS[longest(n)], seats = STANDS.filter(s => s.name === n).reduce((a, s) => a + Math.round(s.len / .55) * s.rows, 0);
   INST.push({ pos: st.mid.clone().setY(H(st.mid.x, st.mid.z) + st.base), title: 'Tribune ' + n.charAt(0) + n.slice(1).toLowerCase(), cat: 'Tribunes', desc: `≈ ${nf(Math.round(seats / 100) * 100)} places${st.base > 3 ? ', sur le toit d\'un bâtiment existant de l\'hippodrome' : ''}. Vue sur : ${placeName(st.look)}.`, maxD: 800, stand: longest(n) }); });
+{ const c = W(PADDOCK.pt(PADDOCK.L / 2, 44)); INST.push({ pos: c.setY(H(c.x, c.z)), title: 'Paddock des équipes', cat: 'Course', desc: `Zone fermée derrière les stands, réservée aux accrédités : ${Math.round(PADDOCK.L)} m × ${PADDOCK.DEP} m (≈ ${(PADDOCK.L * PADDOCK.DEP / 10000).toFixed(1).replace('.', ',')} ha). Contre les garages, les camions et bureaux des 11 écuries ; puis deux rangées de motorhomes sur 3 niveaux, face à face de part et d'autre de l'allée du paddock, et le bâtiment de la FIA et de la F1. Le Paddock Club est installé au-dessus des garages ; le compound TV et le centre média sont dans l'intérieur du circuit.`, maxD: 1500 }); }
 INST.push({ pos: at(START, 0, 0).setY(HT[START]), title: 'Ligne de départ', cat: 'Course', desc: 'Grille de départ de 20 places sur la route des Tribunes, face à la grande tribune. Les stands sont juste à côté.', maxD: 3000 });
 // étiquettes : pastille de couleur + nom, taille constante à l'écran
 const LBL = new THREE.Group(); LBL.visible = false; scene.add(LBL);
