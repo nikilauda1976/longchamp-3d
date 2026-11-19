@@ -140,7 +140,7 @@
   body.mode-drive #help { display:none; }
   #fluxLeg { display:none; position:fixed; right:max(12px,env(safe-area-inset-right)); bottom:calc(max(12px,env(safe-area-inset-bottom)) + 26px); background:rgba(12,12,18,.82); border-radius:10px; padding:8px 12px; font:600 12px/1.6 "Titillium Web",Arial,sans-serif; color:#fff; z-index:4; pointer-events:none; }
   #fluxLeg i { display:inline-block; width:18px; height:4px; border-radius:2px; vertical-align:middle; margin-right:7px; }
-  body.flux #fluxLeg { display:block; } body.home #fluxLeg, body.pitch #fluxLeg, body.mode-drive #fluxLeg { display:none; }
+  body.flux #fluxLeg, body.sect #fluxLeg { display:block; } body:not(.sect) #fluxLeg .ls, body:not(.flux) #fluxLeg .lf { display:none; } #fluxLeg .ls i { width:12px; margin:0 5px 0 0; } body.home #fluxLeg, body.pitch #fluxLeg, body.mode-drive #fluxLeg { display:none; }
   body.home #modes, body.home #where, body.home #help, body.home #mini, body.home #tower, body.home #onboard { display:none !important; }
   /* accueil */
   #home { position:fixed; inset:0; z-index:18; display:none; overflow:auto; background:linear-gradient(90deg, rgba(10,8,24,.92) 0%, rgba(10,8,24,.78) 46%, rgba(10,8,24,.08) 78%); -webkit-user-select:none; touch-action:pan-y; }
@@ -183,7 +183,7 @@
 <div id="loading"><div><p>Grand Prix de Paris · 2027</p><h1>Circuit<br>ParisLongchamp</h1><p id="loadmsg">Construction de la piste…</p><p style="font-size:13px;letter-spacing:.08em;opacity:.8">Projet conceptuel · non officiel</p></div></div>
 
 <div class="hud" id="tower"><div class="th"><b id="lapn">TOUR 1</b><span id="laptime">0:00.000</span></div><ol id="rows"></ol><div class="tb"><span>MEILLEUR TOUR</span><b id="best">—</b></div><div class="tb" id="autotag">PILOTE AUTO</div></div>
-<div id="fluxLeg"><i style="background:#2f8cff"></i>Transports → portes · enceinte billetterie<br><i style="background:#2bd65a"></i>Portes → tribunes et fan zones<br><i style="background:#ff8a1f"></i>Zone accréditée (paddock, stands)</div>
+<div id="fluxLeg"><span class="ls"><i style="background:#e10600"></i>Secteur 1 · <i style="background:#1e7fd8"></i>Secteur 2 · <i style="background:#ffd21f"></i>Secteur 3<br></span><span class="lf"><i style="background:#2f8cff"></i>Transports → portes · enceinte billetterie<br><i style="background:#2bd65a"></i>Portes → tribunes et fan zones<br><i style="background:#ff8a1f"></i>Zone accréditée (paddock, stands)</span></div>
 <div class="hud" id="where">Ligne droite des stands</div>
 <div class="hud" id="banner"></div>
 <div class="hud" id="onboard"><div id="rpmled"></div><div class="obrow"><div class="obbars"><i><b id="thrbar"></b></i><i><b id="brkbar"></b></i></div><div class="obspd"><b id="spd">0</b><small>KM/H</small></div><div class="obgear" id="gear">N</div><div class="obdrs" id="drs">AÉRO</div></div></div>
@@ -229,6 +229,7 @@
     <label>Décor</label><div class="seg"><button data-k="env" data-v="osm">Plan détaillé</button><button data-k="env" data-v="photo">Photo aérienne</button><button data-k="env" data-v="styl">Stylisé</button></div>
     <label>Ambiance</label><div class="seg"><button data-k="amb" data-v="jour">Jour</button><button data-k="amb" data-v="coucher">Coucher de soleil</button><button data-k="amb" data-v="nuit">Nuit</button></div>
     <label>Étiquettes</label><div class="seg"><button data-k="lbl" data-v="1">Afficher</button><button data-k="lbl" data-v="0">Masquer</button></div>
+    <label>Secteurs</label><div class="seg"><button data-k="sect" data-v="1">Afficher</button><button data-k="sect" data-v="0">Masquer</button></div>
     <label>Clôtures et flux</label><div class="seg"><button data-k="flux" data-v="1">Afficher</button><button data-k="flux" data-v="0">Masquer</button></div>
   </div>
   <p id="hNote" class="note"></p>
@@ -865,7 +866,7 @@ if (CHIC) {
     const off = s > 0 ? offL : offR, gap = s > 0 ? gapL : gapR;
     let run = [];
     const flush = () => {
-      if (run.length > 2) {
+      if (run.length > 12) { // pas de bouts de mur de moins de 25 m (évite les panneaux doublés aux chicanes)
         const A = run.map(i => at(i, s * off[i], 0)), B = run.map(i => at(i, s * off[i], 1.25));
         const C = run.map(i => at(i, s * off[i], 1.25)), E = run.map(i => at(i, s * (off[i] + .3), 4.2));
         const v = run.map((i, k) => k * STEP / ADS_PERIOD);
@@ -1306,6 +1307,43 @@ const PITVIEW = {};
   }
 }
 
+// ---------- intérêt pour le spectateur et secteurs ----------
+// profil de vitesse simplifié (adhérence + appui, freinage 30 m/s², relance 10 m/s²) : sert à repérer freinages, virages et réaccélérations
+const INTEREST = new Float32Array(NS), VQ = new Float32Array(NS), CORNERS = [];
+{
+  for (let i = 0; i < NS; i++) { const k = Math.abs(KL[i]); VQ[i] = k > .0029 ? Math.min(95, Math.sqrt(21 / (k - .0028))) : 95; }
+  for (let p = 0; p < 3; p++) { for (let i = NS - 1; i >= 0; i--) { const j = (i + 1) % NS; VQ[i] = Math.min(VQ[i], Math.sqrt(VQ[j] ** 2 + 2 * 30 * STEP)); } for (let i = 0; i < NS; i++) { const j = (i - 1 + NS) % NS; VQ[i] = Math.min(VQ[i], Math.sqrt(VQ[j] ** 2 + 2 * 10 * STEP)); } }
+  for (let m = 0; m < NS; m++) {
+    let isMin = VQ[m] < 82; for (let j = -20; j <= 20 && isMin; j++) if (VQ[(m + j + NS) % NS] < VQ[m] - 1e-4 || (j < 0 && VQ[(m + j + NS) % NS] === VQ[m])) isMin = false;
+    if (!isMin) continue;
+    let b = m, top = VQ[m]; for (let j = 1; j < 150; j++) { const i = (m - j + NS) % NS; if (VQ[i] > top) { top = VQ[i]; b = i; } }
+    if (top - VQ[m] < 6) continue; // virage pris presque à fond : pas un point de spectacle
+    CORNERS.push({ m, drop: top - VQ[m], v: VQ[m] });
+    const w = clamp((top - VQ[m]) / 35, .35, 1), e = 55; // de l'entrée du freinage à 110 m après le point le plus lent
+    for (let i = b, n = 0; n < 200; i = (i + 1) % NS, n++) { INTEREST[i] = Math.max(INTEREST[i], w); if (i === (m + e) % NS) break; }
+  }
+}
+const SECT = (() => { // 3 secteurs de longueur proche, coupés au milieu d'une portion rapide
+  const cut = f => { const t = (START + Math.round(NS * f)) % NS; let best = t, bv = -1; for (let j = -60; j <= 60; j++) { const i = (t + j + NS) % NS, v = VQ[i] - INTEREST[i] * 40 - Math.abs(j) * .05; if (v > bv) { bv = v; best = i; } } return best; };
+  return [START, cut(1 / 3), cut(2 / 3)];
+})();
+const sectorOf = i => { const d = (i - SECT[0] + NS) % NS; return d < (SECT[1] - SECT[0] + NS) % NS ? 0 : d < (SECT[2] - SECT[0] + NS) % NS ? 1 : 2; };
+// secteurs : bandes de couleur le long de la piste (S1 rouge, S2 bleu, S3 jaune), lignes de chronométrage et panneaux
+const SECTG = new THREE.Group(), SECT_COL = [0xe10600, 0x1e7fd8, 0xffd21f];
+{
+  for (let sct = 0; sct < 3; sct++) { // la piste teintée sur toute sa largeur, lisible d'avion (masquée en conduite)
+    const A = [], B = [], v = []; const i0 = SECT[sct], i1 = SECT[(sct + 1) % 3];
+    for (let i = i0, n = 0; ; i = (i + 2) % NS, n++) { A.push(at(i, HW[i] + 1.5, .21)); B.push(at(i, -HW[i] - 1.5, .21)); v.push(n); if ((i1 - i + NS) % NS < 2) break; }
+    const m = new THREE.Mesh(strip(A, B, v, { up: true }), new THREE.MeshBasicMaterial({ color: SECT_COL[sct], transparent: true, opacity: .55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 })); m.renderOrder = 2; SECTG.add(m);
+  }
+  SECT.forEach((i, k) => { // ligne de chronométrage + panneau « S1 | S2 »
+    const g = new THREE.PlaneGeometry(HW[i] * 2, .5); g.rotateX(-Math.PI / 2); const ln = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: SECT_COL[k] })); ln.position.copy(at(i, 0, .19)); ln.rotation.y = HD[i]; SECTG.add(ln);
+    const lab = k === 0 ? 'S3 | S1' : `S${k} | S${k + 1}`, tex = textTex(lab, '#16122A', '#ffffff', 512, 128);
+    for (const sd of [1, -1]) { const lat = sd * ((sd > 0 ? offL[i] : offR[i]) + 1.5), post = new THREE.Mesh(new THREE.BoxGeometry(.2, 3, .2), new THREE.MeshStandardMaterial({ color: 0x333333 })); post.position.copy(at(i, lat, 1.5)); SECTG.add(post);
+      const bd = new THREE.Mesh(new THREE.PlaneGeometry(3, .9), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })); bd.position.copy(at(i, lat, 3.3)); bd.rotation.y = HD[i]; SECTG.add(bd); }
+  });
+  scene.add(SECTG);
+}
 // ---------- tribunes ----------
 const NAMES = new Set(['ARNOUX', 'PIRONI', 'GASLY', 'JABOUILLE', 'OCON', 'LAFFITE', 'BIANCHI', 'HADJAR', 'PROST', 'SALONS SÈVRES', 'ALESI', 'DEPAILLER', 'CEVERT', 'TAMBAY', 'PANIS', 'GROSJEAN', 'BELTOISE', 'PESCAROLO']);
 const nameLabels = D.labels.filter(l => NAMES.has(l[0]));
@@ -1502,46 +1540,57 @@ Object.entries(byName).forEach(([name, o]) => {
 });
 // ---- gradins au maximum : on remplit les espaces libres le long de la piste (sans eau, bâtiment, route, arbre ni bois) ----
 const TRIB_MAX = new URLSearchParams(location.search).get('tribunes') !== 'plan';
+let CLEAR_M2 = 0; // surface boisée à dégager pour les tribunes de virage
 const seatsOf = list => Math.round(list.reduce((s, st) => s + st.rows * st.len / .55, 0) / 100) * 100; // ≈ 1 place / 55 cm par rang
 const SEATS_PLAN = seatsOf(STANDS), N_PLAN = STANDS.length;
 const OSMD = TRIB_MAX ? await fetch('osm.json').then(r => r.json()).catch(() => null) : null;
 if (OSMD) {
   const tg = new Grid(10); OSMD.trees.forEach(t => tg.add(t[0], t[1], t)); OSMD.rows.forEach(r => { for (let k = 0; k < r.length - 1; k++) { const a = r[k], b = r[k + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let t = 0; t < l; t += 6) tg.add(a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l, [a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l]); } });
   const boxed = list => list.map(rs => { let a = 1e9, b = 1e9, c = -1e9, e = -1e9; rs.forEach(r => r.forEach(q => { a = Math.min(a, q[0]); b = Math.min(b, q[1]); c = Math.max(c, q[0]); e = Math.max(e, q[1]); })); return { rs, box: [a, b, c, e] }; });
-  const woods = boxed(OSMD.forest.concat(OSMD.scrub, OSMD.water)), blds = boxed(OSMD.bld.map(([h, r]) => [r]));
+  const woods = boxed(OSMD.forest.concat(OSMD.scrub)), waterL = boxed(OSMD.water), blds = boxed(OSMD.bld.map(([h, r]) => [r]));
   const inAny = (list, x, z) => list.some(w => { if (x < w.box[0] - 1 || x > w.box[2] + 1 || z < w.box[1] - 1 || z > w.box[3] + 1) return false; let c = false; w.rs.forEach(r => { if (pip(x, z, r)) c = !c; }); return c; });
   const rg = new Grid(20); OSMD.roads.forEach(([w, r]) => { if (w < 5) return; for (let k = 0; k < r.length - 1; k++) { const a = r[k], b = r[k + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let t = 0; t <= l; t += 3) rg.add(a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l, [a[0] + (b[0] - a[0]) * t / l, a[1] + (b[1] - a[1]) * t / l, w / 2 + 1]); } });
-  const freeRect = (c, d, q, hl, hd) => {
+  let nWood = 0;
+  const freeRect = (c, d, q, hl, hd, trees = true) => { nWood = 0;
     for (let u = -hl; u <= hl + .01; u += 4) for (let v = -hd; v <= hd + .01; v += 4) {
       const w = c.clone().addScaledVector(d, u).addScaledVector(q, v), x = w.x + cx, z = w.z + cz;
-      if (tg.any(x, z, 4, t => (t[0] - x) ** 2 + (t[1] - z) ** 2 < 12)) return false;   // arbre recensé à < 3,5 m
+      if (trees && tg.any(x, z, 4, t => (t[0] - x) ** 2 + (t[1] - z) ** 2 < 12)) return false;   // arbre recensé à < 3,5 m (ignoré pour une tribune provisoire de virage)
       if (rg.any(x, z, 15, r => (r[0] - x) ** 2 + (r[1] - z) ** 2 < r[2] * r[2])) return false; // route
-      if (inAny(woods, x, z) || inAny(blds, x, z)) return false;                      // bois, eau, bâtiment
-      if (inAmenMap(x, z)) return false;                                               // villages, parkings, services du plan
+      if (inAny(waterL, x, z) || inAny(blds, x, z)) return false;                     // eau, bâtiment
+      if (inAny(woods, x, z)) { if (trees) return false; nWood++; }                   // bois : seulement pour une tribune de virage, en lisière (défrichement compté)
+      if (inAmenMap(x, z) || pip(x, z, PADDOCK.poly)) return false;                    // villages, parkings, services du plan, paddock
     }
     return true;
   };
+  // tribunes ajoutées là où le spectacle se joue : freinages, virages, réaccélérations (pas au milieu des lignes droites)
   let added = 0;
-  for (const side of [1, -1]) for (let i0 = 0; i0 < NS; ) {
-    let ok = false;
-    for (const len of [150, 110, 80, 55, 35]) {
-      const nS = Math.round(len / STEP), i1 = (i0 + nS) % NS, a = P[i0], b = P[i1], dd = b.clone().sub(a).setY(0), L = dd.length(); if (L < len * .9) continue; dd.normalize();
-      const nrm = new THREE.Vector3(dd.z, 0, -dd.x).multiplyScalar(side);
-      let far = -1e9, dev = 0, gap = false;
-      for (let k = 0; k <= nS; k++) { const ii = (i0 + k) % NS, rel = P[ii].clone().sub(a), lat = rel.dot(nrm); dev = Math.max(dev, Math.abs(lat)); const sameSide = side * NL[ii].dot(nrm) > 0; far = Math.max(far, lat + (sameSide ? (side > 0 ? offL[ii] : offR[ii]) : (side > 0 ? offR[ii] : offL[ii]))); if (side > 0 ? gapL[ii] : gapR[ii]) gap = true; }
-      if (dev > 5 || gap) continue; // portion trop courbe, ou entrée/sortie des stands
-      const f = a.clone().addScaledVector(dd, L / 2).addScaledVector(nrm, far + 4), q = nrm.clone().negate();
-      for (const dep of [24, 16, 10]) {
-        const c = f.clone().addScaledVector(q, -dep / 2);
-        if (!freeRect(c, dd, q, L / 2, dep / 2) || sliceOK(f, dd, q, L, dep)) continue;
-        addPlaced(c, dd.clone(), q.clone(), L / 2, dep / 2);
-        let nm = '', bdn = Infinity; nameLabels.forEach(l => { const d2 = (l[1] - cx - c.x) ** 2 + (l[2] - cz - c.z) ** 2; if (d2 < bdn) { bdn = d2; nm = l[0]; } });
-        grandstand(c.clone().addScaledVector(dd, -L / 2), c.clone().addScaledVector(dd, L / 2), dep, nm, q);
-        STANDS[STANDS.length - 1].extra = true; added++; ok = true; i0 += nS + 4; break;
-      }
-      if (ok) break;
-    }
-    if (!ok) i0 += 8;
+  const cands = [];
+  for (const side of [1, -1]) for (let i0 = 0; i0 < NS; i0 += 3) for (const len of [110, 80, 55, 35]) {
+    const nS = Math.round(len / STEP), i1 = (i0 + nS) % NS, a = P[i0], b = P[i1], dd = b.clone().sub(a).setY(0), L = dd.length(); if (L < len * .8) continue; dd.normalize();
+    const nrm = new THREE.Vector3(dd.z, 0, -dd.x).multiplyScalar(side);
+    let far = -1e9, lo = 0, hi = 0, gap = false, sc = 0;
+    for (let k = 0; k <= nS; k++) { const ii = (i0 + k) % NS, lat = P[ii].clone().sub(a).dot(nrm); lo = Math.min(lo, lat); hi = Math.max(hi, lat); const sameSide = side * NL[ii].dot(nrm) > 0; far = Math.max(far, lat + (sameSide ? (side > 0 ? offL[ii] : offR[ii]) : (side > 0 ? offR[ii] : offL[ii]))); if (ii === PIT_ENTRY.i || ii === PIT_EXIT.i) gap = true; sc += INTEREST[ii]; }
+    if (gap) continue;
+    const outside = hi > -lo; // la piste vient vers la tribune : extérieur du virage, on voit le freinage, la corde et la sortie
+    if (-lo > 5 || hi > (outside ? 24 : 5)) continue;
+    sc /= nS + 1; if (sc < .42) continue;
+    cands.push({ i0, nS, dd, nrm, L, far, sc: sc + (outside ? .15 : 0) + len / 1000 });
+  }
+  cands.sort((x, y) => y.sc - x.sc);
+  for (const cd of cands) {
+    const { i0, dd, nrm, L, far } = cd, a = P[i0];
+    let done = false;
+    for (const back of [4, 12, 22]) { if (done) break;
+    const f = a.clone().addScaledVector(dd, L / 2).addScaledVector(nrm, far + back), q = nrm.clone().negate();
+    if (inPlaced(f, 8)) continue;
+    for (const dep of [24, 16, 10]) {
+      const c = f.clone().addScaledVector(q, -dep / 2);
+      if (!freeRect(c, dd, q, L / 2, dep / 2, false) || sliceOK(f, dd, q, L, dep)) continue;
+      addPlaced(c, dd.clone(), q.clone(), L / 2, dep / 2);
+      let nm = '', bdn = Infinity; nameLabels.forEach(l => { const d2 = (l[1] - cx - c.x) ** 2 + (l[2] - cz - c.z) ** 2; if (d2 < bdn) { bdn = d2; nm = l[0]; } });
+      grandstand(c.clone().addScaledVector(dd, -L / 2), c.clone().addScaledVector(dd, L / 2), dep, nm, q);
+      STANDS[STANDS.length - 1].extra = true; STANDS[STANDS.length - 1].clear = nWood * 16; CLEAR_M2 += nWood * 16; added++; done = true; break;
+    } }
   }
   REPORT.push({ name: 'AJOUTÉES', plan: 0, gardé: added, raisons: 'tribunes ajoutées dans les espaces libres' });
 }
@@ -1566,6 +1615,10 @@ ROOF_STANDS.forEach(R => {
 });
 const SEATS_ROOF = seatsOf(ROOF_STANDS);
 const SEATS_ALL = seatsOf(STANDS);
+const SECT_STATS = [0, 1, 2].map(k => { const i0 = SECT[k], i1 = SECT[(k + 1) % 3], len = ((i1 - i0 + NS) % NS) * STEP, cs = CORNERS.filter(c => sectorOf(c.m) === k);
+  const st = STANDS.filter(s => sectorOf(nearestIdx(s.mid)) === k), mid = (i0 + Math.round(((i1 - i0 + NS) % NS) / 2)) % NS;
+  const clr = st.reduce((a, s) => a + (s.clear || 0), 0);
+  return { k, clr, len, corners: cs.length, heavy: cs.filter(c => c.drop > 25).length, slow: cs.filter(c => c.v < 30).length, stands: st.length, seats: seatsOf(st), mid }; });
 window.__placed = placed;
 window.__seats = { roof: SEATS_ROOF, roofN: ROOF_STANDS.length, plan: SEATS_PLAN, all: SEATS_ALL, nPlan: N_PLAN, nAll: STANDS.length };
 console.table(REPORT);
@@ -2400,15 +2453,15 @@ for (let i = 0; i < NS; i++) {
 TVSPOTS.forEach(p => p.y += H(p.x, p.z));
 let tvSpot = 0;
 const heli = new THREE.Vector3();
-let shakeT = 0;
+let shakeT = 0, camY = null, lookY = null;
 function updateCamera(dt) {
   if (mode === 'drive') {
     const c = player, f = new THREE.Vector3(Math.sin(c.h), 0, Math.cos(c.h)), r = new THREE.Vector3(f.z, 0, -f.x);
     const av = Math.abs(c.v), lat0 = (c.pos.x - P[c.idx].x) * NL[c.idx].x + (c.pos.z - P[c.idx].z) * NL[c.idx].z;
     if (camMode === 0) { // T-cam : au-dessus de la prise d'air, derrière le casque
-      camera.position.copy(c.pos).addScaledVector(f, -.42); camera.position.y = H(camera.position.x, camera.position.z) + 1.33;
-      camLook.copy(c.pos).addScaledVector(f, 30); camLook.y = H(camLook.x, camLook.z) + .75; camera.fov = 56 + clamp(av, 0, 95) * .07;
-      shakeT += dt; const sk = .006 + .02 * (av / 90) ** 2 + (Math.abs(lat0) > HW[c.idx] + 1 ? .05 : 0); // vibrations : vitesse, vibreurs, sortie de piste
+      camera.position.copy(c.pos).addScaledVector(f, -.42); { const want = c.pos.y + 1.33; camY = camY == null || Math.abs(camY - want) > 3 ? want : camY + (want - camY) * (1 - Math.exp(-dt * 12)); camera.position.y = camY; }
+      camLook.copy(c.pos).addScaledVector(f, 30); { const want = H(camLook.x, camLook.z) + .75; lookY = lookY == null || Math.abs(lookY - want) > 4 ? want : lookY + (want - lookY) * (1 - Math.exp(-dt * 4)); camLook.y = lookY; } camera.fov = 58;
+      shakeT += dt; const sk = Math.abs(lat0) > HW[c.idx] + 1 ? .025 : 0; // vibrations seulement hors piste ; caméra stable sur la piste
       camera.position.y += sk * (Math.sin(shakeT * 61) * .6 + Math.sin(shakeT * 37.3) * .4); camera.position.addScaledVector(r, sk * .5 * Math.sin(shakeT * 47.1));
     } else if (camMode === 1) { // poursuite basse
       const want = c.pos.clone().addScaledVector(f, -6.2).setY(1.75);
@@ -2599,7 +2652,7 @@ let hudT = 0, placeT = 0;
 function frame() {
   if (window.__FILM) { requestAnimationFrame(frame); return; }
   const dt = Math.min(clock.getDelta(), .05);
-  gameTick(dt); stepPlayer(dt); stepAI(dt); stepWalkTarget(dt); if (!pitchCam(dt)) updateCamera(dt); updLabels(dt); if (fluxOn) for (const t of FLUX_TEX) t.offset.y -= dt * .9;
+  gameTick(dt); stepPlayer(dt); stepAI(dt); stepWalkTarget(dt); if (!pitchCam(dt)) updateCamera(dt); updLabels(dt); SECTG.visible = sectOn && mode !== 'drive'; if (fluxOn) for (const t of FLUX_TEX) t.offset.y -= dt * .9;
   const focus = mode === 'drone' ? orbit.target : camera.position;
   sun.position.copy(focus).add(SUN_OFF); sun.target.position.copy(focus); sun.target.updateMatrixWorld();
   if (mode === 'drone') { const d = camera.position.distanceTo(orbit.target); const s = clamp(d * .6, 110, 900); Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s }); sun.shadow.camera.updateProjectionMatrix(); }
@@ -2718,6 +2771,7 @@ function ficheHTML() {
   ${row('Temps au tour estimé (simulation)', '≈ ' + fmtLap(T.lap) + ' · moyenne ≈ ' + nf(T.avg) + ' km/h')}
   ${row('Plus longue ligne droite', '≈ ' + nf(T.straight) + ' m')}
   ${row('Zones « ligne droite » (aileron mobile 2026)', T.drs + ' · ' + nf(T.drsL) + ' m au total')}
+  ${SECT_STATS.map(S => row('Secteur ' + (S.k + 1), nf(Math.round(S.len / 10) * 10) + ' m · ' + S.corners + ' virages freinés (' + S.heavy + ' gros freinages) · ' + S.stands + ' tribunes, ≈ ' + nf(S.seats) + ' places' + (S.clr > 200 ? ' · ≈ ' + nf(Math.round(S.clr / 100) * 100) + ' m² de lisière à dégager' : ''))).join('')}
   ${row('Largeur de piste', nf(T.wmin, 0) + ' à ' + nf(T.wmax, 0) + ' m')}
   ${row('Dénivelé', nf(T.dz, 1) + ' m (relief IGN RGE ALTI)')}
   </table>
@@ -2886,6 +2940,7 @@ AMEN.zones.forEach(([x, y, w, h, c, n]) => addI([x + w / 2, y + h / 2], TXT.zone
   INST.push({ pos: st.mid.clone().setY(H(st.mid.x, st.mid.z) + st.base), title: 'Tribune ' + n.charAt(0) + n.slice(1).toLowerCase(), cat: 'Tribunes', desc: `≈ ${nf(Math.round(seats / 100) * 100)} places${st.base > 3 ? ', sur le toit d\'un bâtiment existant de l\'hippodrome' : ''}. Vue sur : ${placeName(st.look)}.`, maxD: 800, stand: longest(n) }); });
 { const g = D.garages, c = W([(g[2][0] + g[7][0]) / 2, (g[2][1] + g[7][1]) / 2]); INST.push({ pos: c.setY(H(c.x, c.z) + 4), title: 'Paddock Club', cat: 'Hospitalités', desc: 'Hospitalités haut de gamme de la F1 sur deux niveaux vitrés au-dessus des garages, sur toute la longueur du bâtiment des stands (≈ 320 m), comme à Barcelone ou Bahreïn. Vue plongeante sur la voie des stands, les arrêts aux stands et la grille de départ ; accès par le contrôle de la Porte 7 et visites guidées de la voie des stands.', maxD: 1500 }); }
 { const c = W(PADDOCK.pt(PADDOCK.L / 2, 44)); INST.push({ pos: c.setY(H(c.x, c.z)), title: 'Paddock des équipes', cat: 'Course', desc: `Zone fermée derrière les stands, réservée aux accrédités : ${Math.round(PADDOCK.L)} m × ${PADDOCK.DEP} m (≈ ${(PADDOCK.L * PADDOCK.DEP / 10000).toFixed(1).replace('.', ',')} ha). Contre les garages, les camions et bureaux des 11 écuries ; puis deux rangées de motorhomes sur 3 niveaux, face à face de part et d'autre de l'allée du paddock, et le bâtiment de la FIA et de la F1. Le Paddock Club est installé au-dessus des garages ; le compound TV et le centre média sont dans l'intérieur du circuit.`, maxD: 1500 }); }
+SECT_STATS.forEach(S => INST.push({ pos: at(S.mid, 0, 0).setY(HT[S.mid] + 6), title: 'Secteur ' + (S.k + 1), cat: 'Course', desc: `${nf(Math.round(S.len / 10) * 10)} m · ${S.corners} virage${S.corners > 1 ? 's' : ''} où l'on freine (dont ${S.heavy} gros freinage${S.heavy > 1 ? 's' : ''} et ${S.slow} virage${S.slow > 1 ? 's' : ''} lent${S.slow > 1 ? 's' : ''} sous 110 km/h). Tribunes du secteur : ${S.stands}, ≈ ${nf(S.seats)} places${S.clr > 200 ? ` (dont des tribunes provisoires en lisière du bois : ≈ ${nf(Math.round(S.clr / 100) * 100)} m² à dégager)` : ''}. Les meilleures places sont à l'extérieur des virages : on voit le freinage, la corde et la réaccélération.`, maxD: 4000 }));
 INST.push({ pos: at(START, 0, 0).setY(HT[START]), title: 'Ligne de départ', cat: 'Course', desc: 'Grille de départ de 20 places sur la route des Tribunes, face à la grande tribune. Les stands sont juste à côté.', maxD: 3000 });
 // étiquettes : pastille de couleur + nom, taille constante à l'écran
 const LBL = new THREE.Group(); LBL.visible = false; scene.add(LBL);
@@ -2903,6 +2958,9 @@ let lblOn = localStorage.getItem('lc_lbl') !== '0', lblT = 0, lblForce = false;
 let fluxOn = localStorage.getItem('lc_flux') !== '0'; scene.add(FLUX);
 function setFlux(v) { fluxOn = v; FLUX.visible = v; localStorage.setItem('lc_flux', v ? '1' : '0'); document.body.classList.toggle('flux', v); }
 setFlux(fluxOn);
+let sectOn = localStorage.getItem('lc_sect') !== '0';
+function setSect(v) { sectOn = v; SECTG.visible = v; localStorage.setItem('lc_sect', v ? '1' : '0'); document.body.classList.toggle('sect', v); }
+setSect(sectOn);
 function updLabels(dt) {
   const show = (lblOn || lblForce) && !window.__FILM_NOLBL && mode !== 'drive' && !document.body.classList.contains('home'); LBL.visible = show; if (!show) return;
   lblT += dt; if (lblT < .2) return; lblT = 0;
@@ -2956,13 +3014,13 @@ const Q0 = new URLSearchParams(location.search);
 const CUR = { piste: Q0.get('piste') || '', v1: Q0.get('v1') || '', tribunes: Q0.get('tribunes') || '', pubs: Q0.get('pubs') || '' };
 const PEND = { ...CUR };
 function homeSync() {
-  document.querySelectorAll('#home [data-k]').forEach(b => { const k = b.dataset.k, v = b.dataset.v; const cur = k in PEND ? PEND[k] : k === 'env' ? envName : k === 'amb' ? ambName : k === 'lbl' ? (lblOn ? '1' : '0') : k === 'flux' ? (fluxOn ? '1' : '0') : ''; b.setAttribute('aria-pressed', cur === v); });
+  document.querySelectorAll('#home [data-k]').forEach(b => { const k = b.dataset.k, v = b.dataset.v; const cur = k in PEND ? PEND[k] : k === 'env' ? envName : k === 'amb' ? ambName : k === 'lbl' ? (lblOn ? '1' : '0') : k === 'flux' ? (fluxOn ? '1' : '0') : k === 'sect' ? (sectOn ? '1' : '0') : ''; b.setAttribute('aria-pressed', cur === v); });
   const dirty = Object.keys(CUR).some(k => CUR[k] !== PEND[k]); $('#hNote').classList.toggle('warn', dirty);
   $('#hNote').textContent = dirty ? 'Ces réglages modifient le tracé ou les tribunes : la maquette se recharge au lancement (quelques secondes).' : 'Tous les réglages restent modifiables depuis le bouton « Accueil » en haut de l\'écran.';
 }
 document.querySelectorAll('#home [data-k]').forEach(b => b.onclick = () => {
   const k = b.dataset.k, v = b.dataset.v;
-  if (k in PEND) PEND[k] = v; else if (k === 'env') { setEnv(v); localStorage.setItem('lc_env', v); } else if (k === 'amb') { setAmb(v); localStorage.setItem('lc_amb', v); } else if (k === 'lbl') setLabels(v === '1'); else if (k === 'flux') setFlux(v === '1');
+  if (k in PEND) PEND[k] = v; else if (k === 'env') { setEnv(v); localStorage.setItem('lc_env', v); } else if (k === 'amb') { setAmb(v); localStorage.setItem('lc_amb', v); } else if (k === 'lbl') setLabels(v === '1'); else if (k === 'flux') setFlux(v === '1'); else if (k === 'sect') setSect(v === '1');
   homeSync();
 });
 function openHome() {
