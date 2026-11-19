@@ -137,6 +137,9 @@
   body.mode-drive #modes { top:auto; bottom:max(10px,env(safe-area-inset-bottom)); }
   body.mode-drive #onboard { bottom:max(62px, calc(env(safe-area-inset-bottom) + 56px)) !important; }
   body.mode-drive #help { display:none; }
+  #fluxLeg { display:none; position:fixed; right:max(12px,env(safe-area-inset-right)); bottom:calc(max(12px,env(safe-area-inset-bottom)) + 26px); background:rgba(12,12,18,.82); border-radius:10px; padding:8px 12px; font:600 12px/1.6 "Titillium Web",Arial,sans-serif; color:#fff; z-index:4; pointer-events:none; }
+  #fluxLeg i { display:inline-block; width:18px; height:4px; border-radius:2px; vertical-align:middle; margin-right:7px; }
+  body.flux #fluxLeg { display:block; } body.home #fluxLeg, body.pitch #fluxLeg, body.mode-drive #fluxLeg { display:none; }
   body.home #modes, body.home #where, body.home #help, body.home #mini, body.home #tower, body.home #onboard { display:none !important; }
   /* accueil */
   #home { position:fixed; inset:0; z-index:18; display:none; overflow:auto; background:linear-gradient(90deg, rgba(10,8,24,.92) 0%, rgba(10,8,24,.78) 46%, rgba(10,8,24,.08) 78%); -webkit-user-select:none; touch-action:pan-y; }
@@ -179,6 +182,7 @@
 <div id="loading"><div><p>Grand Prix de Paris · 2027</p><h1>Circuit<br>ParisLongchamp</h1><p id="loadmsg">Construction de la piste…</p><p style="font-size:13px;letter-spacing:.08em;opacity:.8">Projet conceptuel · non officiel</p></div></div>
 
 <div class="hud" id="tower"><div class="th"><b id="lapn">TOUR 1</b><span id="laptime">0:00.000</span></div><ol id="rows"></ol><div class="tb"><span>MEILLEUR TOUR</span><b id="best">—</b></div><div class="tb" id="autotag">PILOTE AUTO</div></div>
+<div id="fluxLeg"><i style="background:#2f8cff"></i>Transports → portes · enceinte billetterie<br><i style="background:#2bd65a"></i>Portes → tribunes et fan zones<br><i style="background:#ff8a1f"></i>Zone accréditée (paddock, stands)</div>
 <div class="hud" id="where">Ligne droite des stands</div>
 <div class="hud" id="banner"></div>
 <div class="hud" id="onboard"><div id="rpmled"></div><div class="obrow"><div class="obbars"><i><b id="thrbar"></b></i><i><b id="brkbar"></b></i></div><div class="obspd"><b id="spd">0</b><small>KM/H</small></div><div class="obgear" id="gear">N</div><div class="obdrs" id="drs">DRS</div></div></div>
@@ -224,6 +228,7 @@
     <label>Décor</label><div class="seg"><button data-k="env" data-v="osm">Plan détaillé</button><button data-k="env" data-v="photo">Photo aérienne</button><button data-k="env" data-v="styl">Stylisé</button></div>
     <label>Ambiance</label><div class="seg"><button data-k="amb" data-v="jour">Jour</button><button data-k="amb" data-v="coucher">Coucher de soleil</button><button data-k="amb" data-v="nuit">Nuit</button></div>
     <label>Étiquettes</label><div class="seg"><button data-k="lbl" data-v="1">Afficher</button><button data-k="lbl" data-v="0">Masquer</button></div>
+    <label>Clôtures et flux</label><div class="seg"><button data-k="flux" data-v="1">Afficher</button><button data-k="flux" data-v="0">Masquer</button></div>
   </div>
   <p id="hNote" class="note"></p>
   <div class="foot"><button id="hFiche">Fiche projet (chiffres et sources)</button></div>
@@ -435,6 +440,7 @@ function mesh(g, mat, o = {}) { if (o.flat !== false && g.attributes.normal && !
 const AMEN = JSON.parse(document.getElementById('amen').textContent);
 AMEN.gates.push({ x: 290, y: 1128, n: '7', pav: true }); // parvis des pavillons de l'hippodrome : entrée historique, côté route des Tribunes
 const AMEN_R = [], AMEN_BOX = [];
+const FLUX = new THREE.Group(), FLUX_TEX = []; // calque « clôtures et flux »
 AMEN.gates.forEach(g => AMEN_R.push([g.x, g.y, 18]));
 [[AMEN.tickets, 11], [AMEN.shops, 11], [AMEN.hubs, 15], [AMEN.aid, 6], [AMEN.screens, 8], [AMEN.cranes, 8], [AMEN.heli, 18]].forEach(([l, r]) => l.forEach(q => AMEN_R.push([q[0], q[1], r])));
 AMEN.buildings.forEach(b => AMEN_R.push([b[1], b[2], 16])); AMEN.transports.forEach(t => AMEN_R.push([t[0], t[1], 20]));
@@ -1824,6 +1830,44 @@ mesh(mergeGeometries(roofGeos.filter(Boolean)), new THREE.MeshStandardMaterial({
       for (let k = 0; k < pl.length - 1; k++) { const a = M(pl[k]), b = M(pl[k + 1]), l = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let t = 0; t < l; t += 3) { const x = a[0] + (b[0] - a[0]) * t / l, z = a[1] + (b[1] - a[1]) * t / l; if (okSpot(x, z, 0)) run.push(new THREE.Vector3(x, 0, z)); else flush(); } }
       flush(); });
     if (gs.length) { const m = new THREE.Mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0xe0d6bf, roughness: 1 })); m.receiveShadow = true; scene.add(m); } }
+  // --- clôtures et flux du public ---
+  {
+    const HG = (x, z) => Math.max(0, H(x, z)); // au-dessus du sol drapé
+    const inPD = (x, z, m = 6) => [[0, 0], [m, 0], [-m, 0], [0, m], [0, -m]].some(([u, v]) => pip(x + cx + u, z + cz + v, PADDOCK.poly) || pip(x + cx + u, z + cz + v, D.garages)); // le public ne passe jamais dans la zone accréditée
+    const pub = (x, z) => okSpot(x, z, 0) && !inPD(x, z);
+    const run2 = (pl, step = 3, keep = pub) => { const runs = []; let run = []; const flush = () => { if (run.length > 1) runs.push(run); run = []; };
+      for (let k = 0; k < pl.length - 1; k++) { const a = M(pl[k]), b = M(pl[k + 1]), l = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let t = 0; t < l; t += step) { const x = a[0] + (b[0] - a[0]) * t / l, z = a[1] + (b[1] - a[1]) * t / l; if (keep(x, z, 0)) run.push(new THREE.Vector3(x, HG(x, z), z)); else flush(); } }
+      flush(); return runs; };
+    // flèches animées : bande au sol, texture de chevrons qui défile dans le sens de la marche
+    const chev = ctex(64, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.strokeStyle = '#fff'; g.lineWidth = 13; g.lineCap = g.lineJoin = 'round'; g.beginPath(); g.moveTo(10, 84); g.lineTo(32, 40); g.lineTo(54, 84); g.stroke(); });
+    const flow = (runs, col, half, y, solid = false) => { if (!runs.length) return; const tex = solid ? null : chev.clone(); if (tex) { tex.needsUpdate = true; tex.repeat.set(1, .5); FLUX_TEX.push(tex); }
+      const gs = runs.map(run => { const L = [], R = [], vs = []; let d = 0; run.forEach((p, i) => { const a = run[Math.max(0, i - 1)], b = run[Math.min(run.length - 1, i + 1)]; let tx = b.x - a.x, tz = b.z - a.z; const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l; if (i) d += p.distanceTo(run[i - 1]); L.push(new THREE.Vector3(p.x + tz * half, p.y + y, p.z - tx * half)); R.push(new THREE.Vector3(p.x - tz * half, p.y + y, p.z + tx * half)); vs.push(d / (half * 2.2)); }); return strip(L, R, vs, { up: true }); }).filter(Boolean);
+      const m = new THREE.Mesh(mergeGeometries(gs), new THREE.MeshBasicMaterial({ map: tex, color: col, transparent: true, opacity: solid ? .75 : 1, depthWrite: false, depthTest: false, side: THREE.DoubleSide })); m.renderOrder = 6; FLUX.add(m); }; // lisible au-dessus des arbres, comme un calque de plan
+    const nearGate = (x, y) => AMEN.gates.reduce((b, g) => Math.hypot(g.x - x, g.y - y) < Math.hypot(b.x - x, b.y - y) ? g : b);
+    flow(AMEN.paths.flatMap(pl => run2(pl)), 0x2bd65a, 4.5, .35);                                       // vert : porte → tribunes et fan zones
+    flow(AMEN.transports.flatMap(([x, y]) => { const g = nearGate(x, y); return run2([[x, y], [g.x, g.y]], 3, (a, b) => pub(a, b) && !pip(a + cx, b + cz, D.site)); }), 0x2f8cff, 5, .4); // bleu : transports → porte
+    flow(run2([PADDOCK.pt(PADDOCK.L + 40, 44.5), PADDOCK.pt(PADDOCK.L - 20, 44.5)], 3, (x, z) => okSpot(x, z, 0)).concat(run2([PADDOCK.pt(-40, 44.5), PADDOCK.pt(20, 44.5)], 3, (x, z) => okSpot(x, z, 0))), 0xff8a1f, 2, .4); // orange : accrédités
+    // clôtures : enceinte billetterie (bleu) et zone accréditée (orange)
+    const fence = (pts, col, hgt, opaque, gapAt = []) => {
+      const panels = [], rails = [], posts = [];
+      for (let k = 0; k < pts.length - 1; k++) { const a = pts[k], b = pts[k + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(l / 6));
+        for (let j = 0; j < n; j++) { const u0 = [a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n], u1 = [a[0] + (b[0] - a[0]) * (j + 1) / n, a[1] + (b[1] - a[1]) * (j + 1) / n], mid = [(u0[0] + u1[0]) / 2, (u0[1] + u1[1]) / 2];
+          if (gapAt.some(([gx, gy, r]) => Math.hypot(mid[0] - gx, mid[1] - gy) < r)) continue;
+          const A = W(u0), B = W(u1), len = A.distanceTo(B), y = HG((A.x + B.x) / 2, (A.z + B.z) / 2), ang = Math.atan2(B.x - A.x, B.z - A.z), cxz = [(A.x + B.x) / 2, (A.z + B.z) / 2];
+          const pg = new THREE.BoxGeometry(.06, hgt, len).rotateY(ang).translate(cxz[0], y + hgt / 2, cxz[1]); panels.push(pg);
+          rails.push(new THREE.BoxGeometry(.12, .22, len).rotateY(ang).translate(cxz[0], y + hgt, cxz[1]));
+          posts.push(new THREE.BoxGeometry(.12, hgt + .1, .12).translate(A.x, HG(A.x, A.z) + (hgt + .1) / 2, A.z)); } }
+      if (!panels.length) return;
+      FLUX.add(new THREE.Mesh(mergeGeometries(panels), new THREE.MeshStandardMaterial({ color: opaque ? col : 0xb9c0c8, transparent: !opaque, opacity: opaque ? 1 : .38, depthWrite: !!opaque, side: THREE.DoubleSide, roughness: .8 })));
+      FLUX.add(new THREE.Mesh(mergeGeometries(rails), new THREE.MeshBasicMaterial({ color: col })));
+      FLUX.add(new THREE.Mesh(mergeGeometries(posts), new THREE.MeshStandardMaterial({ color: 0x3a3d45 })));
+    };
+    fence(D.site.concat([D.site[0]]), 0x2f8cff, 2.2, false, AMEN.gates.map(g => [g.x, g.y, 22]));
+    const gapRuns = (pts, gaps) => run2(pts, 3, (x, z) => !gaps.some(([gx, gy, r]) => Math.hypot(x + cx - gx, z + cz - gy) < r));
+    flow(gapRuns(D.site.concat([D.site[0]]), AMEN.gates.map(g => [g.x, g.y, 22])), 0x2f8cff, 2.6, .3, true);   // tracé de l'enceinte vu d'en haut
+    const PD = PADDOCK, pdLine = [PD.pt(0, -34), PD.pt(0, PD.DEP), PD.pt(PD.L, PD.DEP), PD.pt(PD.L, -34)], pdGaps = [[...PD.pt(0, 44.5), 8], [...PD.pt(PD.L, 44.5), 8]];
+    fence(pdLine, 0xff8a1f, 2.5, true, pdGaps); flow(gapRuns(pdLine, pdGaps), 0xff8a1f, 2.2, .3, true);
+  }
   // --- lignes de safety car et panneaux de distance depuis la ligne ---
   AMEN.sc.forEach(([x, y, lab]) => { const p = M([x, y]), i = nearT(p[0], p[1]); const g = new THREE.PlaneGeometry(HW[i] * 2, .5); g.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xF28C28 })); m.position.copy(at(i, 0, .16)); m.rotation.y = HD[i]; scene.add(m);
     const q = at(i, -(offR[i] + 1.2), 0), f = frame(q.x, q.z, HD[i] + Math.PI); f.box('dark', .1, 2.2, .1); f.sign(lab, '#F28C28', '#ffffff', 1.6, .9, 0, 2.6, .1); });
@@ -2514,7 +2558,7 @@ let hudT = 0, placeT = 0;
 function frame() {
   if (window.__FILM) { requestAnimationFrame(frame); return; }
   const dt = Math.min(clock.getDelta(), .05);
-  gameTick(dt); stepPlayer(dt); stepAI(dt); stepWalkTarget(dt); if (!pitchCam(dt)) updateCamera(dt); updLabels(dt);
+  gameTick(dt); stepPlayer(dt); stepAI(dt); stepWalkTarget(dt); if (!pitchCam(dt)) updateCamera(dt); updLabels(dt); if (fluxOn) for (const t of FLUX_TEX) t.offset.y -= dt * .9;
   const focus = mode === 'drone' ? orbit.target : camera.position;
   sun.position.copy(focus).add(SUN_OFF); sun.target.position.copy(focus); sun.target.updateMatrixWorld();
   if (mode === 'drone') { const d = camera.position.distanceTo(orbit.target); const s = clamp(d * .6, 110, 900); Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s }); sun.shadow.camera.updateProjectionMatrix(); }
@@ -2815,6 +2859,9 @@ INST.forEach((it, k) => {
   it.sprite = sp; LBL.add(sp);
 });
 let lblOn = localStorage.getItem('lc_lbl') !== '0', lblT = 0, lblForce = false;
+let fluxOn = localStorage.getItem('lc_flux') !== '0'; scene.add(FLUX);
+function setFlux(v) { fluxOn = v; FLUX.visible = v; localStorage.setItem('lc_flux', v ? '1' : '0'); document.body.classList.toggle('flux', v); }
+setFlux(fluxOn);
 function updLabels(dt) {
   const show = (lblOn || lblForce) && !window.__FILM_NOLBL && mode !== 'drive' && !document.body.classList.contains('home'); LBL.visible = show; if (!show) return;
   lblT += dt; if (lblT < .2) return; lblT = 0;
@@ -2868,13 +2915,13 @@ const Q0 = new URLSearchParams(location.search);
 const CUR = { piste: Q0.get('piste') || '', v1: Q0.get('v1') || '', tribunes: Q0.get('tribunes') || '', pubs: Q0.get('pubs') || '' };
 const PEND = { ...CUR };
 function homeSync() {
-  document.querySelectorAll('#home [data-k]').forEach(b => { const k = b.dataset.k, v = b.dataset.v; const cur = k in PEND ? PEND[k] : k === 'env' ? envName : k === 'amb' ? ambName : k === 'lbl' ? (lblOn ? '1' : '0') : ''; b.setAttribute('aria-pressed', cur === v); });
+  document.querySelectorAll('#home [data-k]').forEach(b => { const k = b.dataset.k, v = b.dataset.v; const cur = k in PEND ? PEND[k] : k === 'env' ? envName : k === 'amb' ? ambName : k === 'lbl' ? (lblOn ? '1' : '0') : k === 'flux' ? (fluxOn ? '1' : '0') : ''; b.setAttribute('aria-pressed', cur === v); });
   const dirty = Object.keys(CUR).some(k => CUR[k] !== PEND[k]); $('#hNote').classList.toggle('warn', dirty);
   $('#hNote').textContent = dirty ? 'Ces réglages modifient le tracé ou les tribunes : la maquette se recharge au lancement (quelques secondes).' : 'Tous les réglages restent modifiables depuis le bouton « Accueil » en haut de l\'écran.';
 }
 document.querySelectorAll('#home [data-k]').forEach(b => b.onclick = () => {
   const k = b.dataset.k, v = b.dataset.v;
-  if (k in PEND) PEND[k] = v; else if (k === 'env') { setEnv(v); localStorage.setItem('lc_env', v); } else if (k === 'amb') { setAmb(v); localStorage.setItem('lc_amb', v); } else if (k === 'lbl') setLabels(v === '1');
+  if (k in PEND) PEND[k] = v; else if (k === 'env') { setEnv(v); localStorage.setItem('lc_env', v); } else if (k === 'amb') { setAmb(v); localStorage.setItem('lc_amb', v); } else if (k === 'lbl') setLabels(v === '1'); else if (k === 'flux') setFlux(v === '1');
   homeSync();
 });
 function openHome() {
