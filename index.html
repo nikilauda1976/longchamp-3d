@@ -433,6 +433,7 @@ function mesh(g, mat, o = {}) { if (o.flat !== false && g.attributes.normal && !
 
 // ---------- aménagements du plan : emprises réservées (arbres, tribunes ajoutées et parkings les évitent) ----------
 const AMEN = JSON.parse(document.getElementById('amen').textContent);
+AMEN.gates.push({ x: 290, y: 1128, n: '7', pav: true }); // parvis des pavillons de l'hippodrome : entrée historique, côté route des Tribunes
 const AMEN_R = [], AMEN_BOX = [];
 AMEN.gates.forEach(g => AMEN_R.push([g.x, g.y, 18]));
 [[AMEN.tickets, 11], [AMEN.shops, 11], [AMEN.hubs, 15], [AMEN.aid, 6], [AMEN.screens, 8], [AMEN.cranes, 8], [AMEN.heli, 18]].forEach(([l, r]) => l.forEach(q => AMEN_R.push([q[0], q[1], r])));
@@ -1142,6 +1143,11 @@ function extrude(poly, h, y = 0) {
   { const m = new THREE.MeshStandardMaterial({ color: 0xe9e1d2, roughness: .85 }); ROOF_BLD.forEach(b => mesh(extrude(b.poly, b.h), m, { cast: true, to: scene })); }
   mesh(extrude(D.garages, 7), new THREE.MeshStandardMaterial({ color: 0x2b2640, roughness: .6 }), { cast: true });
   mesh(extrude(D.garages, .6, 7), new THREE.MeshStandardMaterial({ color: 0xffffff }), { cast: true });
+  { // Paddock Club : 2 niveaux vitrés au-dessus des garages, vue sur la voie des stands et la grille
+    const glass = new THREE.MeshStandardMaterial({ color: 0x9cc3e0, roughness: .1, metalness: .5 }), wh = new THREE.MeshStandardMaterial({ color: 0xf4f4f2, roughness: .6 });
+    mesh(extrude(D.garages, 3.4, 7.6), glass, { cast: true }); mesh(extrude(D.garages, .4, 11), wh, { cast: true });
+    mesh(extrude(D.garages, 3.2, 11.4), glass, { cast: true }); mesh(extrude(D.garages, .6, 14.6), wh, { cast: true });
+  }
 }
 
 // ---------- stands : boxes des écuries (décor uniquement) ----------
@@ -1166,6 +1172,12 @@ const PITVIEW = {};
   }));
   const front = new THREE.CatmullRomCurve3(D.garages.slice(0, 5).map(p => W(p, 0)), false, 'centripetal');
   const FL = front.getLength(), SLOT = 12.5, nSlots = Math.floor(FL / SLOT);
+  for (const u of [.25, .75]) { // enseigne du Paddock Club côté piste
+    const p = front.getPointAt(u), t = front.getTangentAt(u).setY(0).normalize(); let out = new THREE.Vector3(t.z, 0, -t.x);
+    if (PIT[(PIT.length / 2) | 0].clone().sub(p).dot(out) < 0) out.negate();
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(40, 2.6), new THREE.MeshBasicMaterial({ map: textTex('F1 PADDOCK CLUB', '#16122A', '#ffffff', 1024, 128) }));
+    m.position.copy(p).addScaledVector(out, .2).setY(13.1); m.lookAt(m.position.clone().add(out)); scene.add(m);
+  }
   const nearPit = (v) => { let b = PIT[0], bd = Infinity; PIT.forEach(p => { const d = p.distanceToSquared(v); if (d < bd) { bd = d; b = p; } }); return b; };
   const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .5 });
   const pillars = [], tyres = [];
@@ -1236,10 +1248,14 @@ const PITVIEW = {};
   }
   // panneaux de limitation 80 km/h à l'entrée et à la sortie
   const limTex = ctex(256, 256, (g) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(128, 128, 120, 0, 7); g.fill(); g.lineWidth = 26; g.strokeStyle = '#e2231a'; g.beginPath(); g.arc(128, 128, 104, 0, 7); g.stroke(); g.fillStyle = '#16122a'; g.font = '900 120px "Barlow Condensed", Arial Narrow, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('80', 128, 136); });
-  for (const i of [3, PIT.length - 4]) {
+  // fin de la limitation 20 m après le dernier garage : la bretelle de sortie se prend ensuite à pleine vitesse, derrière le muret
+  const endTex = ctex(256, 256, (g) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(128, 128, 120, 0, 7); g.fill(); g.lineWidth = 6; g.strokeStyle = '#555'; g.beginPath(); g.arc(128, 128, 112, 0, 7); g.stroke(); g.fillStyle = '#8a8a8a'; g.font = '900 120px "Barlow Condensed", Arial Narrow, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('80', 128, 136); g.strokeStyle = '#222'; g.lineWidth = 10; for (const o of [-14, 0, 14]) { g.beginPath(); g.moveTo(48 + o, 208 + o); g.lineTo(208 + o, 48 + o); g.stroke(); } });
+  const gEnd = W(D.garages[4]); let kEnd = 0; PIT.forEach((p, k) => { if (p.distanceToSquared(gEnd) < PIT[kEnd].distanceToSquared(gEnd)) kEnd = k; }); kEnd = Math.min(PIT.length - 5, kEnd + 7); PIT_EXIT.limitEnd = kEnd;
+  { const a = offsetPit(-5)[kEnd], b = offsetPit(5)[kEnd], g = new THREE.BoxGeometry(.5, .02, a.distanceTo(b)); g.applyMatrix4(new THREE.Matrix4().lookAt(a, b, new THREE.Vector3(0, 1, 0))); g.translate((a.x + b.x) / 2, .135, (a.z + b.z) / 2); mesh(g, new THREE.MeshStandardMaterial({ color: 0xffffff })); }
+  for (const [i, tex] of [[3, limTex], [kEnd, endTex]]) {
     const p = offsetPit(-6.2)[i], dir = PIT[Math.min(PIT.length - 1, i + 1)].clone().sub(PIT[Math.max(0, i - 1)]);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, 2.6), new THREE.MeshStandardMaterial({ color: 0x888888 })); pole.position.copy(p).setY(1.3); scene.add(pole);
-    const sgn = new THREE.Mesh(new THREE.CircleGeometry(.75, 32), new THREE.MeshBasicMaterial({ map: limTex, side: THREE.DoubleSide })); sgn.position.copy(p).setY(2.9); sgn.lookAt(p.clone().sub(dir).setY(2.9)); scene.add(sgn);
+    const sgn = new THREE.Mesh(new THREE.CircleGeometry(.75, 32), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })); sgn.position.copy(p).setY(2.9); sgn.lookAt(p.clone().sub(dir).setY(2.9)); scene.add(sgn);
   }
 }
 
@@ -1490,7 +1506,7 @@ if (TRIB_MAX) {
   { const A = [444.5, 794], B = [330, 1084.5], L = Math.hypot(B[0] - A[0], B[1] - A[1]), u = [(B[0] - A[0]) / L, (B[1] - A[1]) / L], gap = 6, seg = (L - 4 * gap) / 3;
     for (let k = 0; k < 3; k++) { const t0 = gap + k * (seg + gap), t1 = t0 + seg; add([A[0] + u[0] * t0, A[1] + u[1] * t0], [A[0] + u[0] * t1, A[1] + u[1] * t1], 11, 'GALERIE', 9); } }
   // aile ouest des pavillons du paddock : 4 m de large, à quelques mètres de la piste
-  add([289, 1081], [242, 1203], 4, 'PADDOCK', 9);
+  // (le parvis des pavillons, côté route des Tribunes, est une entrée : pas de tribune ici, voir PORTE 7)
   // moitié ouest du toit de la tribune 2018 (les panneaux solaires restent sur la moitié est)
   { const T = TRIBUNE_HIPPO, z = T.roofZ0 + 1 + 9, p = x => { const v = new THREE.Vector3(x, 0, z).applyMatrix4(T.G.matrixWorld); return [v.x + cx, v.z + cz]; };
     add(p(-T.L / 2 + 8), p(T.L / 2 - 8), 18, 'TOIT 2018', T.roofY); }
@@ -2768,7 +2784,7 @@ const TXT = {
 const CAT_COL = { 'Accès public': '#e10600', Services: '#1e7fd8', Secours: '#d92b2b', Spectateurs: '#7b3fe4', Piste: '#f28c28', Circulation: '#5c6470', Course: '#ffd21f', Médias: '#14a3a3', Sécurité: '#2f3b6b', Transports: '#1ba34b', 'Fan zone': '#e58ac7', Hospitalités: '#c08cff', Tribunes: '#26115C' };
 const INST = [];
 const addI = (p, t, maxD) => { const v = W(p); v.y = H(v.x, v.z); INST.push({ pos: v, title: t[0], cat: t[1], desc: t[2], maxD }); };
-AMEN.gates.forEach(g => addI([g.x, g.y], TXT.gate(g.n), 2600));
+AMEN.gates.forEach(g => addI([g.x, g.y], g.pav ? ['Porte 7 · Pavillons', 'Accès public', 'Entrée historique de l\'hippodrome, sur le parvis des pavillons. Pendant le Grand Prix, la route des Tribunes devient la piste : le parvis sert de contrôle des billets pour la grande tribune et le Paddock Club. On y arrive par la passerelle OP1 et par les allées intérieures de l\'hippodrome, jamais en traversant la piste.'] : TXT.gate(g.n), 2600));
 AMEN.shops.forEach(q => addI(q, TXT.shop(), 380));
 AMEN.hubs.forEach(q => addI(q, TXT.hub(), 380));
 AMEN.aid.forEach(q => addI(q, TXT.aid(), 450));
@@ -2783,6 +2799,7 @@ AMEN.parkLabels.forEach(([n, x, y]) => addI([x, y], TXT.park(n), 700));
 AMEN.zones.forEach(([x, y, w, h, c, n]) => addI([x + w / 2, y + h / 2], TXT.zone(n), 4000));
 [...new Set(STANDS.map(s => s.name))].forEach(n => { const st = STANDS[longest(n)], seats = STANDS.filter(s => s.name === n).reduce((a, s) => a + Math.round(s.len / .55) * s.rows, 0);
   INST.push({ pos: st.mid.clone().setY(H(st.mid.x, st.mid.z) + st.base), title: 'Tribune ' + n.charAt(0) + n.slice(1).toLowerCase(), cat: 'Tribunes', desc: `≈ ${nf(Math.round(seats / 100) * 100)} places${st.base > 3 ? ', sur le toit d\'un bâtiment existant de l\'hippodrome' : ''}. Vue sur : ${placeName(st.look)}.`, maxD: 800, stand: longest(n) }); });
+{ const g = D.garages, c = W([(g[2][0] + g[7][0]) / 2, (g[2][1] + g[7][1]) / 2]); INST.push({ pos: c.setY(H(c.x, c.z) + 4), title: 'Paddock Club', cat: 'Hospitalités', desc: 'Hospitalités haut de gamme de la F1 sur deux niveaux vitrés au-dessus des garages, sur toute la longueur du bâtiment des stands (≈ 320 m), comme à Barcelone ou Bahreïn. Vue plongeante sur la voie des stands, les arrêts aux stands et la grille de départ ; accès par le contrôle de la Porte 7 et visites guidées de la voie des stands.', maxD: 1500 }); }
 { const c = W(PADDOCK.pt(PADDOCK.L / 2, 44)); INST.push({ pos: c.setY(H(c.x, c.z)), title: 'Paddock des équipes', cat: 'Course', desc: `Zone fermée derrière les stands, réservée aux accrédités : ${Math.round(PADDOCK.L)} m × ${PADDOCK.DEP} m (≈ ${(PADDOCK.L * PADDOCK.DEP / 10000).toFixed(1).replace('.', ',')} ha). Contre les garages, les camions et bureaux des 11 écuries ; puis deux rangées de motorhomes sur 3 niveaux, face à face de part et d'autre de l'allée du paddock, et le bâtiment de la FIA et de la F1. Le Paddock Club est installé au-dessus des garages ; le compound TV et le centre média sont dans l'intérieur du circuit.`, maxD: 1500 }); }
 INST.push({ pos: at(START, 0, 0).setY(HT[START]), title: 'Ligne de départ', cat: 'Course', desc: 'Grille de départ de 20 places sur la route des Tribunes, face à la grande tribune. Les stands sont juste à côté.', maxD: 3000 });
 // étiquettes : pastille de couleur + nom, taille constante à l'écran
