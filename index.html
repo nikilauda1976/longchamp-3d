@@ -747,6 +747,10 @@ const pitCurve = (() => {
       for (let j = -10; j <= 25; j++) { const i = (m + j) % NS; worst = Math.max(worst, LAT[i] * sE); kmax = Math.max(kmax, Math.abs(K[i])); }
       const score = worst + (kmax > 1 / 150 ? 50 : 0) + k * .004; if (score < best) { best = score; b0 = m; }
     }
+    if (CHIC) { // sortie « type Montréal » : la voie longe la chicane derrière le mur et rejoint dès la sortie de la chicane, avec une longue ligne blanche
+      let last = -1; for (let k = 40; k <= 260; k++) if (Math.abs(K[(iE + k) % NS]) > 1 / 150) last = k;
+      if (last > 0) b0 = (iE + last + 14) % NS;
+    }
   }
   const stop = T1V_INFO ? b1 : b0; // voie parallèle à la piste jusqu'à la bretelle de sortie
   const nPar = (stop - a1 + NS) % NS - (T1V_INFO ? 8 : 30);
@@ -1260,7 +1264,7 @@ const PITVIEW = {};
     const sE = PIT_EXIT.side, A = [], B = [], gs = [];
     for (let i = PIT_EXIT.from; i !== PIT_EXIT.lane; i = (i + 1) % NS) { const a = at(i, sE * (HW[i] + 2.6), 0), b = at((i + 1) % NS, sE * (HW[(i + 1) % NS] + 2.6), 0), l = a.distanceTo(b); const g = new THREE.BoxGeometry(.6, .9, l + .05); g.applyMatrix4(new THREE.Matrix4().lookAt(a, b, new THREE.Vector3(0, 1, 0))); g.translate((a.x + b.x) / 2, .45, (a.z + b.z) / 2); gs.push(g); }
     if (gs.length) mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0xe8e8ea, roughness: .8 }), { cast: true });
-    for (let k = -15; k <= 45; k++) { const i = (PIT_EXIT.i + k + NS) % NS; A.push(at(i, sE * (HW[i] - 3.4), .145)); B.push(at(i, sE * (HW[i] - 3.75), .145)); }
+    for (let k = -15; k <= (CHIC ? 110 : 45); k++) { const i = (PIT_EXIT.i + k + NS) % NS; A.push(at(i, sE * (HW[i] - 3.4), .145)); B.push(at(i, sE * (HW[i] - 3.75), .145)); } // ligne continue : la voiture qui sort reste de son côté sur ≈ 220 m, comme à Montréal
     mesh(strip(sE > 0 ? A : B, sE > 0 ? B : A, A.map((_, k) => k), { up: true }), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .6 }));
   }
   { // muret des stands : béton 1,2 m + grillage de 4 m entre la piste et la voie des stands, et passerelles des écuries côté voie
@@ -1289,6 +1293,12 @@ const PITVIEW = {};
   const endTex = ctex(256, 256, (g) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(128, 128, 120, 0, 7); g.fill(); g.lineWidth = 6; g.strokeStyle = '#555'; g.beginPath(); g.arc(128, 128, 112, 0, 7); g.stroke(); g.fillStyle = '#8a8a8a'; g.font = '900 120px "Barlow Condensed", Arial Narrow, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('80', 128, 136); g.strokeStyle = '#222'; g.lineWidth = 10; for (const o of [-14, 0, 14]) { g.beginPath(); g.moveTo(48 + o, 208 + o); g.lineTo(208 + o, 48 + o); g.stroke(); } });
   const gEnd = W(D.garages[4]); let kEnd = 0; PIT.forEach((p, k) => { if (p.distanceToSquared(gEnd) < PIT[kEnd].distanceToSquared(gEnd)) kEnd = k; }); kEnd = Math.min(PIT.length - 5, kEnd + 7); PIT_EXIT.limitEnd = kEnd;
   { const a = offsetPit(-5)[kEnd], b = offsetPit(5)[kEnd], g = new THREE.BoxGeometry(.5, .02, a.distanceTo(b)); g.applyMatrix4(new THREE.Matrix4().lookAt(a, b, new THREE.Vector3(0, 1, 0))); g.translate((a.x + b.x) / 2, .135, (a.z + b.z) / 2); mesh(g, new THREE.MeshStandardMaterial({ color: 0xffffff })); }
+  { // feu de sortie des stands (vert / rouge) au bout de la limitation
+    const p = offsetPit(-6.2)[kEnd + 2], post = new THREE.Mesh(new THREE.BoxGeometry(.25, 3.2, .25), new THREE.MeshStandardMaterial({ color: 0x222228 })); post.position.copy(p).setY(1.6); scene.add(post);
+    const box = new THREE.Mesh(new THREE.BoxGeometry(.5, 1.1, .35), new THREE.MeshStandardMaterial({ color: 0x0b0b0e })); box.position.copy(p).setY(3.5); scene.add(box);
+    const dir = PIT[kEnd + 3].clone().sub(PIT[kEnd + 1]).setY(0).normalize();
+    [[0xff1a0a, .25, 0], [0x22ff44, -.25, 2.4]].forEach(([c, dy, ei]) => { const l = new THREE.Mesh(new THREE.CircleGeometry(.17, 18), new THREE.MeshStandardMaterial({ color: ei ? c : 0x200505, emissive: c, emissiveIntensity: ei })); l.position.copy(p).setY(3.5 + dy).addScaledVector(dir, -.19); l.lookAt(l.position.clone().addScaledVector(dir, -1)); scene.add(l); });
+  }
   for (const [i, tex] of [[3, limTex], [kEnd, endTex]]) {
     const p = offsetPit(-6.2)[i], dir = PIT[Math.min(PIT.length - 1, i + 1)].clone().sub(PIT[Math.max(0, i - 1)]);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, 2.6), new THREE.MeshStandardMaterial({ color: 0x888888 })); pole.position.copy(p).setY(1.3); scene.add(pole);
