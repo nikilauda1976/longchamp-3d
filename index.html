@@ -723,9 +723,14 @@ const pitCurve = (() => {
   const cut = T1V_INFO ? D.pit.findIndex(p => p[0] === 291 && p[1] === 861) : D.pit.findIndex(p => p[0] === 356 && p[1] === 751); // la sortie rejoint la ligne droite, côté gauche (hors trajectoire), avant le freinage du virage 1
   const raw = (cut > 0 ? D.pit.slice(0, cut + 1) : D.pit).map(p => W(p));
   const edge = (i, lat) => new THREE.Vector3(P[i].x + NL[i].x * lat, 0, P[i].z + NL[i].z * lat);
-  const iS = nearestIdx(raw[0]), iE = nearestIdx(raw[raw.length - 1]);
-  const sS = Math.sign(raw[0].clone().sub(P[iS]).dot(NL[iS])) || 1, sE = Math.sign(raw[raw.length - 1].clone().sub(P[iE]).dot(NL[iE])) || 1;
-  const a0 = (iS - 70 + NS) % NS, a1 = (iS - 40 + NS) % NS;
+  // stands collés à la piste : muret des stands = mur de piste (bord + 3 m), axe de la voie à bord + 9 m, façade des garages 14 m plus loin
+  const LANE = 9, GFRONT = 14, gi = D.garages.map(p => nearestIdx(W(p)));
+  const sG = Math.sign(W(D.garages[0]).sub(P[gi[0]]).dot(NL[gi[0]])) || 1;
+  const gShift = D.garages.slice(0, 5).map((p, k) => { const i = gi[k]; return Math.abs(W(p).sub(P[i]).dot(NL[i])) - (HW[i] + LANE + GFRONT); });
+  D.garages = D.garages.map((p, k) => { const i = gi[k], d = gShift[k < 5 ? k : 9 - k]; return [p[0] - NL[i].x * sG * d, p[1] - NL[i].z * sG * d]; });
+  const iG0 = gi[0], iE = nearestIdx(raw[raw.length - 1]);
+  const sS = sG, sE = Math.sign(raw[raw.length - 1].clone().sub(P[iE]).dot(NL[iE])) || 1;
+  const a1 = (iG0 - 30 + NS) % NS, a0 = (a1 - 30 + NS) % NS; // entrée : 60 m de bretelle, 60 m avant le premier garage
   let b1 = (iE + 20) % NS, b0 = (iE + 35) % NS, par = []; // variante chicane : bretelle courte (~70 m) dans la ligne droite, côté opposé à la trajectoire
   if (!T1V_INFO) { // sans chicane : la voie longe la piste derrière un muret et rejoint là où la trajectoire est du côté opposé
     b1 = (iE + 40) % NS; let best = Infinity;
@@ -734,10 +739,12 @@ const pitCurve = (() => {
       for (let j = -10; j <= 25; j++) { const i = (m + j) % NS; worst = Math.max(worst, LAT[i] * sE); kmax = Math.max(kmax, Math.abs(K[i])); }
       const score = worst + (kmax > 1 / 150 ? 50 : 0) + k * .004; if (score < best) { best = score; b0 = m; }
     }
-    for (let k = 40; ; k += 15) { const i = (iE + k) % NS; if ((b0 - i + NS) % NS < 30) break; par.push(edge(i, sE * (HW[i] + 6))); }
   }
-  Object.assign(PIT_ENTRY, { i: a0, side: sS }); Object.assign(PIT_EXIT, { i: b0, side: sE, from: (iE + 40) % NS, lane: par.length ? (b0 - 30 + NS) % NS : (iE + 40) % NS });
-  const pts = [edge(a0, sS * (HW[a0] - 3)), edge(a1, sS * (HW[a1] + 5)), ...raw.slice(1, -1), ...(par.length ? par : [edge(b1, sE * (HW[b1] + 5))]), edge(b0, sE * (HW[b0] - 3))];
+  const stop = T1V_INFO ? b1 : b0; // voie parallèle à la piste jusqu'à la bretelle de sortie
+  const nPar = (stop - a1 + NS) % NS - (T1V_INFO ? 8 : 30);
+  for (let k = 10; k < nPar; k += 15) { const i = (a1 + k) % NS; par.push(edge(i, sS * (HW[i] + LANE))); }
+  Object.assign(PIT_ENTRY, { i: a0, side: sS }); Object.assign(PIT_EXIT, { i: b0, side: sE, from: (iE + 40) % NS, lane: T1V_INFO ? (iE + 40) % NS : (b0 - 30 + NS) % NS });
+  const pts = [edge(a0, sS * (HW[a0] - 3)), edge(a1, sS * (HW[a1] + 5)), ...par, ...(T1V_INFO ? [edge(b1, sE * (HW[b1] + 5))] : []), edge(b0, sE * (HW[b0] - 3))];
   return new THREE.CatmullRomCurve3(pts, false, 'centripetal');
 })();
 const PIT = pitCurve.getSpacedPoints(Math.round(pitCurve.getLength() / 3));
@@ -1793,6 +1800,7 @@ mesh(mergeGeometries(roofGeos.filter(Boolean)), new THREE.MeshStandardMaterial({
     if (pitGrid.any(wx, wz, 16, p => (p.x - wx) ** 2 + (p.z - wz) ** 2 < 256)) continue;
     if (roadPts.any(x, z, 20, r => (r[0] - x) ** 2 + (r[1] - z) ** 2 < r[2] * r[2])) continue;
     if (bldBoxes.some(b => x > b[0] && x < b[2] && z > b[1] && z < b[3])) continue;
+    if ([[0, 0], [7, 0], [-7, 0], [0, 7], [0, -7]].some(([u, v]) => pip(x + u, z + v, D.garages))) continue; // pas d'arbre dans le bâtiment des stands
     if (inAmenMap(x, z)) continue;
     if (STANDS.some(s => s.mid.distanceToSquared(new THREE.Vector3(wx, 0, wz)) < (s.len / 2 + 20) ** 2)) continue;
     if (inWater(x, z)) continue;
