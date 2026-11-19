@@ -97,9 +97,10 @@
   #results td { padding:4px 6px; border-bottom:1px solid rgba(255,255,255,.08); } #results td:last-child { text-align:right; color:#c9c9d1; }
   #results tr.me td { background:rgba(255,255,255,.14); color:#fff; font-weight:700; }
   #results i { display:inline-block; width:4px; height:14px; margin-right:8px; vertical-align:-2px; }
-  #lights { left:50%; top:13%; transform:translateX(-50%); display:none; gap:10px; background:#0c0c12; padding:10px 14px; border-radius:8px; }
+  #lights { left:50%; top:max(14px,env(safe-area-inset-top)); transform:translateX(-50%); display:none; gap:7px; background:rgba(12,12,18,.9); padding:7px 10px; border-radius:8px; z-index:6; }
+  body.lightsOn #where, body.lightsOn #credits { visibility:hidden; }
   #lights.on { display:flex; }
-  #lights div { display:flex; flex-direction:column; gap:6px; } #lights b { width:34px; height:34px; border-radius:50%; background:#2a0d0d; box-shadow:inset 0 0 6px #000; }
+  #lights div { display:flex; flex-direction:column; gap:4px; } #lights b { width:20px; height:20px; border-radius:50%; background:#2a0d0d; box-shadow:inset 0 0 6px #000; }
   #lights b.r { background:radial-gradient(circle at 40% 35%,#ff8a80,#e10600 55%,#7a0000); box-shadow:0 0 18px #ff2b1a; }
   #ghostTag { left:50%; top:calc(max(12px,env(safe-area-inset-top)) + 44px); transform:translateX(-50%); font:700 15px "Titillium Web",Arial,sans-serif; background:rgba(12,12,18,.84); padding:4px 12px; border-radius:4px; display:none; font-variant-numeric:tabular-nums; }
   #ghostTag.on { display:block; }
@@ -185,7 +186,7 @@
 <div id="fluxLeg"><i style="background:#2f8cff"></i>Transports → portes · enceinte billetterie<br><i style="background:#2bd65a"></i>Portes → tribunes et fan zones<br><i style="background:#ff8a1f"></i>Zone accréditée (paddock, stands)</div>
 <div class="hud" id="where">Ligne droite des stands</div>
 <div class="hud" id="banner"></div>
-<div class="hud" id="onboard"><div id="rpmled"></div><div class="obrow"><div class="obbars"><i><b id="thrbar"></b></i><i><b id="brkbar"></b></i></div><div class="obspd"><b id="spd">0</b><small>KM/H</small></div><div class="obgear" id="gear">N</div><div class="obdrs" id="drs">DRS</div></div></div>
+<div class="hud" id="onboard"><div id="rpmled"></div><div class="obrow"><div class="obbars"><i><b id="thrbar"></b></i><i><b id="brkbar"></b></i></div><div class="obspd"><b id="spd">0</b><small>KM/H</small></div><div class="obgear" id="gear">N</div><div class="obdrs" id="drs">AÉRO</div></div></div>
 <canvas class="hud" id="mini" width="380" height="420"></canvas>
 <div class="hud" id="help"></div>
 <div id="idealInfo" hidden></div>
@@ -930,6 +931,7 @@ const texGravel = ctex(256, 256, (g, w, h) => { const r = mulberry(4242), cs = [
   });
 }
 // ligne de départ + portique + grille
+const START_LIGHTS = { set: () => {} };
 const startRef = new THREE.Vector3(305 - cx, 0, 918 - cz);
 const START = (nearestIdx(startRef) - Math.round(120 / STEP) + NS) % NS; // reculée de 120 m : ≥ 250 m jusqu'au 1er virage (FIA, annexe O)
 
@@ -1036,8 +1038,17 @@ function groundGeo() {
   const beam = new THREE.Mesh(new THREE.BoxGeometry(span, 1.4, .8), dark); beam.castShadow = true;
   beam.position.copy(at(i, (offL[i] - offR[i]) / 2, 8)); beam.rotation.y = HD[i] + Math.PI / 2; scene.add(beam);
   for (const s of [1, -1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(.6, 8, .6), dark); post.castShadow = true; post.position.copy(at(i, s > 0 ? offL[i] + 1 : -offR[i] - 1, 4)); scene.add(post); }
-  const red = new THREE.MeshStandardMaterial({ color: 0xff2a1a, emissive: 0xff1a0a, emissiveIntensity: 1.6 });
-  for (let k = -2; k <= 2; k++) { const l = new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .2, 16), red); l.rotation.x = Math.PI / 2; l.position.copy(at((i - 1 + NS) % NS, k * 1.4, 8)); l.rotation.z = 0; l.lookAt(at((i - 8 + NS) % NS, k * 1.4, 8)); l.rotateX(Math.PI / 2); scene.add(l); }
+  // feux de départ FIA : 5 colonnes de 4 feux sous le portique, face à la grille ; les 2 feux rouges du bas s'allument colonne par colonne puis tout s'éteint
+  { const G = new THREE.Group(); G.position.copy(at(i, 0, 0)); G.lookAt(at((i - 10 + NS) % NS, 0, 0)); scene.add(G);
+    const blk = new THREE.MeshStandardMaterial({ color: 0x0b0b0e, roughness: .6 }), lens = (c) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0, roughness: .3 });
+    const hang = new THREE.Mesh(new THREE.BoxGeometry(7.6, .5, .5), blk); hang.position.set(0, 7.15, 0); G.add(hang);
+    const mats = [], cG = new THREE.CircleGeometry(.24, 24);
+    for (let k = 0; k < 5; k++) { const x = (k - 2) * 1.45, pod = new THREE.Mesh(new THREE.BoxGeometry(.72, 2.3, .42), blk); pod.position.set(x, 5.75, 0); G.add(pod);
+      const m = { red: lens(0xff1a0a), top: lens(k % 2 ? 0x22ff44 : 0xffa000) }; mats.push(m);
+      [m.red, m.red, m.top, m.top].forEach((mt, r) => { const y = 4.95 + r * .53; const c = new THREE.Mesh(cG, mt); c.position.set(x, y, .215); G.add(c); }); }
+    START_LIGHTS.set = (n) => mats.forEach((m, k) => { const on = k < n; m.red.emissiveIntensity = on ? 2.2 : 0; m.red.emissive.setHex(0xff0000); m.red.color.setHex(on ? 0xff0000 : 0x2a0606); m.top.emissiveIntensity = 0; m.top.color.setHex(0x1a1a1a); });
+    START_LIGHTS.set(0); window.__startLights = START_LIGHTS;
+    beam.quaternion.copy(G.quaternion); beam.position.copy(at(i, (offL[i] - offR[i]) / 2, 8)); } // poutre en travers de la piste
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.6), new THREE.MeshBasicMaterial({ map: textTex(PUB_LIBRE ? 'GRAND PRIX DE PARIS' : 'GRAND PRIX DE PARIS · TAG HEUER', '#26115C', '#FFD21F', 1024, 128), side: THREE.DoubleSide }));
   sign.position.copy(at((i + 1) % NS, 0, 9.6)); sign.lookAt(at((i - 20 + NS) % NS, 0, 9.6)); scene.add(sign);
   const white = new THREE.MeshStandardMaterial({ color: 0xffffff });
@@ -1251,6 +1262,26 @@ const PITVIEW = {};
     if (gs.length) mesh(mergeGeometries(gs), new THREE.MeshStandardMaterial({ color: 0xe8e8ea, roughness: .8 }), { cast: true });
     for (let k = -15; k <= 45; k++) { const i = (PIT_EXIT.i + k + NS) % NS; A.push(at(i, sE * (HW[i] - 3.4), .145)); B.push(at(i, sE * (HW[i] - 3.75), .145)); }
     mesh(strip(sE > 0 ? A : B, sE > 0 ? B : A, A.map((_, k) => k), { up: true }), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .6 }));
+  }
+  { // muret des stands : béton 1,2 m + grillage de 4 m entre la piste et la voie des stands, et passerelles des écuries côté voie
+    const sS = PIT_ENTRY.side, i0 = (PIT_ENTRY.i + 30) % NS, i1 = PIT_EXIT.from, cw = [], fp = [], fr = [], posts = [];
+    for (let i = i0; i !== i1; i = (i + 1) % NS) { const j = (i + 1) % NS, a = at(i, sS * (HW[i] + 3.4), 0), b = at(j, sS * (HW[j] + 3.4), 0), l = a.distanceTo(b);
+      const m4 = new THREE.Matrix4().lookAt(a, b, new THREE.Vector3(0, 1, 0)), mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2, y = (a.y + b.y) / 2;
+      cw.push(new THREE.BoxGeometry(.8, 1.2, l + .02).applyMatrix4(m4).translate(mx, y + .6, mz));
+      fp.push(new THREE.BoxGeometry(.04, 3.8, l + .02).applyMatrix4(m4).translate(mx, y + 1.2 + 1.9, mz));
+      fr.push(new THREE.BoxGeometry(.08, .08, l + .02).applyMatrix4(m4).translate(mx, y + 5, mz));
+      if (i % 2 === 0) posts.push(new THREE.BoxGeometry(.12, 3.9, .12).translate(a.x, a.y + 1.2 + 1.95, a.z)); }
+    if (cw.length) { mesh(mergeGeometries(cw), new THREE.MeshStandardMaterial({ color: 0xe9e9ec, roughness: .85 }), { cast: true });
+      const fm = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, transparent: true, opacity: .35, depthWrite: false, side: THREE.DoubleSide }); const fmesh = new THREE.Mesh(mergeGeometries(fp), fm); scene.add(fmesh);
+      mesh(mergeGeometries(fr.concat(posts)), new THREE.MeshStandardMaterial({ color: 0x4a4e57, metalness: .5, roughness: .4 })); }
+    const TM = window.__TEAMS || [], g0 = nearestIdx(W(D.garages[0])), g1 = nearestIdx(W(D.garages[4])), nG = (g1 - g0 + NS) % NS;
+    TM.forEach((t, k) => { const i = (g0 + Math.round((k + .5) * nG / TM.length)) % NS, p = at(i, sS * (HW[i] + 5.1), 0), q = HD[i];
+      const grp = new THREE.Group(); grp.position.copy(p); grp.rotation.y = q; scene.add(grp);
+      const col = new THREE.MeshStandardMaterial({ color: t[1], roughness: .5 }), dk = new THREE.MeshStandardMaterial({ color: 0x1b1b22 });
+      const add = (g, m, x, y, z) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); o.castShadow = true; grp.add(o); };
+      add(new THREE.BoxGeometry(1.8, 1.1, 5), dk, 0, .55, 0); add(new THREE.BoxGeometry(2, .15, 5.4), col, 0, 3.1, 0); // plateforme des ingénieurs, toit aux couleurs de l'écurie
+      for (const z of [-2.4, 2.4]) add(new THREE.BoxGeometry(.12, 2, .12), dk, 0, 2.1, z);
+      for (const z of [-1.6, 0, 1.6]) add(new THREE.BoxGeometry(.05, .5, .8), new THREE.MeshStandardMaterial({ color: 0x0a0a10, emissive: 0x2244aa, emissiveIntensity: .35 }), -.6 * sS, 1.45, z); });
   }
   // panneaux de limitation 80 km/h à l'entrée et à la sortie
   const limTex = ctex(256, 256, (g) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(128, 128, 120, 0, 7); g.fill(); g.lineWidth = 26; g.strokeStyle = '#e2231a'; g.beginPath(); g.arc(128, 128, 104, 0, 7); g.stroke(); g.fillStyle = '#16122a'; g.font = '900 120px "Barlow Condensed", Arial Narrow, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('80', 128, 136); });
@@ -1848,7 +1879,7 @@ mesh(mergeGeometries(roofGeos.filter(Boolean)), new THREE.MeshStandardMaterial({
     flow(AMEN.transports.flatMap(([x, y]) => { const g = nearGate(x, y); return run2([[x, y], [g.x, g.y]], 3, (a, b) => pub(a, b) && !pip(a + cx, b + cz, D.site)); }), 0x2f8cff, 5, .4); // bleu : transports → porte
     flow(run2([PADDOCK.pt(PADDOCK.L + 40, 44.5), PADDOCK.pt(PADDOCK.L - 20, 44.5)], 3, (x, z) => okSpot(x, z, 0)).concat(run2([PADDOCK.pt(-40, 44.5), PADDOCK.pt(20, 44.5)], 3, (x, z) => okSpot(x, z, 0))), 0xff8a1f, 2, .4); // orange : accrédités
     // clôtures : enceinte billetterie (bleu) et zone accréditée (orange)
-    const fence = (pts, col, hgt, opaque, gapAt = []) => {
+    const fence = (pts, col, hgt, opaque, gapAt = [], dest = FLUX) => {
       const panels = [], rails = [], posts = [];
       for (let k = 0; k < pts.length - 1; k++) { const a = pts[k], b = pts[k + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(l / 6));
         for (let j = 0; j < n; j++) { const u0 = [a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n], u1 = [a[0] + (b[0] - a[0]) * (j + 1) / n, a[1] + (b[1] - a[1]) * (j + 1) / n], mid = [(u0[0] + u1[0]) / 2, (u0[1] + u1[1]) / 2];
@@ -1858,15 +1889,15 @@ mesh(mergeGeometries(roofGeos.filter(Boolean)), new THREE.MeshStandardMaterial({
           rails.push(new THREE.BoxGeometry(.12, .22, len).rotateY(ang).translate(cxz[0], y + hgt, cxz[1]));
           posts.push(new THREE.BoxGeometry(.12, hgt + .1, .12).translate(A.x, HG(A.x, A.z) + (hgt + .1) / 2, A.z)); } }
       if (!panels.length) return;
-      FLUX.add(new THREE.Mesh(mergeGeometries(panels), new THREE.MeshStandardMaterial({ color: opaque ? col : 0xb9c0c8, transparent: !opaque, opacity: opaque ? 1 : .38, depthWrite: !!opaque, side: THREE.DoubleSide, roughness: .8 })));
-      FLUX.add(new THREE.Mesh(mergeGeometries(rails), new THREE.MeshBasicMaterial({ color: col })));
-      FLUX.add(new THREE.Mesh(mergeGeometries(posts), new THREE.MeshStandardMaterial({ color: 0x3a3d45 })));
+      dest.add(new THREE.Mesh(mergeGeometries(panels), new THREE.MeshStandardMaterial({ color: opaque ? col : 0xb9c0c8, transparent: !opaque, opacity: opaque ? 1 : .38, depthWrite: !!opaque, side: THREE.DoubleSide, roughness: .8 })));
+      dest.add(new THREE.Mesh(mergeGeometries(rails), new THREE.MeshBasicMaterial({ color: dest === FLUX ? col : 0xffd21f })));
+      dest.add(new THREE.Mesh(mergeGeometries(posts), new THREE.MeshStandardMaterial({ color: 0x3a3d45 })));
     };
     fence(D.site.concat([D.site[0]]), 0x2f8cff, 2.2, false, AMEN.gates.map(g => [g.x, g.y, 22]));
     const gapRuns = (pts, gaps) => run2(pts, 3, (x, z) => !gaps.some(([gx, gy, r]) => Math.hypot(x + cx - gx, z + cz - gy) < r));
     flow(gapRuns(D.site.concat([D.site[0]]), AMEN.gates.map(g => [g.x, g.y, 22])), 0x2f8cff, 2.6, .3, true);   // tracé de l'enceinte vu d'en haut
     const PD = PADDOCK, pdLine = [PD.pt(0, -34), PD.pt(0, PD.DEP), PD.pt(PD.L, PD.DEP), PD.pt(PD.L, -34)], pdGaps = [[...PD.pt(0, 44.5), 8], [...PD.pt(PD.L, 44.5), 8]];
-    fence(pdLine, 0xff8a1f, 2.5, true, pdGaps); flow(gapRuns(pdLine, pdGaps), 0xff8a1f, 2.2, .3, true);
+    fence(pdLine, 0x26115c, 3, true, pdGaps, scene); // mur plein permanent autour du paddock (l'orange du calque montre la zone) flow(gapRuns(pdLine, pdGaps), 0xff8a1f, 2.2, .3, true);
   }
   // --- lignes de safety car et panneaux de distance depuis la ligne ---
   AMEN.sc.forEach(([x, y, lab]) => { const p = M([x, y]), i = nearT(p[0], p[1]); const g = new THREE.PlaneGeometry(HW[i] * 2, .5); g.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xF28C28 })); m.position.copy(at(i, 0, .16)); m.rotation.y = HD[i]; scene.add(m);
@@ -2071,15 +2102,14 @@ function makeCar(c1, c2, c3, num = 27, stripe = 0) {
   add(new THREE.BoxGeometry(.02, .34, 1.2), paint2, 0, 1.0, -1.25);            // aileron de requin
   // pontons
   for (const s of [1, -1]) add(loft([{ z: .78, x: s * .62, y: .42, w: .4, h: .4, t: .8 }, { z: .3, x: s * .68, y: .42, w: .5, h: .5, t: .8 }, { z: -.6, x: s * .6, y: .38, w: .42, h: .44, t: .7 }, { z: -1.55, x: s * .42, y: .3, w: .2, h: .24 }]), paint2);
-  // aileron avant (3 éléments + dérives)
-  add(new THREE.BoxGeometry(1.9, .025, .32), carbon, 0, .1, 2.86);
-  add(new THREE.BoxGeometry(1.62, .02, .18), paint2, 0, .16, 2.72, -.28);
-  add(new THREE.BoxGeometry(1.5, .02, .14), paint, 0, .22, 2.62, -.5);
-  for (const s of [1, -1]) add(new THREE.BoxGeometry(.02, .26, .55), paint, s * .95, .2, 2.75);
-  // aileron arrière, volet DRS, beam wing, dérives
+  // aileron avant 2026 : plus étroit (1,8 m), plan principal fixe + 2 volets mobiles (aéro active : fermés en virage, ouverts en ligne droite)
+  add(new THREE.BoxGeometry(1.8, .025, .34), carbon, 0, .1, 2.86);
+  const fw = [add(new THREE.BoxGeometry(1.56, .02, .18), paint2, 0, .16, 2.72, -.3), add(new THREE.BoxGeometry(1.44, .02, .14), paint, 0, .22, 2.62, -.52)];
+  fw[0].userData = { c: -.3, o: -.08 }; fw[1].userData = { c: -.52, o: -.16 };
+  for (const s of [1, -1]) add(new THREE.BoxGeometry(.02, .26, .6), paint, s * .9, .2, 2.74);
+  // aileron arrière 2026 : 2 éléments, volet mobile (mode ligne droite), plus de beam wing
   add(new THREE.BoxGeometry(1.0, .03, .34), carbon, 0, .88, -2.36, .12);
   const drs = add(new THREE.BoxGeometry(1.0, .02, .2), paint2, 0, 1.0, -2.42, .5);
-  add(new THREE.BoxGeometry(.9, .02, .16), carbon, 0, .38, -2.36, .2);
   for (const s of [1, -1]) add(new THREE.BoxGeometry(.025, .62, .72), paint, s * .51, .78, -2.32);
   add(new THREE.BoxGeometry(.04, .45, .12), carbon, 0, .64, -2.24);
   const light = add(new THREE.BoxGeometry(.16, .07, .03), new THREE.MeshStandardMaterial({ color: 0x330000, emissive: 0xff1a1a, emissiveIntensity: .6 }), 0, .32, -2.46);
@@ -2095,14 +2125,14 @@ function makeCar(c1, c2, c3, num = 27, stripe = 0) {
   const np = add(new THREE.PlaneGeometry(.26, .2), new THREE.MeshBasicMaterial({ map: nt, transparent: true }), 0, .5, 1.75, -Math.PI / 2 + .16); np.castShadow = false;
   // roues 18" : pneu, jante/enjoliveur, liseré de gomme
   const wheels = [];
-  for (const [z, r, w, x] of [[1.7, .36, .37, .83], [-1.7, .37, .44, .8]]) for (const s of [1, -1]) {
+  for (const [z, r, w, x] of [[1.7, .36, .345, .775], [-1.7, .37, .405, .755]]) for (const s of [1, -1]) { // 2026 : voie de 1,9 m, pneus avant -25 mm, arrière -30 mm
     const tg = new THREE.CylinderGeometry(r, r, w, 28); tg.rotateZ(Math.PI / 2);
     const wh = add(tg, rubber, s * x, r, z); wh.rotation.order = 'YXZ';
     wh.add(new THREE.Mesh(new THREE.CylinderGeometry(.24, .24, w + .012, 24).rotateZ(Math.PI / 2), rimM));
     for (const side of [1, -1]) { const st = new THREE.Mesh(new THREE.TorusGeometry(r - .055, .013, 6, 36), new THREE.MeshStandardMaterial({ color: [0xd8262b, 0xf2c20f, 0xf4f4f4][stripe], roughness: .6 }) /* liseré : tendre, medium, dur */); st.rotation.y = Math.PI / 2; st.position.x = side * (w / 2 + .003); wh.add(st); }
     wheels.push(wh);
   }
-  g.userData = { wheels, drs, light, color: c1, noDrape: true };
+  g.userData = { wheels, drs, fw, light, color: c1, noDrape: true };
   return g;
 }
 
@@ -2327,7 +2357,7 @@ function stepPlayer(dt) {
   c.car.rotation.set(-c.brk * .012 + c.thr * .006 - Math.atan(GRADE[c.idx] * Math.cos(c.h - HD[c.idx])), c.h, -c.steer * Math.min(av / 80, 1) * .02, 'YXZ');
   const ud = c.car.userData;
   ud.wheels.forEach((w, k) => { w.rotation.x += c.v * dt / .37; if (k < 2) w.rotation.y = c.steer * .3; });
-  ud.drs.rotation.x = c.drs ? 1.15 : .5;
+  ud.drs.rotation.x = c.drs ? 1.15 : .5; ud.fw.forEach(m => m.rotation.x = c.drs ? m.userData.o : m.userData.c);
   ud.light.material.emissiveIntensity = (c.brk > .3 || (performance.now() % 500 < 250 && c.v < 20)) ? 2.2 : .5;
 }
 function stepAI(dt) {
@@ -2345,7 +2375,7 @@ function stepAI(dt) {
     const p = at(i0, a.lat, .12).lerp(at(i1, a.lat, .12), t); p.y += HT[i0] + (HT[i1] - HT[i0]) * t;
     a.car.position.copy(p); a.car.rotation.set(-Math.atan(GRADE[i0]), HD[i0] + wrapA(HD[i1] - HD[i0]) * t, 0, 'YXZ');
     a.car.userData.wheels.forEach(w => w.rotation.x += a.v * dt / .37);
-    a.car.userData.drs.rotation.x = DRSZ[i0] && a.v > 60 ? 1.15 : .5;
+    { const op = DRSZ[i0] && a.v > 60; a.car.userData.drs.rotation.x = op ? 1.15 : .5; a.car.userData.fw.forEach(m => m.rotation.x = op ? m.userData.o : m.userData.c); }
     if (game.kind === 'race') { contact(a, i0); if (!a.done && a.dist >= game.laps * LEN) { a.done = true; a.fin = game.t; } }
   });
 }
@@ -2501,8 +2531,9 @@ function gameTick(dt) {
     game.lt += dt; n = Math.min(5, Math.floor(game.lt / .9) + 1);
     if (game.lt > 4.5 + game.hold) { game.phase = 'run'; game.t = 0; player.lapT = 0; n = 0; flash('EXTINCTION DES FEUX · C’EST PARTI !'); }
   }
-  L.classList.toggle('on', game.phase === 'grid' || game.phase === 'lights' || (game.phase === 'run' && game.t < 1));
+  { const on = game.phase === 'grid' || game.phase === 'lights' || (game.phase === 'run' && game.t < 1); L.classList.toggle('on', on); document.body.classList.toggle('lightsOn', on); }
   L.querySelectorAll('div').forEach((c, k) => c.querySelectorAll('b').forEach(b => b.classList.toggle('r', k < n)));
+  if (n !== game.litN) { game.litN = n; START_LIGHTS.set(n); }
   if (game.phase === 'run' || game.phase === 'done') game.t += dt;
   // fantôme
   const G = game.ghost, show = game.kind === 'chrono' && G && game.phase === 'run';
@@ -2676,7 +2707,7 @@ function ficheHTML() {
   ${row('Vitesse de pointe estimée', '≈ ' + nf(T.vmax) + ' km/h')}
   ${row('Temps au tour estimé (simulation)', '≈ ' + fmtLap(T.lap) + ' · moyenne ≈ ' + nf(T.avg) + ' km/h')}
   ${row('Plus longue ligne droite', '≈ ' + nf(T.straight) + ' m')}
-  ${row('Zones DRS', T.drs + ' · ' + nf(T.drsL) + ' m au total')}
+  ${row('Zones « ligne droite » (aileron mobile 2026)', T.drs + ' · ' + nf(T.drsL) + ' m au total')}
   ${row('Largeur de piste', nf(T.wmin, 0) + ' à ' + nf(T.wmax, 0) + ' m')}
   ${row('Dénivelé', nf(T.dz, 1) + ' m (relief IGN RGE ALTI)')}
   </table>
@@ -2724,7 +2755,7 @@ const STEPS = [
   { t: 'Grand Prix de Paris', x: `Un circuit de Formule 1 de ${nf(STATS.len / 1000, 2)} km dans le Bois de Boulogne, autour de l'hippodrome de ParisLongchamp. La tour Eiffel est à 4,7 km, La Défense à 3,5 km.`,
     c: [nf(STATS.len / 1000, 2) + ' km', STATS.turns + ' virages marqués', '≈ ' + nf(SEATS) + ' places'], amb: 'jour', fog: [2600, 15000], cam: orbitCam(new THREE.Vector3(0, 0, 0), 2300, 1250, 2.35, .025) },
   { t: 'Le tracé', x: `Une piste rapide et fluide, faite de longues lignes droites et de virages de moyenne vitesse. Elle utilise en grande partie les routes du Bois de Boulogne, élargies.`,
-    c: ['≈ ' + nf(STATS.vmax) + ' km/h en pointe', '≈ ' + fmtLap(STATS.lap) + ' au tour', '≈ ' + nf(STATS.avg) + ' km/h de moyenne', STATS.drs + ' zones DRS'], fog: [3000, 16000], cam: t => [new THREE.Vector3(Math.sin(t * .02) * 200, 2700, 800 + Math.cos(t * .02) * 200), new THREE.Vector3(0, 0, 60)] },
+    c: ['≈ ' + nf(STATS.vmax) + ' km/h en pointe', '≈ ' + fmtLap(STATS.lap) + ' au tour', '≈ ' + nf(STATS.avg) + ' km/h de moyenne', STATS.drs + ' zones d\'aileron mobile'], fog: [3000, 16000], cam: t => [new THREE.Vector3(Math.sin(t * .02) * 200, 2700, 800 + Math.cos(t * .02) * 200), new THREE.Vector3(0, 0, 60)] },
   { t: 'Un tour embarqué', x: `La caméra embarquée suit le pilote automatique (physique simplifiée). Les vitesses s'affichent en direct, comme en retransmission.`,
     c: ['Caméra T-cam', 'Vitesse en direct'], drive: true, dur: 30 },
   { t: T1V ? 'La chicane du virage 1' : 'Le virage 1', x: T1V ? `Après la ligne droite des stands, une chicane gauche-droite à ≈ 70 km/h : un gros freinage et la principale zone de dépassement. Couper par l'échappatoire fait perdre du temps et invalide le tour.` : `Au bout de la ligne droite des stands, le plus gros freinage du circuit et la principale zone de dépassement, avec le DRS.`,
