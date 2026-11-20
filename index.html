@@ -466,7 +466,6 @@ const TRB = new URLSearchParams(location.search).get('trace') === 'b';
 const TRB_CH = [ // un caractère différent pour chaque ajout
   { REF: [1640, 646], S1: 0, DOFF: 24, RC: 95, HOLD: 0, fast: true, lieu: 'ligne droite du Bois', nom: 'Courbe du Bois', kind: 'grande courbe en S rapide, en appui : un petit freinage, il faut placer la voiture, il faut placer la voiture' },
   { REF: [826, 1450], S1: 0, DOFF: 26, RC: 60, HOLD: 15, lieu: 'route des Tribunes', nom: 'Esses des Tribunes', kind: 'enchaînement gauche-droite moyen (rayon 60 m, ≈ 140 km/h) face à l\'hippodrome' },
-  { REF: [262, 1846], S1: 0, DOFF: 24, RC: 16, RC2: 140, HOLD: 0, lieu: 'virage de la Seine', nom: 'Virage de la Seine', kind: 'virage serré à ≈ 70 km/h (gros freinage) qui débouche sur une courbe rapide le long de l\'étang : la bonne sortie décide de la ligne droite des stands' },
 ];
 const CHX = []; // chicanes du tracé B (hors chicane principale)
 let TRACK_OLD = null; // axe avant le lissage final (référence des mesures de couloir libre)
@@ -1367,6 +1366,24 @@ const NAMES = new Set(['ARNOUX', 'PIRONI', 'GASLY', 'JABOUILLE', 'OCON', 'LAFFIT
 const nameLabels = D.labels.filter(l => NAMES.has(l[0]));
 const STANDS = []; // pour la hauteur en mode balade
 const standGeos = [], roofGeos = [], people = [];
+// ---- règles de placement des tribunes (inspirées des normes FIA de sécurité des circuits) ----
+// 1. utile : la tribune voit un freinage, un virage ou une réaccélération (ou la ligne droite des stands : grille, départ, arrivée)
+// 2. recul : premier rang au moins 3 m derrière le mur et son grillage anti-débris
+// 3. hors de l'axe de sortie : rien dans le prolongement tout droit d'un virage abordé à plus de 150 km/h (voiture qui rate son freinage)
+const STAND_REJ = [];
+const CONES = CORNERS.filter(c => (c.v + c.drop) * 3.6 > 150).map(c => { const k = (c.m - 35 + NS) % NS; return { o: P[k], t: T[k], hw: HW[k] }; });
+function standRule(mid, d, q, depth, base, len, ti) {
+  const pts = []; const st = Math.max(4, len / 10);
+  for (let u = -len / 2; u <= len / 2 + .01; u += st) pts.push(mid.clone().setY(0).addScaledVector(d, u).addScaledVector(q, depth / 2));
+  const idx = pts.map(p => nearestIdx(p));
+  const dS = (ti - START + NS) % NS, main = dS < 200 || dS > NS - 220;
+  if (!main) { let s = 0, n = 0; const i0 = idx[0], span = (idx[idx.length - 1] - i0 + NS) % NS, fw = span < NS / 2, L = fw ? span : NS - span;
+    for (let k = -25; k <= L + 25; k++) { s += INTEREST[(i0 + (fw ? k : -k) + NS * 2) % NS]; n++; }
+    if (s / n < .35) return 'ligne droite sans freinage ni virage'; }
+  if (base < 3) for (let k = 0; k < pts.length; k++) { const p = pts[k], i = idx[k], lat = p.clone().sub(P[i]).dot(NL[i]); const wall = lat > 0 ? offL[i] : offR[i]; if (Math.abs(lat) < wall + 3) return 'à moins de 3 m derrière le grillage'; }
+  if (base < 3) for (const C of CONES) for (const p of pts) { const r = p.clone().sub(C.o); const al = r.x * C.t.x + r.z * C.t.z; if (al <= 0 || al > 200) continue; const lt = Math.abs(r.x * C.t.z - r.z * C.t.x); if (lt < C.hw + 10 + al * .12) return 'dans l\'axe de sortie d\'un virage rapide'; }
+  return '';
+}
 function grandstand(a, b, depth, name, toward, base = 0) {
   const d = b.clone().sub(a); const len = d.length(); if (len < 6) return; d.normalize();
   const mid = a.clone().add(b).multiplyScalar(.5);
@@ -1374,6 +1391,7 @@ function grandstand(a, b, depth, name, toward, base = 0) {
   const h = Math.atan2(d.x, d.z);
   const lx = new THREE.Vector3(d.z, 0, -d.x); // axe local x
   const sgn = (toward || P[ti].clone().sub(mid)).dot(lx) > 0 ? 1 : -1; // côté piste en x local
+  { const why = standRule(mid, d, lx.clone().multiplyScalar(sgn), depth, base, len, ti); if (why) { STAND_REJ.push({ name, why, len: Math.round(len) }); return false; } }
   mid.y = base; const M = new THREE.Matrix4().makeRotationY(h).setPosition(mid);
   const rows = Math.max(4, Math.round(depth / 2.4)), rd = depth / rows;
   const box = (sx, sy, sz, x, y, z, arr) => { const g = new THREE.BoxGeometry(sx, sy, sz); g.translate(x, y, z); g.applyMatrix4(M); arr.push(g); };
@@ -1402,6 +1420,7 @@ function grandstand(a, b, depth, name, toward, base = 0) {
     sign.position.copy(front); sign.lookAt(front.clone().add(lx.clone().multiplyScalar(sgn))); scene.add(sign); signM = sign;
   }
   STANDS.push({ M, inv: M.clone().invert(), len, depth, rows, rd, sgn, rowsInfo, name: nm, mid, ti, look: P[ti].clone(), topH, base, r0, r1: roofGeos.length, sign: signM });
+  return true;
 }
 function segDist(px, pz, a, b) { const dx = b[0] - a[0], dz = b[1] - a[1], l = dx * dx + dz * dz || 1; const t = clamp(((px - a[0]) * dx + (pz - a[1]) * dz) / l, 0, 1); return Math.hypot(px - a[0] - t * dx, pz - a[1] - t * dz); }
 const structs = [...D.tribunesLine.map(l => ({ line: l })), ...D.tribunesPoly.map(p => ({ poly: p }))];
@@ -1520,8 +1539,7 @@ segs.forEach(sg => {
       const dep = res[i].dep, f0 = sg.a.clone().addScaledVector(d, i * sl).addScaledVector(q, sg.depth / 2 - res[i].back - dep / 2);
       const f1 = sg.a.clone().addScaledVector(d, (j + 1) * sl).addScaledVector(q, sg.depth / 2 - res[i].back - dep / 2);
       addPlaced(f0.clone().add(f1).multiplyScalar(.5), d.clone(), q.clone(), runL / 2, dep / 2);
-      grandstand(f0, f1, dep, sg.name, q);
-      kept += runL;
+      if (grandstand(f0, f1, dep, sg.name, q)) kept += runL;
     }
     i = j + 1;
   }
@@ -1547,7 +1565,7 @@ Object.entries(byName).forEach(([name, o]) => {
     const f = a.clone().add(b).multiplyScalar(.5).addScaledVector(nrm, far + 3 - (P[(i0 + (nS >> 1)) % NS].clone().sub(a).dot(nrm)) * 0);
     f.copy(a).addScaledVector(d, L / 2).addScaledVector(nrm, far + 3);
     const q = nrm.clone().negate();
-    if (!sliceOK(f, d, q, want, DEP)) { done = { f, d, q, i: home + sign * step }; break search; }
+    if (!sliceOK(f, d, q, want, DEP) && !standRule(f.clone().addScaledVector(q, -DEP / 2), d, q, DEP, 0, want, nearestIdx(f))) { done = { f, d, q, i: home + sign * step }; break search; }
   }
   if (done) {
     const c = done.f.clone().addScaledVector(done.q, -DEP / 2);
@@ -1591,7 +1609,7 @@ if (OSMD) {
     if (gap) continue;
     const outside = hi > -lo; // la piste vient vers la tribune : extérieur du virage, on voit le freinage, la corde et la sortie
     if (-lo > 5 || hi > (outside ? 24 : 5)) continue;
-    sc /= nS + 1; if (sc < .42) continue;
+    sc /= nS + 1; if (sc < .5) continue;
     cands.push({ i0, nS, dd, nrm, L, far, sc: sc + (outside ? .15 : 0) + len / 1000 });
   }
   cands.sort((x, y) => y.sc - x.sc);
@@ -1603,7 +1621,7 @@ if (OSMD) {
     if (inPlaced(f, 8)) continue;
     for (const dep of [24, 16, 10]) {
       const c = f.clone().addScaledVector(q, -dep / 2);
-      if (!freeRect(c, dd, q, L / 2, dep / 2, false) || sliceOK(f, dd, q, L, dep)) continue;
+      if (!freeRect(c, dd, q, L / 2, dep / 2, false) || sliceOK(f, dd, q, L, dep) || standRule(c, dd, q, dep, 0, L, cd.i0)) continue;
       addPlaced(c, dd.clone(), q.clone(), L / 2, dep / 2);
       let nm = '', bdn = Infinity; nameLabels.forEach(l => { const d2 = (l[1] - cx - c.x) ** 2 + (l[2] - cz - c.z) ** 2; if (d2 < bdn) { bdn = d2; nm = l[0]; } });
       grandstand(c.clone().addScaledVector(dd, -L / 2), c.clone().addScaledVector(dd, L / 2), dep, nm, q);
@@ -2726,9 +2744,10 @@ fetch('osm.json').then(r => r.json()).then(O => { // bilan : arbres à retirer e
   let z20 = 0, wider = 0; for (let i = 0; i < NS; i++) { if (OVT[i]) z20 += STEP; if (HW[i] > HW0[i] + .25) wider += STEP; }
   const box = $('#idealInfo'); box.hidden = false;
   box.innerHTML = (IDEAL ? `<b>PISTE IDÉALE</b> · 15 m partout, 20 m sur ${Math.round(z20)} m de zones de freinage<br>` : `<b>PISTE F1</b> · 14 m de large (15 m sur la ligne droite), murs à 3 m, dégagements de 7 m dans les virages<br>`) + `<span class="big">${mapped + est} arbres</span> à abattre environ<br>· <b>${mapped}</b> arbres recensés un par un (OSM)<br>· <b>${Math.round(area).toLocaleString('fr-FR')} m²</b> de bois (≈ ${est} arbres, à 400/ha)`;
-  if (TRB && window.__trb) box.innerHTML += `<br><b>TRACÉ B</b> · ${window.__trb.heavy} gros freinages (au lieu de 4) et ${window.__trb.fast} virage${window.__trb.fast > 1 ? 's' : ''} rapide${window.__trb.fast > 1 ? 's' : ''}, plus longue portion à fond ${(window.__trb.longest / 1000).toFixed(1).replace('.', ',')} km (au lieu de 3,3 km) : chicane lente 1-2, courbe rapide du Bois, esses des Tribunes, virage de la Seine`;
+  if (TRB && window.__trb) box.innerHTML += `<br><b>TRACÉ B</b> · ${window.__trb.heavy} gros freinages (au lieu de 4) et ${window.__trb.fast} virage${window.__trb.fast > 1 ? 's' : ''} rapide${window.__trb.fast > 1 ? 's' : ''}, plus longue portion à fond ${(window.__trb.longest / 1000).toFixed(1).replace('.', ',')} km (au lieu de 3,3 km) : chicane lente 1-2, courbe rapide du Bois, esses des Tribunes`;
   if (T1V_INFO) box.innerHTML += `<br><b>VARIANTE VIRAGE 1</b> · chicane à ${T1V_INFO.debut_m + 120} m de la ligne de départ (règle FIA : ≥ 250 m) : deux virages de ${T1V_INFO.angle}° (rayon ${T1V_INFO.rayon_m} m), côté opposé à l'étang, échappatoire dans l'axe de la ligne droite : slalom de plots, zone lente à 60 km/h, tour invalidé si on coupe`;
   box.innerHTML += TRIB_MAX ? `<br><b>TRIBUNES MAX</b> · ${STANDS.length} tribunes, ≈ ${SEATS_ALL.toLocaleString('fr-FR')} places<br>dont toits de l'hippodrome : ≈ ${SEATS_ROOF.toLocaleString('fr-FR')} places<br>(plan seul : ${N_PLAN} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places)` : `<br><b>TRIBUNES DU PLAN</b> · ${STANDS.length} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places`;
+  box.innerHTML += `<br><b>RÈGLES DES TRIBUNES</b> · vue sur un freinage, un virage ou la ligne droite des stands · premier rang ≥ 3 m derrière le grillage · rien dans l'axe de sortie d'un virage abordé à plus de 150 km/h (${STAND_REJ.length} tronçons retirés)`;
   window.__ideal = { mapped, area: Math.round(area), est, z20: Math.round(z20), wider: Math.round(wider), woodLen: Math.round(len) };
 });
 setEnv(location.hash === '#photo' ? 'photo' : location.hash === '#styl' ? 'styl' : 'osm'); // OpenStreetMap par défaut
@@ -2785,7 +2804,7 @@ function ficheHTML() {
   return `<h2>Fiche projet</h2><p class="sub">Circuit ParisLongchamp · Grand Prix de Paris · projet conceptuel non officiel</p>
   <h4>Le circuit</h4><table>
   ${row('Longueur', nf(T.len / 1000, 2) + ' km')}
-  ${row('Virages marqués (rayon < 200 m)', T.turns + (TRB ? ' (tracé B : chicane, courbe rapide, esses et virage serré ajoutés)' : T1V ? ' (avec la chicane du virage 1)' : T12V ? ' (avec la chicane entre les virages 1 et 2)' : ''))}
+  ${row('Virages marqués (rayon < 200 m)', T.turns + (TRB ? ' (tracé B : chicane, courbe rapide et esses ajoutées)' : T1V ? ' (avec la chicane du virage 1)' : T12V ? ' (avec la chicane entre les virages 1 et 2)' : ''))}
   ${row('Gros freinages (perte > 120 km/h)', CORNERS.filter(c => c.drop * 3.6 > 120).length + ' · virages rapides freinés : ' + CORNERS.filter(c => c.drop * 3.6 <= 120).length + (TRB ? ' · tracé B' : ' · tracé original'))}
   ${row('Vitesse de pointe estimée', '≈ ' + nf(T.vmax) + ' km/h')}
   ${row('Temps au tour estimé (simulation)', '≈ ' + fmtLap(T.lap) + ' · moyenne ≈ ' + nf(T.avg) + ' km/h')}
@@ -2968,7 +2987,7 @@ if (TRB) { // tracé B : étiquettes des chicanes ajoutées et bilan des freinag
   let lng = 0; { const hv = CORNERS.map(c => c.m).sort((a, b) => a - b); hv.forEach((m, k) => { lng = Math.max(lng, ((hv[(k + 1) % hv.length] - m + NS) % NS) * STEP); }); }
   window.__trb = { heavy, fast: fastC, longest: Math.round(lng) };
   ch.forEach(C => { const i = near(C.info.apex), m = CORNERS.reduce((b, c) => Math.abs(((c.m - i + NS / 2) % NS + NS) % NS - NS / 2) < Math.abs(((b.m - i + NS / 2) % NS + NS) % NS - NS / 2) ? c : b, CORNERS[0]);
-    INST.push({ pos: at(i, 0, 0).setY(HT[i] + 4), title: C.info.nom || 'Chicane du virage 1', cat: 'Course', desc: `Tracé B · ${C.info.kind || 'chicane lente gauche-droite (rayon ' + C.info.rayon_m + ' m)'}. Passage à ≈ ${Math.round(m.v * 3.6)} km/h, en arrivant à ≈ ${Math.round((m.v + m.drop) * 3.6)} km/h. ${C.info.fast ? 'Dégagement goudronné à l\'extérieur (l\'ancienne route).' : 'Échappatoire dans l\'axe de l\'ancienne route, avec slalom de plots.'}`, maxD: 2500 }); });
+    INST.push({ pos: at(i, 0, 0).setY(HT[i] + 4), title: C.info.nom || 'Chicane de la ligne droite 1-2', cat: 'Course', desc: `Tracé B · ${C.info.kind || 'chicane lente gauche-droite (rayon ' + C.info.rayon_m + ' m)'}. Passage à ≈ ${Math.round(m.v * 3.6)} km/h, en arrivant à ≈ ${Math.round((m.v + m.drop) * 3.6)} km/h. ${C.info.fast ? 'Dégagement goudronné à l\'extérieur (l\'ancienne route).' : 'Échappatoire dans l\'axe de l\'ancienne route, avec slalom de plots.'}`, maxD: 2500 }); });
 }
 // étiquettes : pastille de couleur + nom, taille constante à l'écran
 const LBL = new THREE.Group(); LBL.visible = false; scene.add(LBL);
