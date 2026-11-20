@@ -222,7 +222,7 @@
   </div>
   <h4>Réglages</h4>
   <div class="opts">
-    <label>Parcours</label><div class="seg"><button data-k="trace" data-v="">Original · 4 gros freinages</button><button data-k="trace" data-v="b">Tracé B · 7 gros freinages</button></div>
+    <label>Parcours</label><div class="seg"><button data-k="trace" data-v="">Original · 4 gros freinages</button><button data-k="trace" data-v="b">Tracé B · virages variés</button></div>
     <label>Chicane</label><div class="seg"><button data-k="v1" data-v="">Aucune</button><button data-k="v1" data-v="serre">Au virage 1</button><button data-k="v1" data-v="droite">Ligne droite 1 → 2</button></div>
     <label>Largeur</label><div class="seg"><button data-k="piste" data-v="">Piste F1</button><button data-k="piste" data-v="ideale">Piste idéale (15 m)</button></div>
     <label>Tribunes</label><div class="seg"><button data-k="tribunes" data-v="plan">Plan officiel</button><button data-k="tribunes" data-v="">Maximum + toits</button></div>
@@ -463,9 +463,10 @@ let TRACK_PRE_V1 = null, T1V_INFO = null, CHIC = null;
 // « tracé B » : le tour d'origine n'a que 4 gros freinages (4 épingles) et 3,3 km à fond entre l'épingle sud et l'épingle nord-est.
 // On garde les routes du Bois et on ajoute 3 chicanes là où l'on est à fond depuis plus d'un kilomètre.
 const TRB = new URLSearchParams(location.search).get('trace') === 'b';
-const TRB_CH = [
-  { REF: [826, 1450], S1: 0, DOFF: 22, lieu: 'route des Tribunes', nom: 'Chicane des Tribunes' },
-  { REF: [262, 1846], S1: 0, DOFF: 24, lieu: 'virage de la Seine', nom: 'Chicane de la Seine' },
+const TRB_CH = [ // un caractère différent pour chaque ajout
+  { REF: [1640, 646], S1: 0, DOFF: 24, RC: 95, HOLD: 0, fast: true, lieu: 'ligne droite du Bois', nom: 'Courbe du Bois', kind: 'grande courbe en S rapide, en appui : un petit freinage, il faut placer la voiture, il faut placer la voiture' },
+  { REF: [826, 1450], S1: 0, DOFF: 26, RC: 60, HOLD: 15, lieu: 'route des Tribunes', nom: 'Esses des Tribunes', kind: 'enchaînement gauche-droite moyen (rayon 60 m, ≈ 140 km/h) face à l\'hippodrome' },
+  { REF: [262, 1846], S1: 0, DOFF: 24, RC: 16, RC2: 140, HOLD: 0, lieu: 'virage de la Seine', nom: 'Virage de la Seine', kind: 'virage serré à ≈ 70 km/h (gros freinage) qui débouche sur une courbe rapide le long de l\'étang : la bonne sortie décide de la ligne droite des stands' },
 ];
 const CHX = []; // chicanes du tracé B (hors chicane principale)
 let TRACK_OLD = null; // axe avant le lissage final (référence des mesures de couloir libre)
@@ -613,16 +614,18 @@ const TRACK_PTS = (() => {
     const wetMap = (x, z) => D.water.some(rings => { let c = false; rings.forEach(r => { if (pip(x, z, r)) c = !c; }); return c; }) || D.bld.some(r => r.length > 2 && pip(x, z, r));
     const nrm = k => { const a = cur[(s0 + k - 2 + n) % n], b = cur[(s0 + k + 2) % n], l = Math.hypot(b[0] - a[0], b[1] - a[1]); return [(b[1] - a[1]) / l, -(b[0] - a[0]) / l]; };
     // chicane faite d'arcs de rayon RC : décalage DOFF sur RAMP mètres (deux arcs opposés), palier HOLD, puis retour
-    const S1 = C.S1, RC = C.RC || 20, DOFF = C.DOFF, HOLD = C.HOLD ?? 10, AL = Math.acos(1 - DOFF / (2 * RC)), RAMP = 2 * RC * Math.sin(AL);
-    const half = u => { const h = RAMP / 2; if (u <= h) return RC * (1 - Math.cos(Math.asin(Math.min(1, u / RC)))); return DOFF - RC * (1 - Math.cos(Math.asin(Math.min(1, (RAMP - u) / RC)))); };
-    const bump = m => { const u = m - S1; if (u <= 0 || u >= 2 * RAMP + HOLD) return 0; return (u < RAMP ? half(u) : u < RAMP + HOLD ? DOFF : half(2 * RAMP + HOLD - u)) / DOFF; };
+    // RC : rayon des deux virages d'entrée, RC2 : rayon des deux virages de sortie (virage lent puis courbe rapide, par exemple)
+    const S1 = C.S1, RC = C.RC || 20, RC2 = C.RC2 || RC, DOFF = C.DOFF, HOLD = C.HOLD ?? 10;
+    const AL = Math.acos(1 - DOFF / (2 * RC)), RAMP = 2 * RC * Math.sin(AL), AL2 = Math.acos(1 - DOFF / (2 * RC2)), RAMP2 = 2 * RC2 * Math.sin(AL2), TOT = RAMP + HOLD + RAMP2;
+    const half = (u, R, RP) => { if (u <= RP / 2) return R * (1 - Math.cos(Math.asin(Math.min(1, u / R)))); return DOFF - R * (1 - Math.cos(Math.asin(Math.min(1, (RP - u) / R)))); };
+    const bump = m => { const u = m - S1; if (u <= 0 || u >= TOT) return 0; return (u < RAMP ? half(u, RC, RAMP) : u < RAMP + HOLD ? DOFF : half(TOT - u, RC2, RAMP2)) / DOFF; };
     let side = 0;
-    for (const sd of C.side ? [C.side, -C.side] : [1, -1]) { let dry = true; for (let k = 0; k < n && cum[k] < S1 + 2 * RAMP + HOLD + 10 && dry; k++) { if (cum[k] < S1 - 10) continue; const q = cur[(s0 + k) % n], nv = nrm(k), off = sd * DOFF * bump(cum[k]); for (const o of [-11, 0, 11]) if (wetMap(q[0] + nv[0] * (off + o), q[1] + nv[1] * (off + o))) { dry = false; break; } } if (dry) { side = sd; break; } }
+    for (const sd of C.side ? [C.side, -C.side] : [1, -1]) { let dry = true; for (let k = 0; k < n && cum[k] < S1 + TOT + 10 && dry; k++) { if (cum[k] < S1 - 10) continue; const q = cur[(s0 + k) % n], nv = nrm(k), off = sd * DOFF * bump(cum[k]); for (const o of [-11, 0, 11]) if (wetMap(q[0] + nv[0] * (off + o), q[1] + nv[1] * (off + o))) { dry = false; break; } } if (dry) { side = sd; break; } }
     if (side) {
       const out = cur.map(q => q.slice());
       for (let k = 0; k < n; k++) { const b = bump(cum[k]); if (!b) continue; const nv = nrm(k), q = cur[(s0 + k) % n]; out[(s0 + k) % n] = [q[0] + nv[0] * side * DOFF * b, q[1] + nv[1] * side * DOFF * b]; }
       cur = out;
-      const kc = cum.findIndex(c => c >= S1 + RAMP); const info = { type: 'chicane', lieu: C.lieu, nom: C.nom, side, debut_m: S1, decalage_m: DOFF, rayon_m: RC, angle: Math.round(AL * 57.3), longueur_m: Math.round(2 * RAMP + HOLD), apex: cur[(s0 + kc) % n].map(Math.round) };
+      const kc = cum.findIndex(c => c >= S1 + RAMP); const info = { type: 'chicane', lieu: C.lieu, nom: C.nom, kind: C.kind, fast: !!C.fast, side, debut_m: S1, decalage_m: DOFF, rayon_m: RC, rayon2_m: RC2, angle: Math.round(AL * 57.3), longueur_m: Math.round(TOT), apex: cur[(s0 + kc) % n].map(Math.round) };
       if (C.main) { CHIC = { info }; if (T1V) T1V_INFO = info; } else CHX.push({ info });
     } else console.warn('chicane impossible : ' + C.lieu);
   }
@@ -843,7 +846,7 @@ for (const CH of [CHIC, ...CHX].filter(Boolean)) {
   const org = new THREE.MeshStandardMaterial({ color: 0xff6a00, roughness: .6 }), wht = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .6 }), cyl = new THREE.CylinderGeometry(.45, .5, .4, 12);
   const N = pts.length, perp = k => { const a = pts[Math.max(0, k - 2)], b = pts[Math.min(N - 1, k + 2)], t = b.clone().sub(a).normalize(); return new THREE.Vector3(t.z, 0, -t.x); };
   // trois rangées de plots décalées : on ne peut passer qu'en zigzag, au pas
-  [[.36, 1], [.5, -1], [.64, 1]].forEach(([f, sd]) => { const k = Math.round(f * (N - 1)), c = pts[k], q = perp(k);
+  if (!CH.info.fast) [[.36, 1], [.5, -1], [.64, 1]].forEach(([f, sd]) => { const k = Math.round(f * (N - 1)), c = pts[k], q = perp(k);
     for (let l = -6; l <= 2.2; l += 1.4) { const p = c.clone().addScaledVector(q, sd * l); for (let h = 0; h < 3; h++) { const m = new THREE.Mesh(cyl, h % 2 ? wht : org); m.position.set(p.x, .2 + h * .4, p.z); m.castShadow = true; scene.add(m); } } });
   { // mur et grillage le long du bord extérieur de l'échappatoire
     const km = N >> 1; let so = 1; if (pts[km].clone().addScaledVector(perp(km), 7).distanceTo(apx) < pts[km].clone().addScaledVector(perp(km), -7).distanceTo(apx)) so = -1;
@@ -851,8 +854,8 @@ for (const CH of [CHIC, ...CHX].filter(Boolean)) {
     mesh(strip(A, B, v, { swap: true }), new THREE.MeshStandardMaterial({ map: texAds, side: THREE.DoubleSide, roughness: .6 }), { cast: true });
     mesh(strip(B, E, v.map(x => x * 24), { swap: true }), new THREE.MeshStandardMaterial({ map: texFence, side: THREE.DoubleSide, transparent: true, alphaTest: .3, depthWrite: false }));
   }
-  const k = Math.round(.26 * (N - 1)), sg = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 1.6), new THREE.MeshBasicMaterial({ map: textTex('ZONE LENTE · 60', '#ff6a00', '#ffffff', 640, 200, '900 64px'), side: THREE.DoubleSide }));
-  sg.position.copy(pts[k]).add(perp(k).multiplyScalar(-5)).setY(1.8); sg.lookAt(pts[Math.max(0, k - 20)].clone().add(perp(k).multiplyScalar(-5)).setY(1.8)); scene.add(sg);
+  if (!CH.info.fast) { const k = Math.round(.26 * (N - 1)), sg = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 1.6), new THREE.MeshBasicMaterial({ map: textTex('ZONE LENTE · 60', '#ff6a00', '#ffffff', 640, 200, '900 64px'), side: THREE.DoubleSide }));
+  sg.position.copy(pts[k]).add(perp(k).multiplyScalar(-5)).setY(1.8); sg.lookAt(pts[Math.max(0, k - 20)].clone().add(perp(k).multiplyScalar(-5)).setY(1.8)); scene.add(sg); }
 }
 // vibreurs
 {
@@ -2723,7 +2726,7 @@ fetch('osm.json').then(r => r.json()).then(O => { // bilan : arbres à retirer e
   let z20 = 0, wider = 0; for (let i = 0; i < NS; i++) { if (OVT[i]) z20 += STEP; if (HW[i] > HW0[i] + .25) wider += STEP; }
   const box = $('#idealInfo'); box.hidden = false;
   box.innerHTML = (IDEAL ? `<b>PISTE IDÉALE</b> · 15 m partout, 20 m sur ${Math.round(z20)} m de zones de freinage<br>` : `<b>PISTE F1</b> · 14 m de large (15 m sur la ligne droite), murs à 3 m, dégagements de 7 m dans les virages<br>`) + `<span class="big">${mapped + est} arbres</span> à abattre environ<br>· <b>${mapped}</b> arbres recensés un par un (OSM)<br>· <b>${Math.round(area).toLocaleString('fr-FR')} m²</b> de bois (≈ ${est} arbres, à 400/ha)`;
-  if (TRB && window.__trb) box.innerHTML += `<br><b>TRACÉ B</b> · ${window.__trb.heavy} gros freinages au lieu de 4, plus longue portion à fond ${(window.__trb.longest / 1000).toFixed(1).replace('.', ',')} km (au lieu de 3,3 km) : chicanes de la ligne droite 1-2, des Tribunes et de la Seine`;
+  if (TRB && window.__trb) box.innerHTML += `<br><b>TRACÉ B</b> · ${window.__trb.heavy} gros freinages (au lieu de 4) et ${window.__trb.fast} virage${window.__trb.fast > 1 ? 's' : ''} rapide${window.__trb.fast > 1 ? 's' : ''}, plus longue portion à fond ${(window.__trb.longest / 1000).toFixed(1).replace('.', ',')} km (au lieu de 3,3 km) : chicane lente 1-2, courbe rapide du Bois, esses des Tribunes, virage de la Seine`;
   if (T1V_INFO) box.innerHTML += `<br><b>VARIANTE VIRAGE 1</b> · chicane à ${T1V_INFO.debut_m + 120} m de la ligne de départ (règle FIA : ≥ 250 m) : deux virages de ${T1V_INFO.angle}° (rayon ${T1V_INFO.rayon_m} m), côté opposé à l'étang, échappatoire dans l'axe de la ligne droite : slalom de plots, zone lente à 60 km/h, tour invalidé si on coupe`;
   box.innerHTML += TRIB_MAX ? `<br><b>TRIBUNES MAX</b> · ${STANDS.length} tribunes, ≈ ${SEATS_ALL.toLocaleString('fr-FR')} places<br>dont toits de l'hippodrome : ≈ ${SEATS_ROOF.toLocaleString('fr-FR')} places<br>(plan seul : ${N_PLAN} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places)` : `<br><b>TRIBUNES DU PLAN</b> · ${STANDS.length} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places`;
   window.__ideal = { mapped, area: Math.round(area), est, z20: Math.round(z20), wider: Math.round(wider), woodLen: Math.round(len) };
@@ -2782,8 +2785,8 @@ function ficheHTML() {
   return `<h2>Fiche projet</h2><p class="sub">Circuit ParisLongchamp · Grand Prix de Paris · projet conceptuel non officiel</p>
   <h4>Le circuit</h4><table>
   ${row('Longueur', nf(T.len / 1000, 2) + ' km')}
-  ${row('Virages marqués (rayon < 200 m)', T.turns + (TRB ? ' (tracé B : 3 chicanes ajoutées)' : T1V ? ' (avec la chicane du virage 1)' : T12V ? ' (avec la chicane entre les virages 1 et 2)' : ''))}
-  ${row('Gros freinages (perte > 40 km/h)', CORNERS.filter(c => c.drop > 40).length + (TRB ? ' · tracé B' : ' · tracé original (essayer le tracé B : 7)'))}
+  ${row('Virages marqués (rayon < 200 m)', T.turns + (TRB ? ' (tracé B : chicane, courbe rapide, esses et virage serré ajoutés)' : T1V ? ' (avec la chicane du virage 1)' : T12V ? ' (avec la chicane entre les virages 1 et 2)' : ''))}
+  ${row('Gros freinages (perte > 120 km/h)', CORNERS.filter(c => c.drop * 3.6 > 120).length + ' · virages rapides freinés : ' + CORNERS.filter(c => c.drop * 3.6 <= 120).length + (TRB ? ' · tracé B' : ' · tracé original'))}
   ${row('Vitesse de pointe estimée', '≈ ' + nf(T.vmax) + ' km/h')}
   ${row('Temps au tour estimé (simulation)', '≈ ' + fmtLap(T.lap) + ' · moyenne ≈ ' + nf(T.avg) + ' km/h')}
   ${row('Plus longue ligne droite', '≈ ' + nf(T.straight) + ' m')}
@@ -2961,11 +2964,11 @@ SECT_STATS.forEach(S => INST.push({ pos: at(S.mid, 0, 0).setY(HT[S.mid] + 6), ti
 INST.push({ pos: at(START, 0, 0).setY(HT[START]), title: 'Ligne de départ', cat: 'Course', desc: 'Grille de départ de 20 places sur la route des Tribunes, face à la grande tribune. Les stands sont juste à côté.', maxD: 3000 });
 if (TRB) { // tracé B : étiquettes des chicanes ajoutées et bilan des freinages
   const near = a => { const v = W(a); let b = 0, bd = Infinity; for (let i = 0; i < NS; i++) { const d = P[i].distanceToSquared(v); if (d < bd) { bd = d; b = i; } } return b; };
-  const ch = [CHIC, ...CHX].filter(Boolean), heavy = CORNERS.filter(c => c.drop > 40).length;
-  let lng = 0; { const hv = CORNERS.filter(c => c.drop > 40).map(c => c.m).sort((a, b) => a - b); hv.forEach((m, k) => { lng = Math.max(lng, ((hv[(k + 1) % hv.length] - m + NS) % NS) * STEP); }); }
-  window.__trb = { heavy, longest: Math.round(lng) };
+  const ch = [CHIC, ...CHX].filter(Boolean), grp = CORNERS.filter((c, k) => !k || (c.m - CORNERS[k - 1].m + NS) % NS > 100), heavy = grp.filter(c => c.drop * 3.6 > 120).length, fastC = grp.filter(c => c.drop * 3.6 <= 120).length;
+  let lng = 0; { const hv = CORNERS.map(c => c.m).sort((a, b) => a - b); hv.forEach((m, k) => { lng = Math.max(lng, ((hv[(k + 1) % hv.length] - m + NS) % NS) * STEP); }); }
+  window.__trb = { heavy, fast: fastC, longest: Math.round(lng) };
   ch.forEach(C => { const i = near(C.info.apex), m = CORNERS.reduce((b, c) => Math.abs(((c.m - i + NS / 2) % NS + NS) % NS - NS / 2) < Math.abs(((b.m - i + NS / 2) % NS + NS) % NS - NS / 2) ? c : b, CORNERS[0]);
-    INST.push({ pos: at(i, 0, 0).setY(HT[i] + 4), title: C.info.nom || 'Chicane du virage 1', cat: 'Course', desc: `Tracé B · chicane gauche-droite (2 × ${C.info.angle}°, rayon ${C.info.rayon_m} m) prise à ≈ ${Math.round(m.v * 3.6)} km/h après un freinage depuis ≈ ${Math.round((m.v + m.drop) * 3.6)} km/h. Échappatoire droite dans l'axe de l'ancienne route, avec slalom de plots.`, maxD: 2500 }); });
+    INST.push({ pos: at(i, 0, 0).setY(HT[i] + 4), title: C.info.nom || 'Chicane du virage 1', cat: 'Course', desc: `Tracé B · ${C.info.kind || 'chicane lente gauche-droite (rayon ' + C.info.rayon_m + ' m)'}. Passage à ≈ ${Math.round(m.v * 3.6)} km/h, en arrivant à ≈ ${Math.round((m.v + m.drop) * 3.6)} km/h. ${C.info.fast ? 'Dégagement goudronné à l\'extérieur (l\'ancienne route).' : 'Échappatoire dans l\'axe de l\'ancienne route, avec slalom de plots.'}`, maxD: 2500 }); });
 }
 // étiquettes : pastille de couleur + nom, taille constante à l'écran
 const LBL = new THREE.Group(); LBL.visible = false; scene.add(LBL);
@@ -3040,6 +3043,7 @@ const CUR = { trace: Q0.get('trace') || '', piste: Q0.get('piste') || '', v1: Q0
 const PEND = { ...CUR };
 function homeSync() {
   document.querySelectorAll('#home [data-k]').forEach(b => { const k = b.dataset.k, v = b.dataset.v; const cur = k in PEND ? PEND[k] : k === 'env' ? envName : k === 'amb' ? ambName : k === 'lbl' ? (lblOn ? '1' : '0') : k === 'flux' ? (fluxOn ? '1' : '0') : k === 'sect' ? (sectOn ? '1' : '0') : ''; b.setAttribute('aria-pressed', cur === v); });
+  { const b0 = document.querySelector('#home [data-k="v1"][data-v=""]'); if (b0) b0.textContent = PEND.trace === 'b' ? 'Ligne droite 1 → 2 (tracé B)' : 'Aucune'; }
   const dirty = Object.keys(CUR).some(k => CUR[k] !== PEND[k]); $('#hNote').classList.toggle('warn', dirty);
   $('#hNote').textContent = dirty ? 'Ces réglages modifient le tracé ou les tribunes : la maquette se recharge au lancement (quelques secondes).' : 'Tous les réglages restent modifiables depuis le bouton « Accueil » en haut de l\'écran.';
 }
