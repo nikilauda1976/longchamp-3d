@@ -615,7 +615,7 @@ const TRACK_PTS = (() => {
   }
   // chicanes : variantes du virage 1 et « tracé B » (freinages ajoutés dans les portions à fond)
   const CH_LIST = [];
-  if (T1V || T12V) CH_LIST.push({ REF: T1V ? [305, 918] : [476, 700], S1: T1V ? 200 : TRB ? 30 : 55, DOFF: T1V ? 30 : 24, lieu: T1V ? 'virage 1' : 'ligne droite 1-2', main: true, prof: TRB && !T1V ? REAL_PROF.roggia : null, kind: TRB && !T1V ? 'chicane dont l\'entrée reprend la Variante della Roggia (Monza), retour raccourci pour tenir entre l\'étang et les bâtiments' : undefined });
+  if (T1V || T12V) CH_LIST.push({ REF: T1V ? [305, 918] : [476, 700], S1: T1V ? 200 : 55, DOFF: T1V ? 30 : 24, lieu: T1V ? 'virage 1' : 'ligne droite 1-2', main: true, });
   if (TRB) CH_LIST.push(...TRB_CH);
   if (CH_LIST.length) TRACK_PRE_V1 = cur.map(q => q.slice());
   for (const C of CH_LIST) {
@@ -2433,6 +2433,7 @@ function sparks(pos, h, v, n) { for (let q = 0; q < n; q++) { const k = SPK.k = 
   SPK.p.set([pos.x - Math.sin(h) * 2.2, pos.y + .08, pos.z - Math.cos(h) * 2.2], k * 3); SPK.v.set([Math.sin(a) * s, 1 + rand() * 2.5, Math.cos(a) * s], k * 3); SPK.life[k] = .25 + rand() * .3; } }
 function stepSparks(dt) { for (let k = 0; k < SPK.n; k++) { if (SPK.life[k] <= 0) { SPK.p[k * 3 + 1] = -999; continue; } SPK.life[k] -= dt; SPK.v[k * 3 + 1] -= 9.81 * dt; for (let a = 0; a < 3; a++) SPK.p[k * 3 + a] += SPK.v[k * 3 + a] * dt; } SPK.geo.attributes.position.needsUpdate = true; }
 const bumpAt = i => Math.abs(GRADE[(i + 2) % NS] - 2 * GRADE[i] + GRADE[(i - 2 + NS) % NS]); // changement de pente : compression
+const AUTO_K = 1.01, AUTO_N = 1, AUTO_T = .4, AUTO_B = 1; // pilote automatique près de la limite (≈ 2 % du tour théorique)
 function stepPlayer(dt) {
   const c = player;
   let thr = 0, brk = 0, st = 0;
@@ -2443,12 +2444,12 @@ function stepPlayer(dt) {
     const kap = 2 * Math.sin(wrapA(Math.atan2(dx, dz) - c.h)) / ld;
     const av0 = Math.max(Math.abs(c.v), 3), ym = Math.min(1.4, aLat(av0) / av0);
     st = clamp(kap * av0 / ym, -1, 1);
-    let vt = Infinity; for (let k = 0; k < 8; k++) vt = Math.min(vt, VP[(c.idx + k) % NS]); vt *= .97;
+    let vt = Infinity; for (let k = 0; k < 8; k++) vt = Math.min(vt, VP[(c.idx + k) % NS]); vt *= AUTO_K;
     // marge de sécurité : adhérence presque saturée, ou mur proche → on lève le pied
-    const need = Math.abs(kap * av0 / ym); if (need > .8) vt = Math.min(vt, Math.max(14, c.v * Math.sqrt(.8 / need)));
+    const need = Math.abs(kap * av0 / ym); if (need > AUTO_N) vt = Math.min(vt, Math.max(14, c.v * Math.sqrt(AUTO_N / need)));
     const l0 = c.pos.clone().sub(P[c.idx]).dot(NL[c.idx]), room = (l0 > 0 ? offL[c.idx] : offR[c.idx]) - 1.1 - Math.abs(l0);
     if (room < 2.5 && Math.abs(l0) > HW[c.idx] * .6) vt = Math.min(vt, Math.max(14, c.v * .9));
-    thr = clamp((vt - c.v) / 2.5, 0, 1); brk = clamp((c.v - vt - .5) / 3, 0, 1);
+    thr = clamp((vt - c.v) / AUTO_T, 0, 1); brk = clamp((c.v - vt - .2) / AUTO_B, 0, 1);
   } else {
     thr = keys.up ? 1 : 0; brk = (keys.down || keys.brake) ? 1 : 0; st = (keys.left ? 1 : 0) - (keys.right ? 1 : 0);
   }
@@ -2809,7 +2810,7 @@ fetch('osm.json').then(r => r.json()).then(O => { // bilan : arbres à retirer e
   let z20 = 0, wider = 0; for (let i = 0; i < NS; i++) { if (OVT[i]) z20 += STEP; if (HW[i] > HW0[i] + .25) wider += STEP; }
   const box = $('#idealInfo'); box.hidden = false;
   box.innerHTML = (IDEAL ? `<b>PISTE IDÉALE</b> · 15 m partout, 20 m sur ${Math.round(z20)} m de zones de freinage<br>` : `<b>PISTE F1</b> · 14 m de large (15 m sur la ligne droite), murs à 3 m, dégagements de 7 m dans les virages<br>`) + (RUNOFFS.length ? `<b>ÉCHAPPATOIRES</b> · ${RUNOFFS.length} virages abordés à plus de 150 km/h : dégagement élargi dans l'axe du freinage (asphalte puis graviers, jusqu'à ${Math.round(Math.max(...RUNW))} m), ≈ ${RUNOFFS.reduce((a, r) => a + r.area, 0).toLocaleString('fr-FR')} m² gagnés<br>` : '') + `<span class="big">${mapped + est} arbres</span> à abattre environ<br>· <b>${mapped}</b> arbres recensés un par un (OSM)<br>· <b>${Math.round(area).toLocaleString('fr-FR')} m²</b> de bois (≈ ${est} arbres, à 400/ha)`;
-  if (TRB && window.__trb) box.innerHTML += `<br><b>TRACÉ B</b> · ${window.__trb.heavy} gros freinages (au lieu de 4), plus longue portion à fond ${(window.__trb.longest / 1000).toFixed(1).replace('.', ',')} km (au lieu de 3,3 km) : formes reprises de vrais circuits : chicane 1-2 (Variante della Roggia, Monza), courbe du Bois (Eau Rouge – Raidillon, Spa, à fond), esses des Tribunes (Variante Ascari, Monza)`;
+  if (TRB && window.__trb) box.innerHTML += `<br><b>TRACÉ B</b> · ${window.__trb.heavy} gros freinages (au lieu de 4), plus longue portion à fond ${(window.__trb.longest / 1000).toFixed(1).replace('.', ',')} km (au lieu de 3,3 km) : chicane lente 1-2 ; formes reprises de vrais circuits : courbe du Bois (Eau Rouge – Raidillon, Spa, à fond), esses des Tribunes (Variante Ascari, Monza)`;
   if (T1V_INFO) box.innerHTML += `<br><b>VARIANTE VIRAGE 1</b> · chicane à ${T1V_INFO.debut_m + 120} m de la ligne de départ (règle FIA : ≥ 250 m) : deux virages de ${T1V_INFO.angle}° (rayon ${T1V_INFO.rayon_m} m), côté opposé à l'étang, échappatoire dans l'axe de la ligne droite : slalom de plots, zone lente à 60 km/h, tour invalidé si on coupe`;
   box.innerHTML += TRIB_MAX ? `<br><b>TRIBUNES MAX</b> · ${STANDS.length} tribunes, ≈ ${SEATS_ALL.toLocaleString('fr-FR')} places<br>dont toits de l'hippodrome : ≈ ${SEATS_ROOF.toLocaleString('fr-FR')} places<br>(plan seul : ${N_PLAN} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places)` : `<br><b>TRIBUNES DU PLAN</b> · ${STANDS.length} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places`;
   box.innerHTML += `<br><b>RÈGLES DES TRIBUNES</b> · vue sur un freinage, un virage ou la ligne droite des stands · premier rang ≥ 3 m derrière le grillage · rien dans l'axe de sortie d'un virage abordé à plus de 150 km/h (${STAND_REJ.length} tronçons retirés)`;
@@ -2855,7 +2856,6 @@ const STATS = (() => {
     if (Math.abs(kk) < 1 / 1000) { cur += STEP; best = Math.max(best, cur); } else cur = 0;
   }
   let drs = 0, drsL = 0; for (let i = 0; i < NS; i++) { if (DRSZ[i]) { drsL += STEP; if (!DRSZ[(i - 1 + NS) % NS]) drs++; } }
-  tl *= 1.063; // calé sur les tours mesurés du pilote automatique (1:28.8 sur le tracé par défaut)
   return { len: LEN, vmax: vmax * 3.6, lap: tl, avg: LEN / tl * 3.6, dz: hmax - hmin, wmin, wmax, turns, straight: best, drs, drsL };
 })();
 
@@ -2929,7 +2929,7 @@ function ficheHTML() {
   ${row('Virages marqués (rayon < 200 m)', T.turns + (TRB ? ' (tracé B : chicane, courbe rapide et esses aux formes de vrais circuits)' : T1V ? ' (avec la chicane du virage 1)' : T12V ? ' (avec la chicane entre les virages 1 et 2)' : ''))}
   ${row('Gros freinages (perte > 120 km/h)', CORNERS.filter(c => c.drop * 3.6 > 120).length + ' · virages rapides freinés : ' + CORNERS.filter(c => c.drop * 3.6 <= 120).length + (TRB ? ' · tracé B' : ' · tracé original'))}
   ${row('Vitesse de pointe estimée', '≈ ' + nf(T.vmax) + ' km/h')}
-  ${row('Temps au tour estimé (simulation)', '≈ ' + fmtLap(T.lap) + ' · moyenne ≈ ' + nf(T.avg) + ' km/h')}
+  ${row('Temps au tour théorique (tour lancé, à la limite)', '≈ ' + fmtLap(T.lap) + ' · moyenne ≈ ' + nf(T.avg) + ' km/h')}
   ${row('Plus longue ligne droite', '≈ ' + nf(T.straight) + ' m')}
   ${row('Zones « ligne droite » (aileron mobile 2026)', T.drs + ' · ' + nf(T.drsL) + ' m au total')}
   ${SECT_STATS.map(S => row('Secteur ' + (S.k + 1), nf(Math.round(S.len / 10) * 10) + ' m · ' + S.corners + ' virages freinés (' + S.heavy + ' gros freinages) · ' + S.stands + ' tribunes, ≈ ' + nf(S.seats) + ' places' + (S.clr > 200 ? ' · ≈ ' + nf(Math.round(S.clr / 100) * 100) + ' m² de lisière à dégager' : ''))).join('')}
