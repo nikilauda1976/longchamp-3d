@@ -186,7 +186,7 @@
 <div id="fluxLeg"><span class="ls"><i style="background:#e10600"></i>Secteur 1 · <i style="background:#1e7fd8"></i>Secteur 2 · <i style="background:#ffd21f"></i>Secteur 3<br></span><span class="lf"><i style="background:#2f8cff"></i>Transports → portes · enceinte billetterie<br><i style="background:#2bd65a"></i>Portes → tribunes et fan zones<br><i style="background:#ff8a1f"></i>Zone accréditée (paddock, stands)</span></div>
 <div class="hud" id="where">Ligne droite des stands</div>
 <div class="hud" id="banner"></div>
-<div class="hud" id="onboard"><div id="rpmled"></div><div class="obrow"><div class="obbars"><i><b id="thrbar"></b></i><i><b id="brkbar"></b></i></div><div class="obspd"><b id="spd">0</b><small>KM/H</small></div><div class="obgear" id="gear">N</div><div class="obdrs" id="drs">AÉRO</div></div></div>
+<div class="hud" id="onboard"><div id="rpmled"></div><div class="obrow"><div class="obbars"><i><b id="thrbar"></b></i><i><b id="brkbar"></b></i></div><div class="obspd"><b id="spd">0</b><small>KM/H</small></div><div class="obgear" id="gear">N</div><div class="obdrs" id="drs">AÉRO</div><div class="obdrs" id="tow">ASPI</div><div class="obdrs" id="tyre" title="Usure des pneus">PNEUS 100</div></div></div>
 <canvas class="hud" id="mini" width="380" height="420"></canvas>
 <div class="hud" id="help"></div>
 <div id="idealInfo" hidden></div>
@@ -777,7 +777,7 @@ const pitCurve = (() => {
   const pts = [edge(a0, sS * (HW[a0] - 3)), edge(a1, sS * (HW[a1] + 5)), ...par, ...(T1V_INFO ? [edge(b1, sE * (HW[b1] + 5))] : []), edge(b0, sE * (HW[b0] - 3))];
   return new THREE.CatmullRomCurve3(pts, false, 'centripetal');
 })();
-const PIT = pitCurve.getSpacedPoints(Math.round(pitCurve.getLength() / 3));
+const PIT = pitCurve.getSpacedPoints(Math.round(pitCurve.getLength() / 3)), PIT_LEN = pitCurve.getLength();
 const pitGrid = new Grid(25); PIT.forEach(p => pitGrid.add(p.x, p.z, p));
 // paddock des équipes : dalle de 72 m de profondeur derrière le bâtiment des stands (coordonnées du plan)
 const PADDOCK = (() => {
@@ -842,15 +842,15 @@ const RUN = new Int8Array(NS), RUNW = new Float32Array(NS), RUNOFFS = [];
     let top = V[m]; for (let j = 1; j < 150; j++) top = Math.max(top, V[(m - j + NS) % NS]);
     if (top * 3.6 < 150 || top - V[m] < 6) continue;
     let s = 0; for (let j = -10; j <= 10; j++) s += K[(m + j + NS) % NS]; s = s > 0 ? 1 : -1; // côté extérieur
-    const k0 = (m - 35 + NS) % NS, o = P[k0], t = T[k0], Lr = clamp(top * 1.15, 50, 110), Wd = HW[k0] + 14;
+    const k0 = (m - 35 + NS) % NS, o = P[k0], t = T[k0], v0 = V[k0], Lr = clamp(45 + (v0 * v0 - 16.7 ** 2) / (2 * 14), 60, 200), Wd = HW[k0] + 14; // longueur : arrêt sous ≈ 60 km/h (asphalte puis graviers)
     const inR = (x, z) => { const rx = x - o.x, rz = z - o.z, al = rx * t.x + rz * t.z, lt = Math.abs(rx * t.z - rz * t.x); return al >= -2 && al <= Lr + HW[k0] && lt <= Wd; };
     const want = new Map();
-    for (let d = -45; d <= 95; d++) { const i = (k0 + d + NS) % NS; if (ESC[i]) continue;
+    for (let d = -45; d <= 140; d++) { const i = (k0 + d + NS) % NS; if (ESC[i]) continue;
       const cur = s > 0 ? offL[i] : offR[i]; let lim = HW[i] + 1, ext = 0, been = false;
-      for (let l = HW[i] + 1; l <= HW[i] + 150; l += 1.5) { const wx = P[i].x + NL[i].x * s * l, wz = P[i].z + NL[i].z * s * l; if (blocked(i, wx, wz)) break; lim = l; const r = inR(wx, wz); if (r) { ext = l; been = true; } else if (been || l > cur + 2) break; }
+      for (let l = HW[i] + 1; l <= HW[i] + 220; l += 1.5) { const wx = P[i].x + NL[i].x * s * l, wz = P[i].z + NL[i].z * s * l; if (blocked(i, wx, wz)) break; lim = l; const r = inR(wx, wz); if (r) { ext = l; been = true; } else if (been || l > cur + 2) break; }
       want.set(d, { i, cur, lim, ext }); }
     let peak = new Map(); want.forEach((w, d) => peak.set(d, w.ext > w.cur ? w.ext + 2 : 0));
-    for (const dir of [1, -1]) { let carry = 0; for (let d = dir > 0 ? -45 : 95; dir > 0 ? d <= 95 : d >= -45; d += dir) { if (!peak.has(d)) { carry = 0; continue; } carry = Math.max(peak.get(d), carry - STEP * .45); peak.set(d, Math.max(peak.get(d), carry)); } }
+    for (const dir of [1, -1]) { let carry = 0; for (let d = dir > 0 ? -45 : 140; dir > 0 ? d <= 140 : d >= -45; d += dir) { if (!peak.has(d)) { carry = 0; continue; } carry = Math.max(peak.get(d), carry - STEP * .45); peak.set(d, Math.max(peak.get(d), carry)); } }
     let area = 0;
     want.forEach((w, d) => { const nv = Math.min(peak.get(d), w.lim); if (nv > w.cur + .5) { if (s > 0) { offL[w.i] = nv; gapL[w.i] = 0; } else { offR[w.i] = nv; gapR[w.i] = 0; } RUN[w.i] = s; RUNW[w.i] = nv - HW[w.i]; area += (nv - w.cur) * STEP; } });
     if (area > 0) RUNOFFS.push({ m, top: Math.round(top * 3.6), len: Math.round(Lr), area: Math.round(area) });
@@ -2412,6 +2412,14 @@ const LEDS = [];
 const fmt = t => { const m = Math.floor(t / 60), s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(2); };
 function trackIdx(pos, i0) { let best = i0, bd = Infinity; for (let j = -8; j <= 16; j++) { const i = (i0 + j + NS) % NS; const d = (P[i].x - pos.x) ** 2 + (P[i].z - pos.z) ** 2; if (d < bd) { bd = d; best = i; } } return best; }
 
+// étincelles : patins en titane sous le fond plat, au contact du sol à haute vitesse (bosses, compressions)
+const SPK = { n: 400, k: 0, p: new Float32Array(400 * 3), v: new Float32Array(400 * 3), life: new Float32Array(400) };
+{ const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(SPK.p, 3)); SPK.geo = g;
+  SPK.pts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffc04a, size: .14, transparent: true, opacity: .95, blending: THREE.AdditiveBlending, depthWrite: false })); SPK.pts.frustumCulled = false; scene.add(SPK.pts); }
+function sparks(pos, h, v, n) { for (let q = 0; q < n; q++) { const k = SPK.k = (SPK.k + 1) % SPK.n, s = v * (.55 + rand() * .3), a = h + (rand() - .5) * .35;
+  SPK.p.set([pos.x - Math.sin(h) * 2.2, pos.y + .08, pos.z - Math.cos(h) * 2.2], k * 3); SPK.v.set([Math.sin(a) * s, 1 + rand() * 2.5, Math.cos(a) * s], k * 3); SPK.life[k] = .25 + rand() * .3; } }
+function stepSparks(dt) { for (let k = 0; k < SPK.n; k++) { if (SPK.life[k] <= 0) { SPK.p[k * 3 + 1] = -999; continue; } SPK.life[k] -= dt; SPK.v[k * 3 + 1] -= 9.81 * dt; for (let a = 0; a < 3; a++) SPK.p[k * 3 + a] += SPK.v[k * 3 + a] * dt; } SPK.geo.attributes.position.needsUpdate = true; }
+const bumpAt = i => Math.abs(GRADE[(i + 2) % NS] - 2 * GRADE[i] + GRADE[(i - 2 + NS) % NS]); // changement de pente : compression
 function stepPlayer(dt) {
   const c = player;
   let thr = 0, brk = 0, st = 0;
@@ -2438,10 +2446,14 @@ function stepPlayer(dt) {
   const off = Math.abs(lat) > HW[c.idx] + 1.6;
   const av = Math.abs(c.v);
   c.drs = !!DRSZ[c.idx] && (c.auto || c.thr > .9) && c.brk < .05 && c.v > 40;
-  let a = -((c.drs ? .00082 : .0011) * c.v * av + Math.sign(c.v) * .15);
+  // aspiration : une voiture 4 à 45 m devant, dans l'axe, réduit la traînée jusqu'à 35 %
+  c.tow = 0; if (av > 40) { const fx = Math.sin(c.h), fz = Math.cos(c.h); AI.forEach(o => { if (!o.car.visible) return; const dx = o.car.position.x - c.pos.x, dz = o.car.position.z - c.pos.z, al = dx * fx + dz * fz, lt = Math.abs(dx * fz - dz * fx); if (al > 4 && al < 45 && lt < 2.2) c.tow = Math.max(c.tow, 1 - al / 45); }); }
+  // usure des pneus : ≈ 2 à 3 % par tour, plus en virage et au freinage ; l'adhérence baisse jusqu'à 8 %
+  c.tyre = Math.max(.55, (c.tyre ?? 1) - (game.kind ? 1 : 0) * av * dt * (3.2e-6 + 4e-6 * Math.abs(c.steer) + 3e-6 * c.brk)); const grip = .92 + .08 * c.tyre;
+  let a = -((c.drs ? .00082 : .0011) * (1 - .35 * c.tow) * c.v * av + Math.sign(c.v) * .15);
   if (c.v > -.3) {
     a += c.thr * Math.min(13.5, 937 / Math.max(av, 5));
-    if (c.brk > .02) a -= c.v > .3 ? c.brk * aBrk(av) : 0;
+    if (c.brk > .02) a -= c.v > .3 ? c.brk * aBrk(av) * grip : 0;
     if (c.brk > .5 && c.v <= .3 && !c.auto) a -= 4; // marche arrière
   } else { a += c.thr * 10; if (c.brk > .5) a -= 3; }
   if (off) a -= Math.sign(c.v) * (1.5 + av * .3);
@@ -2454,7 +2466,7 @@ function stepPlayer(dt) {
   const slope = GRADE[c.idx] * Math.cos(c.h - HD[c.idx]); a -= 9.81 * slope; // la pente freine en montée, pousse en descente
   c.v = Math.max(-8, c.v + a * dt); if (frozen) c.v = 0; if (c.thr < .05 && c.brk < .05 && Math.abs(c.v) < .3) c.v = 0;
   c.steer += (st - c.steer) * Math.min(1, dt * (c.auto ? 10 : 6));
-  const yawMax = Math.min(1.4, aLat(av) * (off ? .45 : 1) / Math.max(av, 3));
+  const yawMax = Math.min(1.4, aLat(av) * grip * (off ? .45 : 1) / Math.max(av, 3));
   c.h = wrapA(c.h + c.steer * yawMax * clamp(c.v / 3, -1, 1) * dt);
   c.pos.x += Math.sin(c.h) * c.v * dt; c.pos.z += Math.cos(c.h) * c.v * dt;
   const prev = c.idx; c.idx = trackIdx(c.pos, c.idx);
@@ -2492,6 +2504,7 @@ function stepPlayer(dt) {
   const ud = c.car.userData;
   ud.wheels.forEach((w, k) => { w.rotation.x += c.v * dt / .37; if (k < 2) w.rotation.y = c.steer * .3; });
   ud.drs.rotation.x = c.drs ? 1.15 : .5; ud.fw.forEach(m => m.rotation.x = c.drs ? m.userData.o : m.userData.c);
+  if (av > 60 && !off && rand() < bumpAt(c.idx) * 900 * dt + (av > 80 ? dt * .8 : 0)) sparks(c.pos, c.h, c.v, 8 + (rand() * 10 | 0));
   ud.light.material.emissiveIntensity = (c.brk > .3 || (performance.now() % 500 < 250 && c.v < 20)) ? 2.2 : .5;
 }
 function stepAI(dt) {
@@ -2500,6 +2513,8 @@ function stepAI(dt) {
   AI.forEach(a => {
     const i = Math.floor(a.s / STEP) % NS;
     let vt = VP[(i + 3) % NS] * a.skill;
+    a.tyre = Math.max(.55, (a.tyre ?? 1) - (game.kind ? 1 : 0) * a.v * dt * 4.5e-6); vt *= .97 + .03 * a.tyre;
+    if (VP[i] > 70) { let g = 99; AI.forEach(b => { if (b !== a) { const d = ((b.s - a.s) % LEN + LEN) % LEN; if (Math.abs(b.lat - a.lat) < 2.2) g = Math.min(g, d); } }); if (g > 6 && g < 45) vt *= 1 + .025 * (1 - g / 45); } // aspiration
     if (game.kind === 'race' && game.phase === 'run') vt = Math.min(vt, aiTraffic(a, i));
     if (frozen) { a.v = 0; vt = 0; }
     const gs = 9.81 * GRADE[i]; a.v += clamp(vt - a.v, -Math.max(3, aBrk(a.v) * .9 + gs) * dt, Math.max(aAcc(a.v) - gs, .3) * dt);
@@ -2509,6 +2524,7 @@ function stepAI(dt) {
     const p = at(i0, a.lat, .12).lerp(at(i1, a.lat, .12), t); p.y += HT[i0] + (HT[i1] - HT[i0]) * t;
     a.car.position.copy(p); a.car.rotation.set(-Math.atan(GRADE[i0]), HD[i0] + wrapA(HD[i1] - HD[i0]) * t, 0, 'YXZ');
     a.car.userData.wheels.forEach(w => w.rotation.x += a.v * dt / .37);
+    if (a.v > 70 && a.car.visible && rand() < bumpAt(i0) * 900 * dt + dt * .6 && a.car.position.distanceToSquared(camera.position) < 40000) sparks(a.car.position, a.car.rotation.y, a.v, 6 + (rand() * 8 | 0));
     { const op = DRSZ[i0] && a.v > 60; a.car.userData.drs.rotation.x = op ? 1.15 : .5; a.car.userData.fw.forEach(m => m.rotation.x = op ? m.userData.o : m.userData.c); }
     if (game.kind === 'race') { contact(a, i0); if (!a.done && a.dist >= game.laps * LEN) { a.done = true; a.fin = game.t; } }
   });
@@ -2602,10 +2618,10 @@ function startGame(kind, laps, lvl) {
   Object.assign(game, { kind, laps, lvl, phase: 'grid', t: 0, pt: 0, lt: 0, hold: .4 + rand() * 1.4, inval: false, rec: [], recT: 0, laps_: [], pfin: null });
   setAuto(false);
   const g = gridSlot(kind === 'race' ? AI.length : 0);
-  placePlayer(g.i, g.lat); Object.assign(player, { lap: 1, lapT: 0, best: null, armed: false, dist: -behind(g.i) * STEP, rpm: 4000 });
+  placePlayer(g.i, g.lat); Object.assign(player, { tyre: 1, lap: 1, lapT: 0, best: null, armed: false, dist: -behind(g.i) * STEP, rpm: 4000 });
   AI.forEach((a, k) => {
     const s = gridSlot(k); a.car.visible = kind === 'race';
-    Object.assign(a, { s: s.i * STEP, lat: s.lat, grid: s.lat, v: 0, dist: -behind(s.i) * STEP, done: false, fin: null, dodge: 0, skill: LVL[lvl] * (1.012 - k * .006) });
+    Object.assign(a, { tyre: 1, s: s.i * STEP, lat: s.lat, grid: s.lat, v: 0, dist: -behind(s.i) * STEP, done: false, fin: null, dodge: 0, skill: LVL[lvl] * (1.012 - k * .006) });
   });
   stepAI(0);
   flash(kind === 'race' ? `COURSE · ${laps} TOUR${laps > 1 ? 'S' : ''} · départ en ${AI.length + 1}e position` : `CONTRE-LA-MONTRE · ${laps} TOUR${laps > 1 ? 'S' : ''}`);
@@ -2723,7 +2739,7 @@ let hudT = 0, placeT = 0;
 function frame() {
   if (window.__FILM) { requestAnimationFrame(frame); return; }
   const dt = Math.min(clock.getDelta(), .05);
-  gameTick(dt); stepPlayer(dt); stepAI(dt); stepWalkTarget(dt); if (!pitchCam(dt)) updateCamera(dt); updLabels(dt); SECTG.visible = sectOn && mode !== 'drive'; if (fluxOn) for (const t of FLUX_TEX) t.offset.y -= dt * .9;
+  gameTick(dt); stepPlayer(dt); stepAI(dt); stepSparks(dt); stepWalkTarget(dt); if (!pitchCam(dt)) updateCamera(dt); updLabels(dt); SECTG.visible = sectOn && mode !== 'drive'; if (fluxOn) for (const t of FLUX_TEX) t.offset.y -= dt * .9;
   const focus = mode === 'drone' ? orbit.target : camera.position;
   sun.position.copy(focus).add(SUN_OFF); sun.target.position.copy(focus); sun.target.updateMatrixWorld();
   if (mode === 'drone') { const d = camera.position.distanceTo(orbit.target); const s = clamp(d * .6, 110, 900); Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s }); sun.shadow.camera.updateProjectionMatrix(); }
@@ -2736,7 +2752,8 @@ function frame() {
     $('#spd').textContent = Math.round(Math.abs(player.v) * 3.6);
     $('#gear').textContent = player.gear;
     $('#thrbar').style.height = player.thr * 100 + '%'; $('#brkbar').style.height = player.brk * 100 + '%';
-    $('#drs').classList.toggle('on', player.drs);
+    $('#drs').classList.toggle('on', player.drs); $('#tow').classList.toggle('on', player.tow > .15);
+    { const tp = Math.round((player.tyre ?? 1) * 100); if ($('#tyre').textContent !== 'PNEUS ' + tp) $('#tyre').textContent = 'PNEUS ' + tp; }
     const nl = clamp(Math.round((player.rpm - 10400) / 2600 * 15), 0, 15); LEDS.forEach((e, k) => e.style.background = k < nl ? (k < 5 ? '#2bd65a' : k < 10 ? '#ff2b2b' : '#5a8cff') : '');
     $('#lapn').textContent = 'TOUR ' + (game.kind ? Math.min(player.lap, game.laps) + '/' + game.laps : player.lap); $('#laptime').textContent = fmt3(player.lapT);
     $('#best').textContent = player.best ? fmt3(player.best) : '—'; $('#autotag').style.display = player.auto ? '' : 'none';
@@ -2828,6 +2845,55 @@ const STATS = (() => {
   tl *= 1.063; // calé sur les tours mesurés du pilote automatique (1:28.8 sur le tracé par défaut)
   return { len: LEN, vmax: vmax * 3.6, lap: tl, avg: LEN / tl * 3.6, dz: hmax - hmin, wmin, wmax, turns, straight: best, drs, drsL };
 })();
+
+// ================== SÉCURITÉ VIRAGE PAR VIRAGE (modèle simplifié, hypothèses affichées dans la fiche) ==================
+// une voiture rate son point de braquage et part tout droit : on suit l'axe d'arrivée jusqu'au mur,
+// en comptant l'asphalte et les graviers traversés, puis on estime la vitesse au contact de la barrière
+const SAFE_HYP = { asph: 20, grav: 8, vok: 60, vwarn: 120 }; // décélérations (m/s²) et seuils d'impact (km/h)
+const SAFETY = (() => {
+  const grp = CORNERS.filter((c, k) => !k || (c.m - CORNERS[k - 1].m + NS) % NS > 100).sort((a, b) => ((a.m - START + NS) % NS) - ((b.m - START + NS) % NS));
+  const chs = [CHIC, ...CHX].filter(Boolean).map(C => ({ nom: C.info.nom || 'Chicane de la ligne droite 1-2', v: W(C.info.apex) }));
+  return grp.map((c, n) => {
+    const k0 = (c.m - 35 + NS) % NS, o = P[k0].clone(), t = T[k0].clone().setY(0).normalize(), v0 = VP[k0];
+    let left = -1, asph = 0, grav = 0, hit = -1, tip = 'mur', ang = 90;
+    let esc = false; for (let q = -80; q <= 80; q++) if (ESC[(c.m + q + NS) % NS]) esc = true;
+    for (let d = 0; d <= 400; d += 1) {
+      const w = o.clone().addScaledVector(t, d);
+      let j = k0, bd = Infinity; for (let q = -60; q <= 160; q++) { const i = (k0 + q + NS) % NS, dd = (P[i].x - w.x) ** 2 + (P[i].z - w.z) ** 2; if (dd < bd) { bd = dd; j = i; } }
+      const lat = w.clone().sub(P[j]).dot(NL[j]), s = lat > 0 ? 1 : -1, a = Math.abs(lat);
+      if (a <= HW[j]) { if (left >= 0 && d - left > 5) { hit = d; tip = 'retour sur la piste'; break; } continue; }
+      if (left < 0) left = d;
+      const wall = s > 0 ? offL[j] : offR[j];
+      if (a >= wall - .7) { hit = d; ang = Math.round(Math.acos(Math.min(1, Math.abs(t.dot(T[j])))) * 57.3); break; }
+      if (GRV[j] === s && a > (GRV0[j] || HW[j] + GRV_IN)) grav++; else asph++;
+    }
+    if (hit < 0) { hit = 400; tip = 'plus de 400 m libres'; }
+    if (esc) tip = 'échappatoire dans l\'axe (ancienne route) : la voiture rejoint la piste';
+    else if (tip === 'mur' && ang <= 15) tip = 'choc rasant (' + ang + '°) : mur continu lisse doublé de Tecpro';
+    const vi = Math.sqrt(Math.max(0, v0 * v0 - 2 * (SAFE_HYP.asph * asph + SAFE_HYP.grav * grav))) * 3.6;
+    const apex = P[c.m]; let nom = ''; chs.forEach(C => { if (C.v.distanceTo(apex) < 160) nom = C.nom; });
+    const kind = c.v * 3.6 < 100 ? 'lent' : c.v * 3.6 < 200 ? 'moyen' : 'rapide';
+    const barrier = tip !== 'mur' ? '—' : vi > SAFE_HYP.vok ? 'Tecpro + pneus renforcés' : 'Tecpro';
+    return { n: n + 1, nom: nom || (kind === 'lent' && c.v * 3.6 < 95 ? 'Épingle' : 'Virage ' + kind), m: c.m, vin: Math.round((c.v + c.drop) * 3.6), vt: Math.round(v0 * 3.6), vmin: Math.round(c.v * 3.6), asph, grav, free: left < 0 ? 0 : Math.round(hit - left), tip, vi: Math.round(vi), barrier, st: tip !== 'mur' || vi <= SAFE_HYP.vok ? 'ok' : vi <= SAFE_HYP.vwarn ? 'warn' : 'bad' };
+  });
+})();
+window.__safety = SAFETY;
+// profil d'altitude du tour (SVG) : secteurs, virages et vitesses
+function profileSVG() {
+  const Wd = 560, Hd = 150, pad = 26; let lo = Infinity, hi = -Infinity; for (let i = 0; i < NS; i++) { lo = Math.min(lo, HT[i]); hi = Math.max(hi, HT[i]); }
+  const rng = Math.max(4, hi - lo), X = k => pad + k / NS * (Wd - pad - 6), Y = hgt => Hd - 22 - (hgt - lo) / rng * (Hd - 46);
+  let d = ''; for (let k = 0; k <= NS; k += 4) { const i = (START + k) % NS; d += (k ? 'L' : 'M') + X(k).toFixed(1) + ' ' + Y(HT[i]).toFixed(1); }
+  const cols = ['#e10600', '#1e7fd8', '#ffd21f'];
+  let sec = ''; for (let s = 0; s < 3; s++) { const a = (SECT[s] - START + NS) % NS, b = s < 2 ? (SECT[s + 1] - START + NS) % NS : NS; sec += `<rect x="${X(a)}" y="${Hd - 18}" width="${X(b) - X(a)}" height="5" fill="${cols[s]}"/><text x="${(X(a) + X(b)) / 2}" y="${Hd - 2}" fill="#c9c9d1" font-size="10" text-anchor="middle">S${s + 1}</text>`; }
+  const cs = SAFETY.map(c => { const k = (c.m - START + NS) % NS, x = X(k), y = Y(HT[c.m]); return `<circle cx="${x}" cy="${y}" r="3.5" fill="#fff"/><text x="${x}" y="${y - 7}" fill="#fff" font-size="9" text-anchor="middle">${c.vmin}</text>`; }).join('');
+  return `<svg viewBox="0 0 ${Wd} ${Hd}" width="100%" style="background:rgba(255,255,255,.04);border-radius:6px"><text x="4" y="12" fill="#a9a9b6" font-size="10">${nf(hi, 0)} m</text><text x="4" y="${Hd - 22}" fill="#a9a9b6" font-size="10">${nf(lo, 0)} m</text><path d="${d}" fill="none" stroke="#ffd21f" stroke-width="2"/>${cs}${sec}</svg>`;
+}
+// capacité et évacuation (hypothèses affichées)
+const CAPA = (() => {
+  const ga = AMEN.zones.reduce((a, z) => a + z[2] * z[3], 0), gaP = Math.round(ga / 2 / 100) * 100; // pelouses et fan zones : 1 personne / 2 m²
+  const total = SEATS_ALL + gaP, gates = AMEN.gates.length, GW = 12, FLOW = 80; // 12 m de passage par porte, 80 personnes / min / m
+  return { ga: Math.round(ga), gaP, total, gates, GW, FLOW, evac: Math.ceil(total / (gates * GW * FLOW)) };
+})();
 const fmtLap = s => Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0');
 const nf = (v, d = 0) => v.toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
 const SEATS = TRIB_MAX ? SEATS_ALL : SEATS_PLAN;
@@ -2849,9 +2915,16 @@ function ficheHTML() {
   ${row('Largeur de piste', nf(T.wmin, 0) + ' à ' + nf(T.wmax, 0) + ' m')}
   ${row('Dénivelé', nf(T.dz, 1) + ' m (relief IGN RGE ALTI)')}
   </table>
+  <h4>Profil d'altitude du tour</h4>${profileSVG()}<p class="note">Altitude de la piste (relief IGN) depuis la ligne de départ ; points blancs : virages freinés avec leur vitesse minimale (km/h).</p>
+  <h4>Sécurité virage par virage</h4><table>
+  ${SAFETY.map(c => row(`${c.st === 'ok' ? ok : c.st === 'warn' ? '⚠' : '✗'} ${c.n}. ${c.nom}`, `arrivée ${c.vin} km/h, ${c.vmin} km/h au plus lent · tout droit au braquage (${c.vt} km/h) : ${c.tip === 'mur' ? c.free + ' m de dégagement (' + c.asph + ' m d\'asphalte, ' + c.grav + ' m de graviers), impact estimé ≈ ' + c.vi + ' km/h · ' + c.barrier : c.tip}`)).join('')}
+  </table>${SAFETY.some(c => c.st === 'bad') ? `<p class="note">✗ = dégagement limité par ce qui entoure la piste (routes, étang, bâtiments du carrefour de Longchamp) : à traiter par un mur en biais doublé de Tecpro, un virage plus lent ou un léger déplacement du tracé.</p>` : ''}<p class="note">Modèle simplifié : la voiture part tout droit à l'endroit où elle devrait braquer, freine à ${SAFE_HYP.asph} m/s² sur l'asphalte et ralentit à ${SAFE_HYP.grav} m/s² dans les graviers (hypothèses). ✓ impact ≤ ${SAFE_HYP.vok} km/h, ⚠ ≤ ${SAFE_HYP.vwarn} km/h, ✗ au-delà. Une homologation utilise l'outil d'analyse de la FIA avec les angles de sortie réels.</p>
   <h4>Spectateurs et site</h4><table>
   ${row('Places en tribune', '≈ ' + nf(SEATS) + (TRIB_MAX ? ' (dont ≈ ' + nf(SEATS_ROOF) + ' sur les toits de l\'hippodrome)' : ''))}
+  ${row('Entrées générales (pelouses, fan zones)', '≈ ' + nf(CAPA.gaP) + ' personnes (' + nf(CAPA.ga) + ' m², 1 personne / 2 m²)')}
+  ${row('Capacité par jour (estimation)', '≈ ' + nf(CAPA.total) + ' spectateurs, soit ≈ ' + nf(CAPA.total * 3) + ' sur 3 jours')}
   ${row('Portes d\'accès', AMEN.gates.length + ' · ' + AMEN.bridges.length + ' passerelles au-dessus de la piste')}
+  ${row('Évacuation du site', '≈ ' + CAPA.evac + ' min par les ' + CAPA.gates + ' portes (hypothèse : ' + CAPA.GW + ' m de passage par porte, ' + CAPA.FLOW + ' personnes / min / m)')}
   ${row('Transports', 'Tram T2 · Métro 10 · navette fluviale sur la Seine · bus et navettes · vélos · taxis/VTC')}
   ${row('Zones d\'animation', AMEN.zones.map(z => z[5].toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase())).join(' · '))}
   ${row('Postes de commissaires', AMEN.marshals.length)}
@@ -2862,7 +2935,31 @@ function ficheHTML() {
   ${row(ok + ' Largeur ≥ 12 m', 'minimum ' + nf(T.wmin, 0) + ' m')}
   ${row(ok + ' Départ → 1er virage ≥ 250 m', 'ligne de départ reculée en conséquence')}
   ${row((T.straight <= 2000 ? ok : '⚠') + ' Ligne droite ≤ 2 km', '≈ ' + nf(T.straight) + ' m')}
+  ${row((PIT_LEN <= 500 ? ok : '⚠') + ' Voie des stands courte', '≈ ' + nf(PIT_LEN) + ' m entre entrée et sortie, limitée à 80 km/h')}
+  ${row((LEN / AMEN.marshals.length <= 500 ? ok : '⚠') + ' Commissaires ≤ 500 m d\'écart', AMEN.marshals.length + ' postes, un tous les ≈ ' + nf(LEN / AMEN.marshals.length) + ' m')}
+  ${row(ok + ' Centre médical et hélisurface', 'centre médical FIA relié à l\'hélisurface')}
+  ${row((SAFETY.every(c => c.st !== 'bad') ? ok : '⚠') + ' Dégagements des virages', SAFETY.filter(c => c.st === 'ok').length + ' / ' + SAFETY.length + ' virages avec impact estimé ≤ ' + SAFE_HYP.vok + ' km/h (voir le détail plus haut)')}
   </table><p class="note">Vérification faite sur le modèle, pas une homologation. Une homologation FIA (grade 1) demande une étude détaillée des dégagements, barrières et voies de service.</p>
+
+  <h4>Pourquoi Paris</h4><table>
+  ${row('La destination', 'Paris est la ville la plus visitée au monde : une course au cœur d\'une capitale, comme Las Vegas, Miami ou Madrid, plutôt qu\'un circuit isolé')}
+  ${row('Les partenaires', 'LVMH (Louis Vuitton, Moët Hennessy, TAG Heuer) est partenaire mondial de la F1 depuis 2025 : un Grand Prix à Paris serait sa vitrine naturelle')}
+  ${row('Venir sans voiture', 'Métro 10, tram T2, navettes sur la Seine, vélos : l\'inverse du Paul Ricard 2018 et de ses embouteillages, cohérent avec l\'objectif de neutralité carbone de la F1 en 2030')}
+  ${row('Un modèle éprouvé', 'Circuit monté dans un parc pour l\'événement, comme Melbourne (Albert Park) ou Montréal (île Notre-Dame)')}
+  ${row('La date', 'Fenêtre juin–juillet : après Roland-Garros (fin mai – début juin) et loin du Prix de l\'Arc de Triomphe à Longchamp (début octobre)')}
+  ${row('Montage (hypothèse)', '≈ 6 à 8 semaines de montage et 3 à 4 semaines de démontage, sur le modèle des circuits de parc : routes du Bois fermées par tronçons, l\'hippodrome restant utilisable hors période')}
+  ${row('À chiffrer', 'Droits d\'organisation (garantis par l\'État, la Région et la Ville), coût de montage, retombées, bilan carbone et plan de replantation des ≈ ' + (I ? nf(I.mapped + I.est) : '…') + ' arbres abattus')}
+  </table>
+  <h4>Comparaison avec d'autres circuits en ville ou en parc</h4><table>
+  <tr><td><b>Circuit</b></td><td><b>Longueur · virages · type</b></td></tr>
+  ${row('<b>ParisLongchamp (ce projet)</b>', '<b>' + nf(T.len / 1000, 3) + ' km · ' + T.turns + ' virages · parc, routes du Bois</b>')}
+  ${row('Monaco', '3,337 km · 19 virages · rues de la ville')}
+  ${row('Montréal (Gilles-Villeneuve)', '4,361 km · 14 virages · parc sur une île')}
+  ${row('Melbourne (Albert Park)', '5,278 km · 14 virages · parc, routes du lac')}
+  ${row('Bakou', '6,003 km · 20 virages · rues de la ville')}
+  ${row('Las Vegas', '6,201 km · 17 virages · boulevard du Strip')}
+  ${row('Djeddah', '6,174 km · 27 virages · front de mer')}
+  </table><p class="note">Le nombre de virages du projet est compté sur le modèle (rayon < 200 m, chaque changement de sens compte) : la méthode officielle de chaque circuit peut différer.</p>
   <h4>Repères : d'autres Grands Prix</h4><table>
   ${row('Silverstone 2025', '500 000 spectateurs sur 4 jours, record de l\'épreuve <a href="https://gpdestinations.com/500000-attend-2025-british-grand-prix-weekend/" target="_blank" rel="noopener">source</a>')}
   ${row('Melbourne 2025', '≈ 465 000 spectateurs sur 4 jours <a href="https://gpdestinations.com/ranked-the-top-attended-formula-1-races-in-2025/" target="_blank" rel="noopener">source</a>')}
