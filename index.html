@@ -138,6 +138,16 @@
   body.mode-drive #modes { top:auto; bottom:max(10px,env(safe-area-inset-bottom)); }
   body.mode-drive #onboard { bottom:max(62px, calc(env(safe-area-inset-bottom) + 56px)) !important; }
   body.mode-drive #help { display:none; }
+  /* téléphone en conduite : barre du bas réduite, commandes tactiles au-dessus d'elle */
+  #tow:not(.on) { display:none; }
+  body.is-touch .obrow { gap:9px; } body.is-touch #tyre { font-size:11px; padding:3px 5px; }
+  body.is-touch.mode-drive #btnLbl, body.is-touch.mode-drive #btnSnd, body.is-touch.mode-drive #modes #tp { display:none !important; }
+  body.is-touch.mode-drive #onboard { bottom:auto !important; }
+  body.is-touch.mode-drive #tower { top:calc(max(8px,env(safe-area-inset-top)) + 84px); transform:scale(.8); }
+  body.is-touch.mode-drive #credits { top:auto; bottom:calc(max(10px,env(safe-area-inset-bottom)) + var(--mh, 76px) + 2px); max-width:55vw; text-align:right; font-size:9px; }
+  body.is-touch.mode-drive #tl { bottom:calc(max(10px,env(safe-area-inset-bottom)) + var(--mh, 76px) + 10px); }
+  body.is-touch.mode-drive #tr { bottom:calc(max(10px,env(safe-area-inset-bottom)) + var(--mh, 76px) + 120px); }
+  body.is-touch.mode-drive #mini { bottom:calc(max(10px,env(safe-area-inset-bottom)) + var(--mh, 76px) + 96px); }
   #fluxLeg { display:none; position:fixed; right:max(12px,env(safe-area-inset-right)); bottom:calc(max(12px,env(safe-area-inset-bottom)) + 26px); background:rgba(12,12,18,.82); border-radius:10px; padding:8px 12px; font:600 12px/1.6 "Titillium Web",Arial,sans-serif; color:#fff; z-index:4; pointer-events:none; }
   #fluxLeg i { display:inline-block; width:18px; height:4px; border-radius:2px; vertical-align:middle; margin-right:7px; }
   body.flux #fluxLeg, body.sect #fluxLeg { display:block; } body:not(.sect) #fluxLeg .ls, body:not(.flux) #fluxLeg .lf { display:none; } #fluxLeg .ls i { width:12px; margin:0 5px 0 0; } body.home #fluxLeg, body.pitch #fluxLeg, body.mode-drive #fluxLeg { display:none; }
@@ -2313,6 +2323,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Digit1') setMode('drive'); if (e.code === 'Digit2') setMode('walk'); if (e.code === 'Digit3') setMode('drone');
 });
 addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
+{ const mo = $('#modes'); new ResizeObserver(() => document.body.style.setProperty('--mh', mo.offsetHeight + 'px')).observe(mo); }
 document.querySelectorAll('.touch button').forEach(b => {
   const k = b.dataset.k;
   const on = e => { e.preventDefault(); keys[k] = true; b.classList.add('on'); if (mode === 'drive' && player.auto) setAuto(false); };
@@ -2967,9 +2978,83 @@ function ficheHTML() {
   ${row('Las Vegas', '≈ 1,5 Md$ de retombées en 2023, ≈ 934 M$ en 2024 (études Applied Analysis) <a href="https://www.planetf1.com/news/las-vegas-gp-economic-impact-highlighted-economic-report" target="_blank" rel="noopener">source</a>')}
   </table><p class="note">Ordres de grandeur d'autres épreuves, pas une projection pour Paris. Ces études sont souvent commandées par les organisateurs : à confronter à une étude indépendante.</p>
   <h4>Avertissements</h4><p class="note">Projet conceptuel, sans lien avec la FIA, Formula 1, France Galop ni la Ville de Paris. ${PUB_LIBRE ? 'Les panneaux publicitaires sont des emplacements libres.' : 'Les marques sur les panneaux (partenaires mondiaux de la F1) sont affichées à titre illustratif : aucune n\'est partenaire du projet.'} Vitesses et temps calculés avec une physique simplifiée.</p>
-  <div class="go"><button id="fPubs">${PUB_LIBRE ? 'Afficher les partenaires F1' : 'Panneaux « votre marque ici »'}</button><button class="main" id="fClose">Fermer</button></div>`;
+  <div class="go"><button id="fExport">Export simulateurs</button><button id="fPubs">${PUB_LIBRE ? 'Afficher les partenaires F1' : 'Panneaux « votre marque ici »'}</button><button class="main" id="fClose">Fermer</button></div>`;
 }
-function openFiche() { const f = $('#fiche'); f.querySelector('.gpanel').innerHTML = ficheHTML(); f.classList.add('on'); $('#fClose').onclick = () => f.classList.remove('on'); $('#fPubs').onclick = () => { const u = new URL(location.href); if (PUB_LIBRE) u.searchParams.delete('pubs'); else u.searchParams.set('pubs', 'libre'); location.href = u.toString(); }; }
+
+// ================== EXPORT SIMULATEURS (Assetto Corsa, BeamNG, Blender) ==================
+// OBJ en mètres, Y vers le haut, noms d'objets aux conventions d'Assetto Corsa (1ROAD, 1KERB, 1GRASS, 1SAND, 1WALL, AC_START_n, AC_PIT_n, AC_TIME_0_L/R)
+function buildExport() {
+  let lo = Infinity; for (let i = 0; i < NS; i++) lo = Math.min(lo, HT[i]);
+  const V = [], UV = [], out = ['# Circuit ParisLongchamp · maquette conceptuelle · mètres, Y vers le haut', 'mtllib longchamp.mtl'];
+  let nv = 0, nt = 0;
+  const vtx = (x, y, z) => { out.push(`v ${x.toFixed(3)} ${y.toFixed(3)} ${z.toFixed(3)}`); return ++nv; };
+  const tex = (u, v) => { out.push(`vt ${u.toFixed(4)} ${v.toFixed(4)}`); return ++nt; };
+  const y = i => HT[i] - lo;
+  const pt = (i, lat, dy = 0) => { const p = at(i, lat, 0); return [p.x, y(i) + dy, p.z]; };
+  // bande le long de la piste entre deux décalages latéraux, seulement là où keep(i) est vrai
+  const band = (name, mat, a, b, keep, dy = 0) => {
+    out.push(`o ${name}`, `usemtl ${mat}`); let prev = null;
+    for (let k = 0; k <= NS; k++) { const i = k % NS; if (!keep(i)) { prev = null; continue; }
+      const A = pt(i, a(i), dy), B = pt(i, b(i), dy), ia = vtx(...A), ib = vtx(...B), ta = tex(0, k * STEP / 10), tb = tex(Math.abs(b(i) - a(i)) / 10, k * STEP / 10);
+      if (prev) out.push(`f ${prev[0]}/${prev[2]} ${ia}/${ta} ${ib}/${tb} ${prev[1]}/${prev[3]}`); prev = [ia, ib, ta, tb]; } };
+  const wallOff = s => i => s > 0 ? offL[i] - .7 : -(offR[i] - .7);
+  const kerb = new Uint8Array(NS); for (let i = 0; i < NS; i++) if (Math.abs(K[i]) > 1 / 450) for (let j = -22; j <= 12; j++) kerb[(i + j + NS) % NS] = 1;
+  band('1ROAD', 'asphalt', i => -HW[i], i => HW[i], () => true);
+  for (const s of [1, -1]) {
+    band('1KERB_' + (s > 0 ? 'L' : 'R'), 'kerb', i => s * HW[i], i => s * (HW[i] + 1.6), i => kerb[i], .01);
+    band('1GRASS_' + (s > 0 ? 'L' : 'R'), 'grass', i => s * (HW[i] + (kerb[i] ? 1.6 : 0)), i => { const g = GRV[i] === s ? (GRV0[i] || HW[i] + GRV_IN) : null; return g ? s * g : wallOff(s)(i); }, i => !(s > 0 ? gapL[i] : gapR[i]) && (s > 0 ? offL[i] : offR[i]) - .7 > HW[i] + 1.7, -.02);
+    band('1SAND_' + (s > 0 ? 'L' : 'R'), 'gravel', i => s * (GRV0[i] || HW[i] + GRV_IN), wallOff(s), i => GRV[i] === s, -.03);
+    // mur : face verticale de 1,2 m
+    out.push(`o 1WALL_${s > 0 ? 'L' : 'R'}`, 'usemtl wall'); let prev = null;
+    for (let k = 0; k <= NS; k++) { const i = k % NS; if (s > 0 ? gapL[i] : gapR[i]) { prev = null; continue; } const lat = wallOff(s)(i), A = pt(i, lat), B = pt(i, lat, 1.2), ia = vtx(...A), ib = vtx(...B); if (prev) out.push(`f ${prev[0]} ${ia} ${ib} ${prev[1]}`); prev = [ia, ib]; }
+  }
+  // voie des stands
+  { out.push('o 1ROAD_PIT', 'usemtl asphalt'); let prev = null;
+    for (let k = 0; k < PIT.length; k++) { const a = PIT[Math.max(0, k - 1)], b = PIT[Math.min(PIT.length - 1, k + 1)], t = b.clone().sub(a).setY(0).normalize(), n = new THREE.Vector3(t.z, 0, -t.x), p = PIT[k], yy = H(p.x, p.z) - lo + (HT[nearestIdx(p)] - H(p.x, p.z)) * 0;
+      const ia = vtx(p.x + n.x * 5, yy, p.z + n.z * 5), ib = vtx(p.x - n.x * 5, yy, p.z - n.z * 5); if (prev) out.push(`f ${prev[0]} ${ia} ${ib} ${prev[1]}`); prev = [ia, ib]; } }
+  // repères : petit triangle pointé dans le sens de la course (à convertir en « empty » dans Blender)
+  const dummy = (name, p, dir, yy) => { const t = dir.clone().setY(0).normalize(), n = new THREE.Vector3(t.z, 0, -t.x); out.push(`o ${name}`); const a = vtx(p.x + t.x * .6, yy + .3, p.z + t.z * .6), b = vtx(p.x + n.x * .3, yy + .3, p.z + n.z * .3), c = vtx(p.x - n.x * .3, yy + .3, p.z - n.z * .3); out.push(`f ${a} ${b} ${c}`); };
+  for (let k = 0; k < 20; k++) { const g = gridSlot(k); dummy('AC_START_' + k, at(g.i, g.lat, 0), T[g.i], y(g.i)); }
+  { const k0 = Math.round(PIT.length * .35), k1 = Math.round(PIT.length * .65); for (let k = 0; k < 20; k++) { const q = Math.round(k0 + (k1 - k0) * k / 19), p = PIT[q], d = PIT[Math.min(PIT.length - 1, q + 1)].clone().sub(PIT[Math.max(0, q - 1)]); dummy('AC_PIT_' + k, p, d, H(p.x, p.z) - lo); } }
+  dummy('AC_TIME_0_L', at(START, offL[START] - 1, 0), T[START], y(START)); dummy('AC_TIME_0_R', at(START, -(offR[START] - 1), 0), T[START], y(START));
+  { const i = (START - 100 + NS) % NS; dummy('AC_HOTLAP_START_0', at(i, 0, 0), T[i], y(i)); }
+  SECT.forEach((i, k) => { if (k) { dummy(`AC_TIME_${k}_L`, at(i, offL[i] - 1, 0), T[i], y(i)); dummy(`AC_TIME_${k}_R`, at(i, -(offR[i] - 1), 0), T[i], y(i)); } });
+  const mtl = ['newmtl asphalt', 'Kd 0.22 0.22 0.24', 'newmtl kerb', 'Kd 0.85 0.12 0.10', 'newmtl grass', 'Kd 0.25 0.50 0.22', 'newmtl gravel', 'Kd 0.66 0.58 0.43', 'newmtl wall', 'Kd 0.85 0.85 0.85'].join('\n');
+  // ligne centrale (BeamNG : route « DecalRoad »/« MeshRoad », chemin de l'IA ; utilisable dans tout éditeur)
+  const cl = []; for (let k = 0; k < NS; k += 2) { const i = (START + k) % NS; cl.push({ x: +P[i].x.toFixed(2), y: +(HT[i] - lo).toFixed(2), z: +P[i].z.toFixed(2), largeur: +(HW[i] * 2).toFixed(2), mur_g: +offL[i].toFixed(1), mur_d: +offR[i].toFixed(1), vitesse_kmh: Math.round(VP[i] * 3.6) }); }
+  const json = JSON.stringify({ circuit: 'Circuit ParisLongchamp (maquette conceptuelle)', unites: 'mètres, Y vers le haut, origine au centre du circuit', longueur_m: Math.round(LEN), sens: 'sens de la course', points: cl }, null, 1);
+  const readme = `CIRCUIT PARISLONGCHAMP · EXPORT POUR SIMULATEURS
+Maquette conceptuelle non officielle. Longueur ${nf(LEN / 1000, 2)} km, largeur ${nf(STATS.wmin, 0)} à ${nf(STATS.wmax, 0)} m.
+
+FICHIERS
+- longchamp.obj + longchamp.mtl : piste en 3D (mètres, Y vers le haut)
+  1ROAD (piste), 1ROAD_PIT (voie des stands), 1KERB_* (vibreurs), 1GRASS_* (herbe), 1SAND_* (graviers), 1WALL_* (murs 1,2 m)
+  AC_START_0 à 19 (grille), AC_PIT_0 à 19 (stands), AC_TIME_0_L/R (ligne d'arrivée), AC_TIME_1/2 (secteurs), AC_HOTLAP_START_0
+- longchamp_ligne_centrale.json : un point tous les 4 m (position, altitude, largeur, murs, vitesse estimée)
+
+ASSETTO CORSA (piste « mod »)
+1. Blender : Fichier > Importer > Wavefront (.obj), « Y vers le haut ».
+2. Remplacer chaque petit triangle AC_* par un « Empty » au même endroit, axe Z local vers l'avant (sens de la course), Y vers le haut.
+3. Exporter en FBX, puis ouvrir dans ksEditor (outil officiel du SDK) : matériaux, textures, puis export .kn5.
+4. Dossier content/tracks/paris_longchamp/ : le .kn5, data/surfaces.ini (ROAD, KERB, GRASS, SAND, WALL déjà nommés), ui/ui_track.json.
+5. Lancer AC, générer la ligne d'IA en roulant (mode développeur) ou avec un outil de la communauté.
+
+BEAMNG.drive
+1. Importer l'OBJ dans Blender, exporter en Collada (.dae) ou glTF, le placer dans levels/paris_longchamp/art/.
+2. Dans le World Editor : ajouter le modèle comme « TSStatic » avec collision, ou recréer la piste avec un « MeshRoad » en suivant longchamp_ligne_centrale.json.
+3. Ajouter un point d'apparition sur la grille ; toutes les voitures BeamNG peuvent ensuite rouler sur le circuit.
+
+LIMITES
+Relief simplifié (IGN, lissé), pas de décor (tribunes, arbres, bâtiments) dans l'export : seulement la surface roulable et les murs.`;
+  return { obj: out.join('\n'), mtl, json, readme };
+}
+function openExport() {
+  const e = buildExport(), mk = (txt, type) => URL.createObjectURL(new Blob([txt], { type }));
+  const files = [['longchamp.obj', e.obj, 'text/plain'], ['longchamp.mtl', e.mtl, 'text/plain'], ['longchamp_ligne_centrale.json', e.json, 'application/json'], ['LISEZMOI.txt', e.readme, 'text/plain']];
+  const f = $('#fiche'); f.querySelector('.gpanel').innerHTML = `<h2>Export simulateurs</h2><p class="sub">Assetto Corsa · BeamNG.drive · Blender</p><table>${files.map(([n, t, ty]) => `<tr><td><a href="${mk(t, ty)}" download="${n}">${n}</a></td><td>${nf(t.length / 1e6, 1)} Mo</td></tr>`).join('')}</table><p class="note" style="white-space:pre-line">${e.readme.split('\n').slice(3).join('\n')}</p><div class="go"><button class="main" id="fClose">Fermer</button></div>`;
+  f.classList.add('on'); $('#fClose').onclick = () => f.classList.remove('on');
+}
+function openFiche() { const f = $('#fiche'); f.querySelector('.gpanel').innerHTML = ficheHTML(); f.classList.add('on'); $('#fClose').onclick = () => f.classList.remove('on'); $('#fExport').onclick = openExport; $('#fPubs').onclick = () => { const u = new URL(location.href); if (PUB_LIBRE) u.searchParams.delete('pubs'); else u.searchParams.set('pubs', 'libre'); location.href = u.toString(); }; }
 $('#btnFiche').onclick = openFiche;
 $('#fiche').addEventListener('click', e => { if (e.target.id === 'fiche') e.target.classList.remove('on'); });
 
