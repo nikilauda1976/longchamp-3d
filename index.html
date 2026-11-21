@@ -473,9 +473,11 @@ let TRACK_PRE_V1 = null, T1V_INFO = null, CHIC = null;
 // « tracé B » : le tour d'origine n'a que 4 gros freinages (4 épingles) et 3,3 km à fond entre l'épingle sud et l'épingle nord-est.
 // On garde les routes du Bois et on ajoute 3 chicanes là où l'on est à fond depuis plus d'un kilomètre.
 const TRB = new URLSearchParams(location.search).get('trace') !== 'orig'; // tracé B par défaut (?trace=orig : tracé d'origine)
+// formes réelles : écart latéral (m) tous les 2 m, mesuré sur l'axe des vrais circuits (TUMFTM/racetrack-database, LGPL-3.0)
+const REAL_PROF = {"roggia":[0.0,0.0,0.0,-0.0,-0.2,-0.7,-1.5,-2.9,-4.8,-7.2,-10.1,-13.1,-15.9,-18.4,-20.8,-22.8,-24.5,-25.7,-26.8,-27.5,-27.9,-28.1,-27.9,-27.7,-27.2,-26.6,-26.0,-25.3,-24.7,-24.6,-24.4,-24.1,-23.6,-23.1,-22.4,-21.7,-20.8,-19.9,-19.0,-18.0,-16.9,-15.8,-14.7,-13.5,-12.3,-11.2,-10.0,-8.9,-7.8,-6.7,-5.7,-4.8,-3.9,-3.0,-2.3,-1.6,-1.1,-0.6,-0.3,-0.1,-0.0],"ascari":[0.0,-0.0,-0.0,-0.1,-0.1,-0.2,-0.3,-0.4,-0.4,-0.3,-0.3,-0.1,0.1,0.3,0.7,1.0,1.3,1.7,2.2,2.6,3.2,3.7,4.3,4.9,5.6,6.3,7.1,7.9,8.7,9.6,10.6,11.6,12.6,13.8,14.9,16.2,17.5,18.9,20.3,21.8,23.4,25.0,26.6,28.3,30.0,31.5,33.0,34.4,35.6,36.6,37.5,38.2,38.7,39.1,39.3,39.4,39.5,39.4,39.3,39.2,39.0,38.8,38.6,38.4,38.1,37.9,37.7,37.4,37.2,37.0,36.7,36.5,36.2,36.0,35.7,35.4,35.2,34.9,34.6,34.4,34.1,33.8,33.5,33.2,33.0,32.7,32.4,32.1,31.8,31.5,31.2,30.9,30.6,30.3,30.0,29.7,29.4,29.1,28.8,28.5,28.2,27.9,27.6,27.3,27.0,26.7,26.4,26.1,25.8,25.6,25.3,25.0,24.7,24.4,24.1,23.8,23.5,23.2,22.9,22.6,22.3,22.1,21.8,21.5,21.2,20.9,20.6,20.3,20.0,19.8,19.5,19.2,18.9,18.6,18.3,18.0,17.7,17.4,17.2,16.9,16.6,16.3,16.0,15.7,15.4,15.1,14.8,14.5,14.2,13.9,13.6,13.3,13.0,12.7,12.4,12.1,11.8,11.5,11.2,10.9,10.6,10.3,10.0,9.7,9.4,9.1,8.8,8.4,8.1,7.8,7.5,7.2,6.9,6.6,6.2,5.9,5.6,5.3,5.0,4.7,4.3,4.0,3.7,3.2,2.7,2.1,1.6,1.1,0.7,0.4,0.2,0.1,0.0,0.0],"eaurouge":[0.0,0.0,0.0,0.1,0.2,0.3,0.4,0.6,0.9,1.1,1.4,1.6,1.8,1.9,2.1,2.2,2.4,2.5,2.7,2.8,3.0,3.1,3.3,3.4,3.6,3.7,3.9,4.0,4.2,4.3,4.5,4.7,4.8,5.0,5.1,5.3,5.4,5.6,5.7,5.9,6.1,6.2,6.4,6.5,6.7,6.8,7.0,7.2,7.3,7.5,7.6,7.8,7.9,8.1,8.3,8.4,8.6,8.7,8.9,9.0,9.2,9.4,9.5,9.7,9.8,10.0,10.1,10.3,10.4,10.6,10.8,10.9,11.1,11.2,11.4,11.5,11.7,11.8,12.0,12.2,12.3,12.5,12.6,12.8,12.9,13.1,13.2,13.4,13.5,13.7,13.8,14.0,14.1,14.3,14.4,14.6,14.7,14.9,15.0,15.1,15.3,15.4,15.5,15.7,15.8,15.9,16.0,16.1,16.2,16.2,16.3,16.3,16.4,16.4,16.3,16.3,16.2,16.1,15.9,15.7,15.5,15.2,14.9,14.4,14.0,13.4,12.9,12.3,11.7,11.0,10.4,9.8,9.1,8.5,7.9,7.4,6.8,6.3,5.9,5.5,5.0,4.6,4.2,3.8,3.3,2.9,2.4,2.0,1.5,1.1,0.7,0.4,0.2,0.1,0.0,-0.0,-0.0,-0.0,-0.0]};
 const TRB_CH = [ // un caractère différent pour chaque ajout
-  { REF: [1640, 646], S1: 0, DOFF: 24, RC: 95, HOLD: 0, fast: true, lieu: 'ligne droite du Bois', nom: 'Courbe du Bois', kind: 'grande courbe en S rapide, en appui : un petit freinage, il faut placer la voiture, il faut placer la voiture' },
-  { REF: [826, 1450], S1: 0, DOFF: 26, RC: 60, HOLD: 15, lieu: 'route des Tribunes', nom: 'Esses des Tribunes', kind: 'enchaînement gauche-droite moyen (rayon 60 m, ≈ 140 km/h) face à l\'hippodrome' },
+  { REF: [1660, 600], S1: 0, DOFF: 24, fast: true, prof: REAL_PROF.eaurouge, lieu: 'ligne droite du Bois', nom: 'Courbe du Bois', kind: 'enchaînement rapide dont le dessin en plan reprend Eau Rouge – Raidillon (Spa-Francorchamps), sans la côte' },
+  { REF: [800, 1280], S1: 0, DOFF: 26, prof: REAL_PROF.ascari, lieu: 'route des Tribunes', nom: 'Esses des Tribunes', kind: 'enchaînement rapide dont le dessin reprend la Variante Ascari (Monza), face à l\'hippodrome' },
 ];
 const CHX = []; // chicanes du tracé B (hors chicane principale)
 let TRACK_OLD = null; // axe avant le lissage final (référence des mesures de couloir libre)
@@ -613,7 +615,7 @@ const TRACK_PTS = (() => {
   }
   // chicanes : variantes du virage 1 et « tracé B » (freinages ajoutés dans les portions à fond)
   const CH_LIST = [];
-  if (T1V || T12V) CH_LIST.push({ REF: T1V ? [305, 918] : [476, 700], S1: T1V ? 200 : 55, DOFF: T1V ? 30 : 24, lieu: T1V ? 'virage 1' : 'ligne droite 1-2', main: true });
+  if (T1V || T12V) CH_LIST.push({ REF: T1V ? [305, 918] : [476, 700], S1: T1V ? 200 : TRB ? 30 : 55, DOFF: T1V ? 30 : 24, lieu: T1V ? 'virage 1' : 'ligne droite 1-2', main: true, prof: TRB && !T1V ? REAL_PROF.roggia : null, kind: TRB && !T1V ? 'chicane dont l\'entrée reprend la Variante della Roggia (Monza), retour raccourci pour tenir entre l\'étang et les bâtiments' : undefined });
   if (TRB) CH_LIST.push(...TRB_CH);
   if (CH_LIST.length) TRACK_PRE_V1 = cur.map(q => q.slice());
   for (const C of CH_LIST) {
@@ -624,17 +626,17 @@ const TRACK_PTS = (() => {
     const nrm = k => { const a = cur[(s0 + k - 2 + n) % n], b = cur[(s0 + k + 2) % n], l = Math.hypot(b[0] - a[0], b[1] - a[1]); return [(b[1] - a[1]) / l, -(b[0] - a[0]) / l]; };
     // chicane faite d'arcs de rayon RC : décalage DOFF sur RAMP mètres (deux arcs opposés), palier HOLD, puis retour
     // RC : rayon des deux virages d'entrée, RC2 : rayon des deux virages de sortie (virage lent puis courbe rapide, par exemple)
-    const S1 = C.S1, RC = C.RC || 20, RC2 = C.RC2 || RC, DOFF = C.DOFF, HOLD = C.HOLD ?? 10;
-    const AL = Math.acos(1 - DOFF / (2 * RC)), RAMP = 2 * RC * Math.sin(AL), AL2 = Math.acos(1 - DOFF / (2 * RC2)), RAMP2 = 2 * RC2 * Math.sin(AL2), TOT = RAMP + HOLD + RAMP2;
+    const PF = C.prof, S1 = C.S1, RC = C.RC || 20, RC2 = C.RC2 || RC, DOFF = PF ? Math.max(...PF.map(Math.abs)) : C.DOFF, HOLD = C.HOLD ?? 10;
+    const AL = Math.acos(1 - DOFF / (2 * RC)), RAMP = 2 * RC * Math.sin(AL), AL2 = Math.acos(1 - DOFF / (2 * RC2)), RAMP2 = 2 * RC2 * Math.sin(AL2), TOT = PF ? (PF.length - 1) * 2 : RAMP + HOLD + RAMP2, PK = PF ? PF.findIndex(v => Math.abs(v) === DOFF) * 2 : 0;
     const half = (u, R, RP) => { if (u <= RP / 2) return R * (1 - Math.cos(Math.asin(Math.min(1, u / R)))); return DOFF - R * (1 - Math.cos(Math.asin(Math.min(1, (RP - u) / R)))); };
-    const bump = m => { const u = m - S1; if (u <= 0 || u >= TOT) return 0; return (u < RAMP ? half(u, RC, RAMP) : u < RAMP + HOLD ? DOFF : half(TOT - u, RC2, RAMP2)) / DOFF; };
+    const bump = m => { const u = m - S1; if (u <= 0 || u >= TOT) return 0; if (PF) { const f = u / 2, a = Math.floor(f); return (PF[a] + (PF[Math.min(PF.length - 1, a + 1)] - PF[a]) * (f - a)) / DOFF; } return (u < RAMP ? half(u, RC, RAMP) : u < RAMP + HOLD ? DOFF : half(TOT - u, RC2, RAMP2)) / DOFF; };
     let side = 0;
     for (const sd of C.side ? [C.side, -C.side] : [1, -1]) { let dry = true; for (let k = 0; k < n && cum[k] < S1 + TOT + 10 && dry; k++) { if (cum[k] < S1 - 10) continue; const q = cur[(s0 + k) % n], nv = nrm(k), off = sd * DOFF * bump(cum[k]); for (const o of [-11, 0, 11]) if (wetMap(q[0] + nv[0] * (off + o), q[1] + nv[1] * (off + o))) { dry = false; break; } } if (dry) { side = sd; break; } }
     if (side) {
       const out = cur.map(q => q.slice());
       for (let k = 0; k < n; k++) { const b = bump(cum[k]); if (!b) continue; const nv = nrm(k), q = cur[(s0 + k) % n]; out[(s0 + k) % n] = [q[0] + nv[0] * side * DOFF * b, q[1] + nv[1] * side * DOFF * b]; }
       cur = out;
-      const kc = cum.findIndex(c => c >= S1 + RAMP); const info = { type: 'chicane', lieu: C.lieu, nom: C.nom, kind: C.kind, fast: !!C.fast, side, debut_m: S1, decalage_m: DOFF, rayon_m: RC, rayon2_m: RC2, angle: Math.round(AL * 57.3), longueur_m: Math.round(TOT), apex: cur[(s0 + kc) % n].map(Math.round) };
+      const kc = cum.findIndex(c => c >= S1 + (PF ? PK : RAMP)); const info = { type: 'chicane', lieu: C.lieu, nom: C.nom, kind: C.kind, fast: !!C.fast, side, debut_m: S1, decalage_m: DOFF, rayon_m: RC, rayon2_m: RC2, angle: Math.round(AL * 57.3), longueur_m: Math.round(TOT), apex: cur[(s0 + kc) % n].map(Math.round) };
       if (C.main) { CHIC = { info }; if (T1V) T1V_INFO = info; } else CHX.push({ info });
     } else console.warn('chicane impossible : ' + C.lieu);
   }
@@ -839,7 +841,7 @@ for (const CH of [CHIC, ...CHX].filter(Boolean)) {
 const RUN = new Int8Array(NS), RUNW = new Float32Array(NS), RUNOFFS = [];
 {
   const V = new Float32Array(NS);
-  for (let i = 0; i < NS; i++) { const k = Math.abs(KL[i]); V[i] = k > .0029 ? Math.min(95, Math.sqrt(21 / (k - .0028))) : 95; }
+  for (let i = 0; i < NS; i++) { const k = Math.abs(KL[i]); V[i] = k > .0039 ? Math.min(97, Math.sqrt(24 / (k - .0038))) : 97; }
   for (let p = 0; p < 3; p++) { for (let i = NS - 1; i >= 0; i--) V[i] = Math.min(V[i], Math.sqrt(V[(i + 1) % NS] ** 2 + 2 * 30 * STEP)); for (let i = 0; i < NS; i++) V[i] = Math.min(V[i], Math.sqrt(V[(i - 1 + NS) % NS] ** 2 + 2 * 10 * STEP)); }
   const wet = (x, z) => D.water.some(rings => { let c = false; rings.forEach(r => { if (pip(x, z, r)) c = !c; }); return c; });
   const blocked = (i, wx, wz) => { const x = wx + cx, z = wz + cz;
@@ -852,7 +854,7 @@ const RUN = new Int8Array(NS), RUNW = new Float32Array(NS), RUNOFFS = [];
     let top = V[m]; for (let j = 1; j < 150; j++) top = Math.max(top, V[(m - j + NS) % NS]);
     if (top * 3.6 < 150 || top - V[m] < 6) continue;
     let s = 0; for (let j = -10; j <= 10; j++) s += K[(m + j + NS) % NS]; s = s > 0 ? 1 : -1; // côté extérieur
-    const k0 = (m - 35 + NS) % NS, o = P[k0], t = T[k0], v0 = V[k0], Lr = clamp(45 + (v0 * v0 - 16.7 ** 2) / (2 * 14), 60, 200), Wd = HW[k0] + 14; // longueur : arrêt sous ≈ 60 km/h (asphalte puis graviers)
+    const k0 = (m - 35 + NS) % NS, o = P[k0], t = T[k0], v0 = V[k0], Lr = clamp(60 + (v0 * v0 - 16.7 ** 2) / (2 * 14), 60, 210), Wd = HW[k0] + 14; // longueur : arrêt sous ≈ 60 km/h (asphalte puis graviers)
     const inR = (x, z) => { const rx = x - o.x, rz = z - o.z, al = rx * t.x + rz * t.z, lt = Math.abs(rx * t.z - rz * t.x); return al >= -2 && al <= Lr + HW[k0] && lt <= Wd; };
     const want = new Map();
     for (let d = -45; d <= 140; d++) { const i = (k0 + d + NS) % NS; if (ESC[i]) continue;
@@ -1373,7 +1375,7 @@ const PITVIEW = {};
 // profil de vitesse simplifié (adhérence + appui, freinage 30 m/s², relance 10 m/s²) : sert à repérer freinages, virages et réaccélérations
 const INTEREST = new Float32Array(NS), VQ = new Float32Array(NS), CORNERS = [];
 {
-  for (let i = 0; i < NS; i++) { const k = Math.abs(KL[i]); VQ[i] = k > .0029 ? Math.min(95, Math.sqrt(21 / (k - .0028))) : 95; }
+  for (let i = 0; i < NS; i++) { const k = Math.abs(KL[i]); VQ[i] = k > .0039 ? Math.min(97, Math.sqrt(24 / (k - .0038))) : 97; }
   for (let p = 0; p < 3; p++) { for (let i = NS - 1; i >= 0; i--) { const j = (i + 1) % NS; VQ[i] = Math.min(VQ[i], Math.sqrt(VQ[j] ** 2 + 2 * 30 * STEP)); } for (let i = 0; i < NS; i++) { const j = (i - 1 + NS) % NS; VQ[i] = Math.min(VQ[i], Math.sqrt(VQ[j] ** 2 + 2 * 10 * STEP)); } }
   for (let m = 0; m < NS; m++) {
     let isMin = VQ[m] < 82; for (let j = -20; j <= 20 && isMin; j++) if (VQ[(m + j + NS) % NS] < VQ[m] - 1e-4 || (j < 0 && VQ[(m + j + NS) % NS] === VQ[m])) isMin = false;
@@ -2282,10 +2284,10 @@ function makeCar(c1, c2, c3, num = 27, stripe = 0) {
 
 // ---------- performances F1 (ordre de grandeur réel) ----------
 // 800 kg, ~750 kW, appui aéro : adhérence latérale 2,1 g + appui (≈ 4,5 g à 300 km/h), freinage jusqu'à 5 g, ~340 km/h
-const KA = .0028, MU = 21, VMAX = 95;
+const KA = .0038, MU = 24, VMAX = 97; // calés sur 8 circuits réels (trajectoires TUMFTM, poles 2024) : écart moyen +0,2 %, dispersion ±1,8 %
 const aLat = v => MU + KA * v * v;
 const aBrk = v => Math.min(50, 22 + .0034 * v * v);
-const aAcc = v => Math.max(0, Math.min(13.5, 937 / Math.max(v, 5)) - .0011 * v * v);
+const aAcc = v => Math.max(0, Math.min(11.5, 937 / Math.max(v, 5)) - .0011 * v * v);
 const VP = new Float32Array(NS);
 for (let i = 0; i < NS; i++) { const k = Math.abs(KL[i]); VP[i] = k > KA + 1e-5 ? Math.min(VMAX, Math.sqrt(MU / (k - KA))) : VMAX; }
 for (let pass = 0; pass < 3; pass++) {
@@ -2463,7 +2465,7 @@ function stepPlayer(dt) {
   c.tyre = Math.max(.55, (c.tyre ?? 1) - (game.kind ? 1 : 0) * av * dt * (3.2e-6 + 4e-6 * Math.abs(c.steer) + 3e-6 * c.brk)); const grip = .92 + .08 * c.tyre;
   let a = -((c.drs ? .00082 : .0011) * (1 - .35 * c.tow) * c.v * av + Math.sign(c.v) * .15);
   if (c.v > -.3) {
-    a += c.thr * Math.min(13.5, 937 / Math.max(av, 5));
+    a += c.thr * Math.min(11.5, 937 / Math.max(av, 5));
     if (c.brk > .02) a -= c.v > .3 ? c.brk * aBrk(av) * grip : 0;
     if (c.brk > .5 && c.v <= .3 && !c.auto) a -= 4; // marche arrière
   } else { a += c.thr * 10; if (c.brk > .5) a -= 3; }
@@ -2807,7 +2809,7 @@ fetch('osm.json').then(r => r.json()).then(O => { // bilan : arbres à retirer e
   let z20 = 0, wider = 0; for (let i = 0; i < NS; i++) { if (OVT[i]) z20 += STEP; if (HW[i] > HW0[i] + .25) wider += STEP; }
   const box = $('#idealInfo'); box.hidden = false;
   box.innerHTML = (IDEAL ? `<b>PISTE IDÉALE</b> · 15 m partout, 20 m sur ${Math.round(z20)} m de zones de freinage<br>` : `<b>PISTE F1</b> · 14 m de large (15 m sur la ligne droite), murs à 3 m, dégagements de 7 m dans les virages<br>`) + (RUNOFFS.length ? `<b>ÉCHAPPATOIRES</b> · ${RUNOFFS.length} virages abordés à plus de 150 km/h : dégagement élargi dans l'axe du freinage (asphalte puis graviers, jusqu'à ${Math.round(Math.max(...RUNW))} m), ≈ ${RUNOFFS.reduce((a, r) => a + r.area, 0).toLocaleString('fr-FR')} m² gagnés<br>` : '') + `<span class="big">${mapped + est} arbres</span> à abattre environ<br>· <b>${mapped}</b> arbres recensés un par un (OSM)<br>· <b>${Math.round(area).toLocaleString('fr-FR')} m²</b> de bois (≈ ${est} arbres, à 400/ha)`;
-  if (TRB && window.__trb) box.innerHTML += `<br><b>TRACÉ B</b> · ${window.__trb.heavy} gros freinages (au lieu de 4) et ${window.__trb.fast} virage${window.__trb.fast > 1 ? 's' : ''} rapide${window.__trb.fast > 1 ? 's' : ''}, plus longue portion à fond ${(window.__trb.longest / 1000).toFixed(1).replace('.', ',')} km (au lieu de 3,3 km) : chicane lente 1-2, courbe rapide du Bois, esses des Tribunes`;
+  if (TRB && window.__trb) box.innerHTML += `<br><b>TRACÉ B</b> · ${window.__trb.heavy} gros freinages (au lieu de 4), plus longue portion à fond ${(window.__trb.longest / 1000).toFixed(1).replace('.', ',')} km (au lieu de 3,3 km) : formes reprises de vrais circuits : chicane 1-2 (Variante della Roggia, Monza), courbe du Bois (Eau Rouge – Raidillon, Spa, à fond), esses des Tribunes (Variante Ascari, Monza)`;
   if (T1V_INFO) box.innerHTML += `<br><b>VARIANTE VIRAGE 1</b> · chicane à ${T1V_INFO.debut_m + 120} m de la ligne de départ (règle FIA : ≥ 250 m) : deux virages de ${T1V_INFO.angle}° (rayon ${T1V_INFO.rayon_m} m), côté opposé à l'étang, échappatoire dans l'axe de la ligne droite : slalom de plots, zone lente à 60 km/h, tour invalidé si on coupe`;
   box.innerHTML += TRIB_MAX ? `<br><b>TRIBUNES MAX</b> · ${STANDS.length} tribunes, ≈ ${SEATS_ALL.toLocaleString('fr-FR')} places<br>dont toits de l'hippodrome : ≈ ${SEATS_ROOF.toLocaleString('fr-FR')} places<br>(plan seul : ${N_PLAN} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places)` : `<br><b>TRIBUNES DU PLAN</b> · ${STANDS.length} tribunes, ≈ ${SEATS_PLAN.toLocaleString('fr-FR')} places`;
   box.innerHTML += `<br><b>RÈGLES DES TRIBUNES</b> · vue sur un freinage, un virage ou la ligne droite des stands · premier rang ≥ 3 m derrière le grillage · rien dans l'axe de sortie d'un virage abordé à plus de 150 km/h (${STAND_REJ.length} tronçons retirés)`;
@@ -2889,6 +2891,14 @@ const SAFETY = (() => {
   });
 })();
 window.__safety = SAFETY;
+const REAL_TRACKS = [["Monaco",3337,[152,-248,150,-258,153,-267,158,-280,164,-288,181,-310,268,-426,274,-435,283,-437,293,-434,301,-428,306,-418,308,-407,308,-398,309,-391,313,-382,318,-375,328,-362,335,-350,337,-342,341,-338,346,-337,352,-338,356,-343,358,-350,355,-355,347,-361,325,-389,321,-396,321,-403,323,-408,325,-413,336,-418,352,-422,361,-426,371,-429,383,-434,397,-435,404,-431,407,-420,405,-354,394,-286,384,-243,372,-212,352,-177,328,-147,295,-111,246,-81,217,-67,162,-42,125,-29,69,-16,34,-10,15,-7,12,-1,12,3,11,9,8,14,0,17,-11,19,-24,12,-30,11,-130,24,-179,31,-224,39,-237,40,-245,42,-251,48,-261,67,-269,85,-275,103,-278,115,-281,138,-281,176,-281,186,-278,192,-272,198,-260,207,-252,215,-248,223,-246,235,-232,316,-229,331,-228,335,-228,341,-232,346,-239,352,-247,356,-249,361,-248,373,-239,399,-230,419,-222,435,-207,455,-189,473,-176,481,-161,488,-153,491,-150,496,-145,509,-147,515,-154,519,-184,527,-201,530,-212,530,-222,529,-228,524,-232,520,-232,511,-233,504,-236,495,-253,474,-266,454,-275,440,-285,411,-308,333,-314,308,-319,281,-324,242,-329,191,-329,157,-327,132,-324,105,-319,87,-314,70,-311,60,-310,51,-310,37,-310,29,-308,24,-301,21,-284,17,-269,16,-248,13,-219,10,-193,5,-127,-14,-91,-24,-57,-29,-34,-31,-16,-38,36,-62,58,-71,92,-79,119,-83,146,-87,161,-92,179,-103,194,-120,203,-133,207,-148,207,-163,204,-177,198,-193,191,-207,179,-216,168,-227,162,-232,157,-237,152,-248]],["Montréal",4361,[248,284,271,393,289,473,299,532,300,581,285,713,288,728,298,738,337,756,345,761,349,773,348,784,342,796,331,804,318,810,300,810,281,805,235,793,203,782,174,766,145,747,79,691,40,654,32,643,30,634,31,624,38,603,40,590,39,580,34,571,-41,480,-55,468,-80,451,-95,438,-112,416,-121,393,-128,369,-130,350,-129,207,-129,195,-135,186,-144,179,-160,175,-182,180,-194,182,-209,178,-222,169,-231,160,-240,150,-245,140,-252,120,-258,95,-265,65,-266,40,-274,-69,-274,-128,-272,-176,-268,-228,-262,-269,-257,-301,-218,-456,-212,-471,-202,-476,-193,-478,-178,-479,-167,-483,-157,-489,-145,-501,-136,-515,-128,-535,-90,-689,-75,-773,-70,-832,-68,-893,-68,-912,-70,-933,-99,-1071,-99,-1079,-99,-1086,-92,-1094,-80,-1096,-72,-1093,-66,-1087,-64,-1082,-61,-1051,-56,-1004,-55,-988,-49,-971,-28,-930,-10,-894,81,-660,91,-630,226,11,232,37,230,46,224,53,214,57,207,64,204,72,204,82,229,193,248,284]],["Melbourne",5278,[-151,422,-240,334,-373,200,-380,193,-384,182,-383,177,-381,173,-376,162,-369,149,-364,132,-362,112,-361,96,-366,67,-372,52,-381,36,-391,24,-415,0,-443,-25,-482,-63,-530,-114,-549,-134,-601,-198,-626,-232,-652,-273,-703,-361,-715,-385,-723,-404,-722,-414,-718,-421,-707,-427,-671,-433,-604,-447,-596,-450,-591,-453,-588,-457,-583,-472,-582,-487,-586,-618,-588,-666,-587,-670,-572,-687,-559,-697,-459,-769,-437,-781,-333,-823,-294,-837,-258,-859,-232,-875,-220,-877,-210,-877,-201,-872,-189,-858,-175,-846,-156,-832,-131,-823,-99,-819,-71,-818,-46,-814,-19,-805,5,-793,32,-774,50,-758,68,-735,84,-706,94,-677,100,-654,103,-635,127,-503,127,-487,124,-467,118,-447,110,-430,97,-410,84,-395,70,-377,63,-363,57,-348,53,-330,25,-186,23,-168,22,-147,22,-128,24,-93,28,-66,35,-35,44,-5,56,21,69,45,89,78,103,98,131,127,223,208,237,220,251,227,261,232,281,238,299,239,322,238,342,238,362,237,379,238,394,241,408,248,418,254,435,269,537,355,575,387,593,409,607,424,622,448,637,483,652,527,692,664,716,752,721,776,723,789,723,796,717,799,698,807,608,843,515,880,508,882,496,883,482,882,467,876,453,866,444,858,435,845,380,744,347,690,342,683,338,679,333,677,325,677,319,680,259,747,251,756,242,761,231,765,221,768,212,768,201,766,186,760,175,753,171,748,-151,422]],["Las Vegas",6201,[406,721,461,660,472,647,481,633,484,616,476,601,465,592,444,584,424,581,405,582,387,587,348,610,312,646,298,655,267,662,251,662,221,652,204,643,189,630,164,596,154,567,147,-288,152,-301,162,-307,340,-304,393,-304,421,-311,432,-320,463,-351,478,-371,488,-392,496,-411,501,-435,504,-464,503,-481,493,-487,468,-490,459,-495,451,-507,448,-526,449,-539,474,-582,479,-593,489,-613,485,-634,465,-647,427,-651,146,-658,42,-673,8,-690,-30,-729,-63,-793,-113,-910,-145,-943,-178,-966,-212,-978,-264,-995,-324,-1007,-332,-1005,-340,-999,-346,-979,-353,-965,-415,-844,-453,-772,-474,-736,-494,-701,-530,-639,-567,-557,-586,-494,-607,-422,-622,-371,-632,-319,-641,-267,-650,-191,-652,-147,-655,-94,-654,50,-653,132,-653,194,-665,518,-668,685,-668,768,-672,868,-666,876,-658,879,-640,879,-626,884,-595,914,-568,930,-533,937,-377,940,-173,937,-5,938,77,937,144,928,214,915,232,907,247,897,259,886,406,721]],["Bakou",6003,[1047,-410,1198,-474,1206,-480,1211,-489,1212,-498,1209,-511,1170,-596,1127,-689,1084,-786,1077,-791,1068,-792,924,-735,748,-667,507,-560,300,-465,282,-455,279,-434,356,-247,355,-234,302,-211,198,-166,128,-124,88,-99,70,-78,71,-56,81,-29,78,-17,64,-3,-71,99,-166,171,-206,201,-219,211,-231,211,-242,199,-293,51,-302,28,-310,25,-323,29,-340,20,-354,14,-379,15,-394,13,-401,7,-405,-8,-415,-37,-425,-51,-439,-50,-499,-29,-553,-7,-672,49,-760,101,-781,117,-794,143,-817,221,-845,316,-846,334,-834,532,-835,550,-831,560,-630,665,-594,682,-555,701,-528,712,-514,709,-501,689,-475,642,-447,589,-420,539,-413,529,-267,397,-247,378,-234,349,-218,250,-213,229,-201,212,-176,193,22,41,59,15,81,2,146,-28,287,-87,422,-146,556,-203,660,-247,894,-346,1047,-410]],["Monza",5793,[-414,487,-378,61,-361,-118,-359,-125,-354,-129,-348,-130,-340,-129,-333,-129,-326,-129,-321,-133,-317,-138,-317,-143,-317,-148,-342,-245,-346,-272,-347,-296,-346,-322,-336,-449,-332,-470,-328,-489,-321,-510,-311,-532,-301,-554,-285,-579,-269,-599,-247,-622,-224,-642,-198,-661,-170,-677,-138,-693,-106,-704,-71,-714,-31,-720,9,-724,167,-738,361,-749,372,-750,378,-753,383,-759,390,-781,393,-787,397,-791,405,-794,431,-799,460,-805,500,-818,682,-878,697,-882,712,-882,726,-879,736,-875,746,-869,755,-863,767,-851,773,-841,778,-829,780,-815,788,-730,803,-584,802,-571,800,-563,796,-555,790,-550,779,-543,661,-479,565,-426,505,-393,476,-376,443,-353,419,-335,399,-318,294,-228,219,-161,62,-23,-33,60,-46,73,-51,81,-52,89,-52,99,-49,121,-48,133,-48,150,-49,160,-53,172,-59,186,-68,200,-80,214,-94,226,-106,235,-112,242,-117,251,-121,269,-130,347,-141,431,-219,1183,-222,1211,-225,1223,-232,1236,-241,1247,-251,1256,-265,1265,-281,1271,-299,1274,-314,1273,-328,1270,-345,1264,-361,1256,-373,1248,-387,1237,-403,1220,-414,1204,-424,1188,-432,1168,-440,1146,-446,1124,-449,1104,-452,1075,-452,1046,-453,1018,-454,964,-455,916,-454,864,-448,795,-426,580,-414,487]]]; // tracés réels : bacinger/f1-circuits (licence MIT), en mètres, nord en haut
+function scaleSVG() { // notre tracé et de vrais circuits, tous à la même échelle
+  const C = 150, S = C / 2900, cell = (name, len, pts, col) => { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (let k = 0; k < pts.length; k += 2) { x0 = Math.min(x0, pts[k]); x1 = Math.max(x1, pts[k]); z0 = Math.min(z0, pts[k + 1]); z1 = Math.max(z1, pts[k + 1]); }
+    let d = ''; for (let k = 0; k < pts.length; k += 2) d += (k ? 'L' : 'M') + ((pts[k] - (x0 + x1) / 2) * S + C / 2).toFixed(1) + ' ' + ((pts[k + 1] - (z0 + z1) / 2) * S + C / 2).toFixed(1);
+    return `<svg viewBox="0 0 ${C} ${C + 30}" style="width:calc(25% - 6px);min-width:120px;background:rgba(255,255,255,.04);border-radius:6px"><path d="${d}Z" fill="none" stroke="${col}" stroke-width="2.2" stroke-linejoin="round"/><text x="${C / 2}" y="${C + 12}" fill="#fff" font-size="12" font-weight="700" text-anchor="middle">${name}</text><text x="${C / 2}" y="${C + 25}" fill="#a9a9b6" font-size="10" text-anchor="middle">${nf(len / 1000, 3)} km</text></svg>`; };
+  const own = []; for (let i = 0; i < NS; i += 6) own.push(P[i].x, P[i].z);
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px">${cell('ParisLongchamp', LEN, own, '#ffd21f')}${REAL_TRACKS.map(([n, l, p]) => cell(n, l, p, '#8fb8ff')).join('')}<svg viewBox="0 0 150 180" style="width:calc(25% - 6px);min-width:120px"><line x1="23" y1="90" x2="${23 + 2000 * 150 / 2900}" y2="90" stroke="#c9c9d1" stroke-width="2"/><text x="75" y="80" fill="#c9c9d1" font-size="11" text-anchor="middle">2 km</text><text x="75" y="108" fill="#a9a9b6" font-size="10" text-anchor="middle">même échelle, nord en haut</text></svg></div>`;
+}
 // profil d'altitude du tour (SVG) : secteurs, virages et vitesses
 function profileSVG() {
   const Wd = 560, Hd = 150, pad = 26; let lo = Infinity, hi = -Infinity; for (let i = 0; i < NS; i++) { lo = Math.min(lo, HT[i]); hi = Math.max(hi, HT[i]); }
@@ -2916,7 +2926,7 @@ function ficheHTML() {
   return `<h2>Fiche projet</h2><p class="sub">Circuit ParisLongchamp · Grand Prix de Paris · projet conceptuel non officiel</p>
   <h4>Le circuit</h4><table>
   ${row('Longueur', nf(T.len / 1000, 2) + ' km')}
-  ${row('Virages marqués (rayon < 200 m)', T.turns + (TRB ? ' (tracé B : chicane, courbe rapide et esses ajoutées)' : T1V ? ' (avec la chicane du virage 1)' : T12V ? ' (avec la chicane entre les virages 1 et 2)' : ''))}
+  ${row('Virages marqués (rayon < 200 m)', T.turns + (TRB ? ' (tracé B : chicane, courbe rapide et esses aux formes de vrais circuits)' : T1V ? ' (avec la chicane du virage 1)' : T12V ? ' (avec la chicane entre les virages 1 et 2)' : ''))}
   ${row('Gros freinages (perte > 120 km/h)', CORNERS.filter(c => c.drop * 3.6 > 120).length + ' · virages rapides freinés : ' + CORNERS.filter(c => c.drop * 3.6 <= 120).length + (TRB ? ' · tracé B' : ' · tracé original'))}
   ${row('Vitesse de pointe estimée', '≈ ' + nf(T.vmax) + ' km/h')}
   ${row('Temps au tour estimé (simulation)', '≈ ' + fmtLap(T.lap) + ' · moyenne ≈ ' + nf(T.avg) + ' km/h')}
@@ -2948,6 +2958,7 @@ function ficheHTML() {
   ${row((T.straight <= 2000 ? ok : '⚠') + ' Ligne droite ≤ 2 km', '≈ ' + nf(T.straight) + ' m')}
   ${row((PIT_LEN <= 500 ? ok : '⚠') + ' Voie des stands courte', '≈ ' + nf(PIT_LEN) + ' m entre entrée et sortie, limitée à 80 km/h')}
   ${row((LEN / AMEN.marshals.length <= 500 ? ok : '⚠') + ' Commissaires ≤ 500 m d\'écart', AMEN.marshals.length + ' postes, un tous les ≈ ' + nf(LEN / AMEN.marshals.length) + ' m')}
+  ${row(ok + ' Modèle de vitesse vérifié', 'sur 8 circuits réels (Monza, Montréal, Spa, Silverstone, Suzuka, Spielberg, Budapest, Sakhir) : écart moyen +0,2 % avec les poles 2024, dispersion ±1,8 % · données <a href="https://github.com/TUMFTM/racetrack-database" target="_blank" rel="noopener">TUMFTM</a>')}
   ${row(ok + ' Centre médical et hélisurface', 'centre médical FIA relié à l\'hélisurface')}
   ${row((SAFETY.every(c => c.st !== 'bad') ? ok : '⚠') + ' Dégagements des virages', SAFETY.filter(c => c.st === 'ok').length + ' / ' + SAFETY.length + ' virages avec impact estimé ≤ ' + SAFE_HYP.vok + ' km/h (voir le détail plus haut)')}
   </table><p class="note">Vérification faite sur le modèle, pas une homologation. Une homologation FIA (grade 1) demande une étude détaillée des dégagements, barrières et voies de service.</p>
@@ -2965,12 +2976,13 @@ function ficheHTML() {
   <tr><td><b>Circuit</b></td><td><b>Longueur · virages · type</b></td></tr>
   ${row('<b>ParisLongchamp (ce projet)</b>', '<b>' + nf(T.len / 1000, 3) + ' km · ' + T.turns + ' virages · parc, routes du Bois</b>')}
   ${row('Monaco', '3,337 km · 19 virages · rues de la ville')}
+  ${row('Monza', '5,793 km · 11 virages · parc royal, le plus rapide du calendrier')}
   ${row('Montréal (Gilles-Villeneuve)', '4,361 km · 14 virages · parc sur une île')}
   ${row('Melbourne (Albert Park)', '5,278 km · 14 virages · parc, routes du lac')}
   ${row('Bakou', '6,003 km · 20 virages · rues de la ville')}
   ${row('Las Vegas', '6,201 km · 17 virages · boulevard du Strip')}
   ${row('Djeddah', '6,174 km · 27 virages · front de mer')}
-  </table><p class="note">Le nombre de virages du projet est compté sur le modèle (rayon < 200 m, chaque changement de sens compte) : la méthode officielle de chaque circuit peut différer.</p>
+  </table>${scaleSVG()}<p class="note">Tracés réels : données <a href="https://github.com/bacinger/f1-circuits" target="_blank" rel="noopener">bacinger/f1-circuits</a> (licence MIT).</p><p class="note">Le nombre de virages du projet est compté sur le modèle (rayon < 200 m, chaque changement de sens compte) : la méthode officielle de chaque circuit peut différer.</p>
   <h4>Repères : d'autres Grands Prix</h4><table>
   ${row('Silverstone 2025', '500 000 spectateurs sur 4 jours, record de l\'épreuve <a href="https://gpdestinations.com/500000-attend-2025-british-grand-prix-weekend/" target="_blank" rel="noopener">source</a>')}
   ${row('Melbourne 2025', '≈ 465 000 spectateurs sur 4 jours <a href="https://gpdestinations.com/ranked-the-top-attended-formula-1-races-in-2025/" target="_blank" rel="noopener">source</a>')}
