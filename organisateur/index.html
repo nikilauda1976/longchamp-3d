@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Organisateur d'épreuve — tous sports</title>
+<title>Organisateur — vendre, piloter, réussir son événement</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -219,7 +219,7 @@ const SPORTS = {
   site:  { nom: 'Événement sur site, sans parcours (tournoi, village, salon)', site: true, snap: false, vFast: 1, vSlow: 1, ravito: 0, secours: 0, signal: 'route', motor: false, climb: 0, parts: 300, spect: 1000, delai: 60, corner: false },
   auto:  { nom: 'Sport mécanique sur route fermée (côte, spéciale)', snap: true, vFast: 110, vSlow: 70, ravito: 0, secours: 3, signal: 'route', motor: true, climb: .3, parts: 120, spect: 4000, delai: 60, corner: true }
 };
-const HY = { sport: 'run', date: '', start: '09:00', tours: 1, parts: 800, spect: 1500, close: 30, reopen: 15, nBoards: 12, perRavito: 4, perSecours: 2, base: 12, perJ: 2, nMarge: 5, nLot: 1, nEau: .25, nGob: 1.5, nFruit: .5, nPoub: 100, nRadio: 5, risP2: .35, risE1: .25, risE2: .25, tarif: 0, lieu: '', orga: '', orgaTel: '', mpMax: 250, perMP: 2 };
+const HY = { sport: 'run', date: '', start: '09:00', tours: 1, parts: 800, spect: 1500, close: 30, reopen: 15, nBoards: 12, perRavito: 4, perSecours: 2, base: 12, perJ: 2, nMarge: 5, nLot: 1, nEau: .25, nGob: 1.5, nFruit: .5, nPoub: 100, nRadio: 5, risP2: .35, risE1: .25, risE2: .25, tarif: 0, lieu: '', orga: '', orgaTel: '', mpMax: 250, perMP: 2, refNaming: 0, feeTix: 5, billet: 0 };
 const COST = { signaleur: 0, barriere: 0, rubalise: 0, fleche: 0, ravito: 0, secours: 0, panneau: 0 };
 Object.entries({ run: 2, trail: 2, velo: 4, rando: 2, auto: 20, site: 0 }).forEach(([k, v]) => SPORTS[k].recul = v);
 HY.nStands = 8; HY.wcRatio = 100; HY.duree = 6;
@@ -271,7 +271,7 @@ try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.projects) ST =
 if (!ST.projects[ST.cur]) { const k = Object.keys(ST.projects)[0]; if (k) ST.cur = k; else { ST.cur = 'p1'; ST.projects.p1 = { name: 'Mon épreuve' }; } }
 for (const k in ST.profiles) SPORTS[k] = Object.assign({}, SPORTS[k] || {}, ST.profiles[k]);
 function snapshot() { return { name: (ST.projects[ST.cur] || {}).name || 'Sans nom', WP, LEGS, HY: { ...HY }, COST: { ...COST }, snap, done: DONE, OBJ: OBJ.map(o => ({ id: o.id, t: o.t, lat: o.lat, lng: o.lng, L: o.L, W: o.W, ang: o.ang })), DRAW: DRAW.map(d => ({ id: d.id, k: d.k, t: d.t, pts: d.pts, txt: d.txt, n: d.n })), BG: BG && !BG.big ? BG : null, LV, SUMM, XT }; }
-function store() { ST.projects[ST.cur] = snapshot(); try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { } }
+function store() { ST.projects[ST.cur] = snapshot(); try { ST.projects[ST.cur].kpi = kpiOf(); } catch (e) { } try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { } }
 const ready = () => (SPORTS[HY.sport] || {}).site ? WP.length >= 1 : line().length >= 2;
 
 // ───────── Analyse ─────────
@@ -725,7 +725,7 @@ function siteAct(a) {
 }
 
 let tab = 'Accueil';
-const PHASES = [['Mon événement', ['Accueil', 'Projets']], ['Avant : concevoir', ['Épreuve', 'Synthèse', 'Carrefours', 'Secours et public', 'Panneaux', 'Implantation', 'Plan du site']], ['Avant : préparer', ['Besoins', 'Budget', 'Équipe', 'Engagés', 'Exposants', 'Documents', 'Organisation', 'Réglages']], ['Pendant', ['Jour J', 'Chrono', 'Entrées']], ['Après', ['Bilan', 'Résultats']]];
+const PHASES = [['Piloter', ['Accueil', 'Portefeuille', 'Projets']], ['Vendre', ['Partenariats', 'Billetterie', 'Exposants', 'Engagés']], ['Concevoir', ['Épreuve', 'Synthèse', 'Carrefours', 'Secours et public', 'Implantation', 'Plan du site']], ['Préparer', ['Budget', 'Besoins', 'Équipe', 'Documents', 'Organisation', 'Réglages']], ['Jour J', ['Jour J', 'Chrono', 'Entrées']], ['Après', ['Bilan', 'Résultats']]];
 function panel(keep) { const sc = $('#body').scrollTop; $('#tabs').innerHTML = PHASES.map(([n, l]) => `<span class="ph">${n}</span>` + l.map(t => `<button class="${t === tab ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')).join(''); $('#body').innerHTML = TABS[tab](); $('#body').scrollTop = keep ? sc : 0; $('#crumb').textContent = ((PHASES.find(p => p[1].includes(tab)) || [''])[0] + ' / ' + tab); { const b = $('#body'); b.classList.remove('in'); if (!keep) { void b.offsetWidth; b.classList.add('in'); } } }
 $('#tabs').onclick = e => { if (e.target.dataset.tab) { tab = e.target.dataset.tab; panel(); } };
 // ───────── Plan du site : tracés, zones, postes, signalisation, notes ─────────
@@ -876,7 +876,7 @@ const nowM = () => { const d = new Date(); return d.getHours() * 60 + d.getMinut
 const hh = t => { t = ((Math.round(t) % 1440) + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
 const startM = () => { const m = /^(\d+):(\d+)/.exec(HY.start); return m ? +m[1] * 60 + +m[2] : 540; };
 // résumé de la dernière analyse, gardé avec le projet pour servir le jour J sans réseau
-function mkSum() { if (A && A.Q && !A.site) SUMM = { Q: { ...A.Q }, len: A.len, nrav: A.RAV.length, nsec: A.SEC.length, winner: A.winner, lastIn: A.lastIn, posts: A.J.filter(j => j.sig).map(j => ({ nom: jn(j), km: +(j.i * A.DS / 1000).toFixed(1), sig: j.sig, t0: j.t0, t1: j.t1, role: A.sport.motor ? 'garde(s) de fermeture' : 'signaleur(s)' })).concat((A.MP || []).map(p => ({ nom: p.nom + ' (commissaires)', km: +(p.i * A.DS / 1000).toFixed(1), sig: Math.max(1, Math.round(+HY.perMP || 2)), t0: A.T0 - HY.close, t1: A.last(p.i) + HY.reopen, role: 'commissaire(s)' }))) }; else if (A && A.site) SUMM = { Q: { ...A.Q }, len: 0, nrav: 0, nsec: 1, posts: [], site: true }; return SUMM; }
+function mkSum() { if (A && A.Q && !A.site) SUMM = { boards: A.B.map(b => ({ n: b.n, km: +(b.i * A.DS / 1000).toFixed(1), where: b.where, sp: b.sp, passes: b.passes, idx: b.idx })), Q: { ...A.Q }, len: A.len, nrav: A.RAV.length, nsec: A.SEC.length, winner: A.winner, lastIn: A.lastIn, posts: A.J.filter(j => j.sig).map(j => ({ nom: jn(j), km: +(j.i * A.DS / 1000).toFixed(1), sig: j.sig, t0: j.t0, t1: j.t1, role: A.sport.motor ? 'garde(s) de fermeture' : 'signaleur(s)' })).concat((A.MP || []).map(p => ({ nom: p.nom + ' (commissaires)', km: +(p.i * A.DS / 1000).toFixed(1), sig: Math.max(1, Math.round(+HY.perMP || 2)), t0: A.T0 - HY.close, t1: A.last(p.i) + HY.reopen, role: 'commissaire(s)' }))) }; else if (A && A.site) SUMM = { Q: { ...A.Q }, len: 0, nrav: 0, nsec: 1, posts: [], site: true }; return SUMM; }
 const benTotal = () => { const s = mkSum(), q = s ? s.Q : null, plan = DRAW.filter(x => x.k === 'point' && PT[x.t].staff).reduce((a, x) => a + (x.n || 1), 0); return (q ? (q.sig || 0) + (q.com || 0) + (q.benRav || 0) + (q.base || HY.base) : HY.base) + plan; };
 function ris() {
   const P = +HY.spect || 0, P1 = P <= 100000 ? P : 100000 + (P - 100000) / 2, i = (+HY.risP2 || .3) + (+HY.risE1 || .25) + (+HY.risE2 || .25), r = i * P1 / 1000;
@@ -1012,7 +1012,7 @@ function cycleAct(a, id) {
   else if (a === 'logclose') { const x = (LV.log || []).find(x => x.id === id); if (x) x.clos = nowM() || 1; }
   else if (a === 'stepadd') { const t = $('#xStepT').value.trim(), m = /^(\d+):(\d+)/.exec($('#xStepH').value); if (!t || !m) return; LV.extra = LV.extra || []; LV.extra.push({ id: 'u' + Date.now().toString(36), m: +m[1] * 60 + +m[2], t: t.slice(0, 120) }); }
   else if (a === 'stepdel') { LV.extra = (LV.extra || []).filter(x => x.id !== id); if (LV.step) delete LV.step[id]; }
-  else if (a === 'next') { store(); const k = 'p' + Date.now().toString(36), c = JSON.parse(JSON.stringify(ST.projects[ST.cur])); c.name = (c.name || 'Épreuve') + ' — édition suivante'; c.LV = { notes: LV.notes ? 'Enseignements de l\'édition précédente :\n' + LV.notes : '' }; c.done = {}; if (c.HY) c.HY.date = ''; ST.projects[k] = c; loadProject(k); tab = 'Projets'; store(); panel(); return; }
+  else if (a === 'next') { store(); const k = 'p' + Date.now().toString(36), c = JSON.parse(JSON.stringify(ST.projects[ST.cur])); c.name = (c.name || 'Épreuve') + ' — édition suivante'; c.LV = { notes: LV.notes ? 'Enseignements de l\'édition précédente :\n' + LV.notes : '' }; c.done = {}; if (c.HY) c.HY.date = ''; if (c.XT) { for (const k in c.XT.spon || {}) c.XT.spon[k].st = 0; (c.XT.exh || []).forEach(e => { if (e.st !== 'Annulé') e.st = 'Relancé'; e.paye = 0; e.assu = e.kbis = false; }); c.XT.race = { ent: [], t0: null, pass: [] }; if (c.XT.tix) { c.XT.tix.log = []; c.XT.tix.count = 0; for (const k in c.XT.tix.list) c.XT.tix.list[k][1] = 0; } c.XT.ts = {}; (c.XT.people || []).forEach(p => p.ok = false); c.XT.docs = {}; } ST.projects[k] = c; loadProject(k); tab = 'Accueil'; store(); panel(); toast('Nouvelle édition créée : partenaires et exposants sont à relancer.'); return; }
   store(); panel(true);
 }
 // ───────── Accueil, budget, équipe, documents ─────────
@@ -1026,8 +1026,8 @@ const pName = () => (ST.projects[ST.cur] || {}).name || 'Mon événement';
 const isSite = () => !!(SPORTS[HY.sport] || {}).site;
 function budget() {
   const x = xt(), P = +HY.parts || 0, ins = P * (+HY.tarif || 0), sum = (l, f) => l.reduce((a, p) => a + (+f(p) || 0), 0);
-  const part = sum(x.people.filter(p => p.type === 'Partenaire'), p => p.montant), prest = sum(x.people.filter(p => p.type === 'Prestataire'), p => p.montant), need = sum(needRows(), r => r.cost), recX = sum(x.bud.rec, l => l.v), depX = sum(x.bud.dep, l => l.v), exh = sum((x.exh || []).filter(e => e.st === 'Confirmé'), e => e.tarif), rec = ins + part + exh + recX, dep = need + prest + depX;
-  return { ins, part, exh, prest, need, recX, depX, rec, dep, solde: rec - dep, seuil: +HY.tarif > 0 ? Math.max(0, Math.ceil((dep - part - recX) / HY.tarif)) : null, tarifEq: P ? Math.max(0, (dep - part - recX) / P) : null };
+  const sw = sponWho(), part = sponSold() + sum(x.people.filter(p => p.type === 'Partenaire' && !sw.has(p.nom)), p => p.montant), tic = tickRev(), fee = tic * (+HY.feeTix || 0) / 100, prest = sum(x.people.filter(p => p.type === 'Prestataire'), p => p.montant), need = sum(needRows(), r => r.cost), recX = sum(x.bud.rec, l => l.v), depX = sum(x.bud.dep, l => l.v), exh = sum((x.exh || []).filter(e => e.st === 'Confirmé'), e => e.tarif), rec = ins + tic + part + exh + recX, dep = need + prest + fee + depX;
+  return { ins, tic, fee, part, exh, prest, need, recX, depX, rec, dep, solde: rec - dep, seuil: +HY.tarif > 0 ? Math.max(0, Math.ceil((dep - part - recX) / HY.tarif)) : null, tarifEq: P ? Math.max(0, (dep - part - recX) / P) : null };
 }
 // ── Accueil et assistant ──
 let W = {}, geo = [];
@@ -1045,7 +1045,7 @@ function wizard() {
   if (k === 'nom') c = f('nom', 'Nom de l\'événement', 'text', 'Les 10 km de…');
   else if (k === 'sport') c = `<div class="choices">${Object.entries(SPORTS).map(([s, S]) => `<button data-ya="wtype" data-id="${s}" class="${W.sport === s ? 'on' : ''}">${S.nom}</button>`).join('')}</div>`;
   else if (k === 'quand') c = f('date', 'Date', 'date') + f('start', 'Heure de début', 'time');
-  else if (k === 'combien') c = f('parts', 'Participants', 'number', '800') + f('spect', 'Spectateurs', 'number', '1500') + f('tarif', 'Tarif d\'inscription en euros, 0 si gratuit', 'number', '12');
+  else if (k === 'combien') c = f('parts', 'Participants', 'number', '800') + f('spect', 'Spectateurs', 'number', '1500') + f('tarif', 'Tarif d\'inscription des participants en euros, 0 si gratuit', 'number', '12') + f('billet', 'Prix moyen d\'un billet spectateur en euros, 0 si gratuit', 'number', '25');
   else c = f('lieu', 'Adresse ou commune', 'text', 'Place de la mairie, Ville') + `<p><button data-ya="geo">Chercher ce lieu</button></p><div class="choices" style="margin-top:6px">${geo.map((g, n) => `<button data-ya="geopick" data-id="${n}" class="${W.gi === n ? 'on' : ''}">${esc(g.l)}</button>`).join('')}</div>`;
   return `<div class="wz"><div class="wzbar">${WZ.map((_, j) => `<i class="${j <= i ? 'on' : ''}"></i>`).join('')}</div><p class="wzstep">Question ${i + 1} sur ${WZ.length}</p><h1 class="q">${q}</h1><p class="note">${sub}</p>${c}${W.err ? `<p class="late">${W.err}</p>` : ''}
   <p class="wznav">${i ? '<button data-ya="wback">Retour</button>' : ''}${k === 'sport' ? '' : `<button data-ya="wnext" class="go">${i === WZ.length - 1 ? 'Créer l\'événement' : 'Continuer'}</button>`}${i > 1 && i < WZ.length - 1 ? '<button data-ya="wskip" class="link">Passer</button>' : ''}</p></div>`;
@@ -1056,6 +1056,8 @@ function homeSteps() {
     [site ? 'Placer le site sur la carte' : 'Tracer le parcours', ready(), 'Épreuve', site ? 'Un clic sur la carte, à l\'endroit de l\'événement.' : 'Cliquez les points de passage sur la carte, ou importez un fichier GPX.'],
     ['Lancer l\'analyse', !!mkSum(), 'Épreuve', 'Bouton « Analyser » sous la carte : signaleurs, fermetures, secours.'],
     ['Dessiner le plan du site', DRAW.length + OBJ.length > 0, 'Plan du site', DRAW.length + OBJ.length ? (DRAW.length + OBJ.length) + ' élément(s) placé(s).' : 'Barrières, zones, postes, stands.'],
+    ['Vendre les partenariats', sponSold() > 0, 'Partenariats', fmt(sponSold()) + ' € vendus.'],
+    ['Fixer la billetterie', !!x.free || tkc().some(c => +c.prix > 0), 'Billetterie', x.free ? 'Événement gratuit.' : 'Prix, places et remplissage visé.'],
     ['Chiffrer les besoins', needRows().some(r => r.cost > 0), 'Besoins', 'Saisissez vos prix : le budget se remplit seul.'],
     ['Équilibrer le budget', b.rec > 0 && b.solde >= 0, 'Budget', b.rec || b.dep ? 'Recettes ' + fmt(b.rec) + ' €, dépenses ' + fmt(b.dep) + ' €.' : 'Tarif, partenaires, subventions, dépenses.'],
     ['Réunir l\'équipe', ben > 0 && conf >= ben, 'Équipe', conf + ' confirmé(s) sur ' + ben + ' nécessaires.'],
@@ -1067,28 +1069,18 @@ function homeSteps() {
   ];
 }
 const isBlank = () => !ready() && !DRAW.length && !OBJ.length && !xt().people.length && !HY.date && /^(Mon épreuve|Nouvelle épreuve|Sans nom)$/.test(pName());
-function homeTab() {
-  if (isBlank()) return `${(W.step || 0) === 0 ? '<div class="hero"><h1>De l\'idée au bilan, sans quitter la page.</h1><p class="props">Cinq questions, et l\'outil prépare le parcours, le matériel, l\'équipe, le budget et les courriers.</p></div>' : ''}${wizard()}`;
-  const st = homeSteps(), nx = st.find(s => !s[1]), d = daysTo(), nd = st.filter(s => s[1]).length, b = budget(), ben = benTotal(), conf = xt().people.filter(p => /Bénévole|Signaleur/.test(p.type) && p.ok).length, s = mkSum();
-  return `<div class="hero"><p class="eyebrow">${SPORTS[HY.sport].nom}</p><h1>${esc(pName())}</h1><p class="props">${dateFr()}${HY.start ? ' à ' + HY.start.replace(':', ' h ') : ''}${HY.lieu ? ' — ' + esc(HY.lieu) : ''}</p></div>
-  <div class="kpi"><div><b>${d == null ? '—' : d > 0 ? 'J-' + d : d === 0 ? 'Jour J' : 'J+' + (-d)}</b><span>${d == null ? 'date à fixer' : d > 0 ? 'avant l\'événement' : d === 0 ? 'c\'est aujourd\'hui' : 'après l\'événement'}</span></div><div><b>${conf} / ${fmt(ben)}</b><span>bénévoles confirmés</span></div><div><b class="${b.solde < 0 ? 'late' : ''}">${b.dep ? fmt(b.solde) + ' €' : '—'}</b><span>${b.dep ? 'résultat prévu' : 'budget à chiffrer'}</span></div><div><b>${s && s.Q && s.Q.sig != null ? fmt(s.Q.sig) : '—'}</b><span>signaleurs à prévoir</span></div></div>
-  <div class="prog"><i style="width:${Math.round(100 * nd / st.length)}%"></i></div><p class="note">${nd} étape(s) faite(s) sur ${st.length}</p>
-  ${nx ? `<button class="next" data-ya="go" data-id="${nx[2]}"><span>À faire maintenant</span><b>${nx[0]}</b><em>${nx[3]}</em></button>` : '<p><b>Toutes les étapes sont faites.</b></p>'}
-  <div class="steps">${st.map(s => `<button data-ya="go" data-id="${s[2]}" class="${s[1] ? 'done' : ''}"><i></i><span><b>${s[0]}</b><em>${s[3]}</em></span></button>`).join('')}</div>
-  <h2>En bref</h2><label class="p">Date<input type="date" data-hy="date" value="${HY.date || ''}"></label><label class="p">Heure de début<input type="time" data-hy="start" value="${HY.start || ''}"></label><label class="p">Lieu<input type="text" data-hy="lieu" value="${esc(HY.lieu || '')}"></label><label class="p">Participants attendus<input type="number" data-hy="parts" value="${HY.parts}"></label><label class="p">Spectateurs attendus<input type="number" data-hy="spect" value="${HY.spect}"></label>
-  <p style="margin-top:22px"><button data-ya="wnew">Nouvel événement</button></p>`;
-}
 // ── Budget ──
 function budgetTab() {
   const x = xt(), b = budget(), P = +HY.parts || 0;
   const lines = (k) => x.bud[k].map(l => `<tr><td><input type="text" data-bl="${k}:${l.id}:t" value="${esc(l.t)}"></td><td class="n"><input type="number" step="any" style="width:90px" data-bl="${k}:${l.id}:v" value="${l.v || ''}"></td><td><button data-ya="bldel" data-id="${k}:${l.id}">×</button></td></tr>`).join('');
-  return `<p class="note">Le budget se remplit en partie tout seul : les dépenses de matériel viennent de l'onglet « Besoins », les partenaires et prestataires de l'onglet « Équipe ».</p>
-  <label class="p">Tarif d'inscription (€)<input type="number" step="any" data-hy="tarif" value="${HY.tarif || ''}"></label><label class="p">Participants attendus<input type="number" data-hy="parts" value="${HY.parts}"></label>
-  <h2>Recettes</h2><table><tr><td>Inscriptions (${fmt(P)} × ${fmt(+HY.tarif || 0, 2)} €)</td><td class="n">${fmt(b.ins)} €</td><td></td></tr><tr><td>Partenaires (onglet Équipe)</td><td class="n">${fmt(b.part)} €</td><td></td></tr><tr><td>Exposants confirmés (onglet Exposants)</td><td class="n">${fmt(b.exh)} €</td><td></td></tr>${lines('rec')}<tr><th>Total des recettes</th><th class="n">${fmt(b.rec)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="rec">Ajouter une recette</button></p>
-  <h2>Dépenses</h2><table><tr><td>Matériel et équipe (onglet Besoins)</td><td class="n">${fmt(b.need)} €</td><td></td></tr><tr><td>Prestataires (onglet Équipe)</td><td class="n">${fmt(b.prest)} €</td><td></td></tr>${lines('dep')}<tr><th>Total des dépenses</th><th class="n">${fmt(b.dep)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="dep">Ajouter une dépense</button></p>
-  <h2>Résultat</h2><p style="font-size:16px">${b.rec || b.dep ? `<b class="${b.solde < 0 ? 'late' : ''}">${b.solde < 0 ? 'Déficit de ' + fmt(-b.solde) : 'Excédent de ' + fmt(b.solde)} €</b>` : '<span class="note">Saisissez un tarif et vos dépenses.</span>'}</p>
-  ${b.seuil != null && b.dep ? `<p>À dépenses égales, il faut <b>${fmt(b.seuil)} inscrits</b> pour équilibrer${P ? ' (' + fmt(P) + ' attendus)' : ''}.</p>` : ''}${b.tarifEq != null && b.dep ? `<p>Avec ${fmt(P)} participants, le tarif d'équilibre est de <b>${fmt(b.tarifEq, 2)} €</b>.</p>` : ''}${P && b.dep ? `<p>Coût par participant : <b>${fmt(b.dep / P, 2)} €</b>.</p>` : ''}
-  <p class="note">Le seuil suppose des dépenses fixes : en réalité dossards, médailles et ravitaillement augmentent avec le nombre d'inscrits.</p>
+  const auto = (t, v) => `<tr><td>${t}</td><td class="n">${fmt(v)} €</td><td></td></tr>`;
+  return `<p class="note">Le budget se remplit en grande partie tout seul, à partir des autres onglets. Ajoutez vos autres lignes.</p>
+  <div class="kpi"><div><b>${fmt(b.rec)} €</b><span>recettes</span></div><div><b>${fmt(b.dep)} €</b><span>dépenses</span></div><div><b class="${b.solde < 0 ? 'late' : ''}">${b.rec || b.dep ? fmt(b.solde) + ' €' : '—'}</b><span>résultat prévu</span></div><div><b>${b.rec ? Math.round(100 * b.solde / b.rec) + ' %' : '—'}</b><span>marge</span></div></div>
+  <h2>Recettes</h2><table>${auto('Billetterie (onglet Billetterie)', b.tic)}${auto('Partenariats vendus et partenaires (onglets Partenariats, Équipe)', b.part)}${auto('Exposants confirmés (onglet Exposants)', b.exh)}${auto(`Inscriptions (${fmt(P)} × ${fmt(+HY.tarif || 0, 2)} €)`, b.ins)}${lines('rec')}<tr><th>Total des recettes</th><th class="n">${fmt(b.rec)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="rec">Ajouter une recette</button></p>
+  <label class="p">Tarif d'inscription des participants (€)<input type="number" step="any" data-hy="tarif" value="${HY.tarif || ''}"></label>
+  <h2>Dépenses</h2><table>${auto('Matériel et équipe (onglet Besoins)', b.need)}${auto('Prestataires (onglet Équipe)', b.prest)}${b.fee ? auto('Commission de billetterie', b.fee) : ''}${lines('dep')}<tr><th>Total des dépenses</th><th class="n">${fmt(b.dep)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="dep">Ajouter une dépense</button></p>
+  ${scenHTML()}
+  ${P && b.dep ? `<p class="note">Coût par participant : ${fmt(b.dep / P, 2)} €${+HY.spect ? ' ; par spectateur : ' + fmt(b.dep / HY.spect, 2) + ' €' : ''}.</p>` : ''}
   <p><button data-ya="budcsv">Exporter le budget (tableur)</button></p>`;
 }
 // ── Équipe ──
@@ -1146,7 +1138,7 @@ function orgAct(a, id) {
     const k = SPORTS[W.sport] ? W.sport : 'run', g = geo[W.gi];
     ST.projects[ST.cur].name = W.nom.trim().slice(0, 80); $('#pname').textContent = ST.projects[ST.cur].name;
     HY.sport = k; Object.assign(HY, pick(SPORTS[k])); snap = SPORTS[k].snap; $('#sport').value = k; $('#bSnap').classList.toggle('on', snap);
-    if (W.date) HY.date = W.date; if (W.start) HY.start = W.start; if (+W.parts > 0) HY.parts = +W.parts; if (+W.spect > 0) HY.spect = +W.spect; if (+W.tarif >= 0 && W.tarif !== '' && W.tarif != null) HY.tarif = +W.tarif;
+    if (W.date) HY.date = W.date; if (W.start) HY.start = W.start; if (+W.parts > 0) HY.parts = +W.parts; if (+W.spect > 0) HY.spect = +W.spect; if (+W.tarif >= 0 && W.tarif !== '' && W.tarif != null) HY.tarif = +W.tarif; if (W.billet != null && W.billet !== '') { HY.billet = +W.billet || 0; if (!HY.billet) xt().free = true; }
     if (g) { HY.lieu = g.c; HY.ll = g.p; map.setView(g.p, 16); if (SPORTS[k].site) { WP = [g.p]; LEGS = []; drawRoute(); } }
     W = {}; geo = []; store(); tab = 'Accueil'; $('#bRun').disabled = !ready(); panel(); toast('Événement créé. Suivez l\'encadré « À faire maintenant ».'); return;
   }
@@ -1335,6 +1327,121 @@ function raceAct(a, id) {
   else if (a === 'tcsv') { csvOut('entrees', [['Heure', 'Sens', 'Code', 'Résultat']].concat(tx().log.map(l => [new Date(l[0]).toLocaleTimeString('fr-FR'), l[3] === 'in' ? 'entrée' : 'sortie', l[1], l[2]]))); return; }
   store(); panel(true);
 }
+// ───────── Version organisateur : vendre, piloter, portefeuille ─────────
+const SPS = ['Disponible', 'En option', 'Vendu'], SPC = ['var(--ln)', '#c58a1e', 'var(--ok)'];
+let TF = 1, spSel = '';
+const tkc = () => { const x = xt(); if (!x.tick) { const S = +HY.spect || 0, g = Math.round(S * .8), tr = Math.round(S * .17); x.tick = [{ id: 'k1', nom: 'Entrée générale', prix: +HY.billet || 0, cap: g, taux: 80 }, { id: 'k2', nom: 'Tribune', prix: 0, cap: tr, taux: 85 }, { id: 'k3', nom: 'Hospitalité, invités', prix: 0, cap: Math.max(0, S - g - tr), taux: 70 }]; } return x.tick; };
+const fill = c => Math.min(1, (+c.taux || 0) / 100 * TF);
+const tickRev = () => xt().free ? 0 : tkc().reduce((a, c) => a + (+c.prix || 0) * (+c.cap || 0) * fill(c), 0);
+const tickPeople = () => tkc().reduce((a, c) => a + (+c.cap || 0) * fill(c), 0);
+const spx = () => { const x = xt(); x.spon = x.spon || {}; return x.spon; };
+function sponItems() {
+  const P = +HY.parts || 0, S = +HY.spect || 0, ref = +HY.refNaming || 0, nc = Math.max(1, (P + S) * 3), s = mkSum() || SUMM, it = [], site = isSite(), MOT = !!(SPORTS[HY.sport] || {}).motor;
+  const add = (key, nom, cat, contacts, why) => { const v = spx()[key] || {}, c = Math.round(contacts); it.push({ key, nom, cat, contacts: c, why, conseil: ref ? Math.max(10, Math.round(ref * c / nc / 10) * 10) : 0, st: v.st || 0, who: v.who || '', prix: v.prix }); };
+  add('naming', 'Nom de l\'événement (naming)', 'Visibilité majeure', (P + S) * 3, 'tout le public, sur tous les supports, avant, pendant et après');
+  if (!site) add('arche', 'Arche de départ et d\'arrivée', 'Visibilité majeure', S * .6 + P * 2, 'public massé au départ et à l\'arrivée, photos d\'arrivée');
+  add('podium', 'Podium et remise des prix', 'Visibilité majeure', S * .3 + P, 'photos officielles, presse locale');
+  if (P && !site) add('dossard', MOT ? 'Numéros de course et combinaisons' : 'Dossards', 'Participants', P * 3 + S * .5, 'porté par chaque participant, visible sur toutes les photos');
+  add('digital', 'Site, réseaux sociaux, courriels aux inscrits', 'Numérique', (P + S), 'annonces avant l\'événement et résultats après');
+  if (OBJ.some(o => o.t === 'ecran')) add('ecran', 'Spots sur l\'écran géant', 'Sur le site', S * 2, 'diffusion répétée pendant l\'événement');
+  for (const b of (s && s.boards) || []) add('pan' + b.n, `Panneau ${b.n} — km ${fmt(b.km, 1)}, ${b.where.toLowerCase()}`, 'Panneaux du parcours', b.sp + b.passes, `${fmt(b.sp)} spectateurs à proximité, ${fmt(b.passes)} passages de participants`);
+  for (const k in spx()) if (k.startsWith('u:')) { const v = spx()[k]; it.push({ key: k, nom: v.nom || 'Emplacement', cat: 'Mes emplacements', contacts: 0, why: 'ajouté par vous', conseil: 0, st: v.st || 0, who: v.who || '', prix: v.prix, user: true }); }
+  return it;
+}
+const itPrice = i => i.prix != null && i.prix !== '' ? +i.prix : i.conseil;
+const sponSold = () => sponItems().filter(i => i.st === 2).reduce((a, i) => a + itPrice(i), 0);
+const sponWho = () => new Set(sponItems().filter(i => i.st > 0 && i.who).map(i => i.who));
+function sponReport(who, after) {
+  const items = sponItems().filter(i => i.who === who && i.st > 0), r = LV.real || {}, base = (+HY.spect || 0) + (+HY.parts || 0) || 1, ratio = after && r.public ? ((+r.public) + (+r.partants || +HY.parts || 0)) / base : 1, tot = items.reduce((a, i) => a + itPrice(i), 0), cont = items.reduce((a, i) => a + i.contacts * ratio, 0), orga = HY.orga || '[organisateur]';
+  if (!items.length) return 'Ce partenaire n\'a aucun emplacement en option ou vendu.';
+  const lines = items.map(i => `- ${i.nom} : environ ${fmt(i.contacts * ratio)} contacts${after ? '' : ' — ' + fmt(itPrice(i)) + ' €'}`).join('\n');
+  if (!after) return `${orga}\n\nProposition de partenariat — « ${pName()} »\n${dateFr()}${HY.lieu ? ', ' + HY.lieu : ''}\n\nÀ l'attention de ${who}\n\nAudience attendue : ${fmt(HY.spect)} spectateurs et ${fmt(HY.parts)} participants.\n\nEmplacements proposés :\n${lines}\n\nTotal : ${fmt(tot)} € HT, pour environ ${fmt(cont)} contacts.\n\nVous recevrez après l'événement un bilan avec la fréquentation réelle et les photos de vos emplacements.\n\n${orga}`;
+  return `BILAN PARTENAIRE — « ${pName()} »\n${dateFr()}${HY.lieu ? ', ' + HY.lieu : ''}\n\nPartenaire : ${who}\n\nFréquentation : ${fmt(r.public || HY.spect)} spectateurs et ${fmt(r.partants || HY.parts)} participants${r.public ? '' : ' (prévisions : les chiffres réels ne sont pas encore saisis dans le bilan)'}.\n\nVos emplacements et leur exposition estimée :\n${lines}\n\nTotal : environ ${fmt(cont)} contacts pour ${fmt(tot)} € HT, soit ${fmt(tot / Math.max(1, cont) * 1000, 2)} € pour mille contacts.\n\nMéthode : estimation fondée sur la fréquentation et sur la position de chaque emplacement le long du parcours ; ce n'est pas une mesure d'audience. Photos jointes.\n\nMerci pour votre confiance. Nous serions heureux de vous retrouver à la prochaine édition.\n\n${orga}`;
+}
+function sponTab() {
+  const it = sponItems(), cats = [...new Set(it.map(i => i.cat))], sold = it.filter(i => i.st === 2), opt = it.filter(i => i.st === 1), pot = it.reduce((a, i) => a + itPrice(i), 0), vs = sold.reduce((a, i) => a + itPrice(i), 0), vo = opt.reduce((a, i) => a + itPrice(i), 0), names = [...new Set(xt().people.filter(p => p.type === 'Partenaire').map(p => p.nom).concat(it.map(i => i.who)).filter(Boolean))], who = [...sponWho()];
+  if (!spSel || !who.includes(spSel)) spSel = who[0] || '';
+  const row = i => `<tr><td><b style="font-weight:500">${esc(i.nom)}</b>${i.user ? ` <button data-pr="spdel" data-id="${i.key}" style="padding:0 5px">×</button>` : ''}<br><span class="note">${esc(i.why)}</span></td><td class="n">${i.contacts ? fmt(i.contacts) : '—'}</td><td><select data-sp="${i.key}:st" style="border-color:${SPC[i.st]}">${SPS.map((s, k) => `<option value="${k}"${i.st === k ? ' selected' : ''}>${s}</option>`).join('')}</select><br><input type="text" list="spNames" data-sp="${i.key}:who" value="${esc(i.who)}" placeholder="Partenaire" style="width:130px;margin-top:4px"></td><td class="n"><input type="number" step="any" data-sp="${i.key}:prix" value="${i.prix != null && i.prix !== '' ? i.prix : ''}" placeholder="${i.conseil ? fmt(i.conseil) : 'à fixer'}" style="width:86px">${i.conseil && (i.prix == null || i.prix === '') ? '' : i.conseil ? '<br><span class="note">conseillé ' + fmt(i.conseil) + ' €</span>' : ''}</td></tr>`;
+  return `<p class="note">Tout ce que vous pouvez vendre à des partenaires, avec l'audience estimée de chaque emplacement et un prix conseillé. Suivez chaque vente jusqu'au bilan envoyé au partenaire.</p>
+  <div class="kpi"><div><b>${fmt(vs)} €</b><span>vendus (${sold.length} emplacement(s))</span></div><div><b>${fmt(vo)} €</b><span>en option (${opt.length})</span></div><div><b>${fmt(pot)} €</b><span>si tout est vendu au prix affiché</span></div><div><b>${pot ? Math.round(100 * vs / pot) + ' %' : '—'}</b><span>du potentiel vendu</span></div></div>
+  <div class="prog"><i style="width:${pot ? Math.min(100, Math.round(100 * vs / pot)) : 0}%"></i></div>
+  ${(mkSum() || SUMM) && (mkSum() || SUMM).boards ? '' : `<p class="warn">${isSite() ? 'Placez un écran géant ou ajoutez vos emplacements ci-dessous.' : 'Analysez le parcours pour ajouter les panneaux, classés selon leur audience.'}</p>`}
+  <label class="p"><b style="font-weight:500">Prix du naming (€ HT)</b><input type="number" step="any" data-hy="refNaming" value="${HY.refNaming || ''}" placeholder="à fixer"></label>${HY.refNaming ? '' : '<p class="note">Fixez le prix de votre emplacement principal : l\'outil en déduit un prix pour chaque autre emplacement, selon son audience.</p>'}
+  <datalist id="spNames">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+  ${cats.map(c => `<h2>${c}</h2><table><tr><th>Emplacement</th><th class="n">Contacts</th><th>Statut</th><th class="n">Prix (€)</th></tr>${it.filter(i => i.cat === c).map(row).join('')}</table>`).join('')}
+  <p><input id="spNew" type="text" placeholder="Autre emplacement (ex. banderole du pont)" style="width:62%"> <button data-pr="spadd">Ajouter</button></p>
+  <p class="note">Le prix conseillé de chaque emplacement est le prix du naming multiplié par son audience relative : un panneau vu par deux fois moins de monde vaut deux fois moins. Vous restez libre de vos prix. Les contacts sont des estimations (un spectateur peut voir plusieurs fois le même panneau), pas une mesure d'audience.</p>
+  <h2>Dossier d'un partenaire</h2>${who.length ? `<p><select data-pr2="sel">${who.map(w => `<option${w === spSel ? ' selected' : ''}>${esc(w)}</option>`).join('')}</select> <button data-pr="spdoc" data-id="0" class="go">Proposition</button> <button data-pr="spdoc" data-id="1">Bilan après l'événement</button></p><textarea id="spDoc" rows="14" style="width:100%;font:13px/1.45 Geist,sans-serif;padding:8px">${esc(sponReport(spSel, false))}</textarea><p><button data-pr="spcopy">Copier</button> <button data-pr="spprint">Imprimer</button></p>` : '<p class="note">Indiquez un partenaire sur un emplacement en option ou vendu pour préparer sa proposition et son bilan.</p>'}
+  <p><button data-pr="spcsv">Exporter l'inventaire (tableur)</button></p>`;
+}
+function tickTab() {
+  const x = xt(), C = tkc(), rev = tickRev(), ppl = tickPeople(), S = +HY.spect || 0, fee = rev * (+HY.feeTix || 0) / 100;
+  return `<p class="note">Vos catégories de billets, leur prix, le nombre de places et le remplissage que vous visez. La recette entre dans le budget ; les scénarios d'affluence sont dans l'onglet « Budget ».</p>
+  <p><label><input type="checkbox" data-free="1"${x.free ? ' checked' : ''}> Événement gratuit pour le public</label></p>
+  ${x.free ? '<p class="note">Pas de recette de billetterie. Les catégories restent utiles pour dimensionner les espaces (tribune, invités).</p>' : `<div class="kpi"><div><b>${fmt(rev)} €</b><span>recette prévue</span></div><div><b>${fmt(ppl)}</b><span>entrées prévues${S ? ' pour ' + fmt(S) + ' spectateurs attendus' : ''}</span></div></div>`}
+  ${Math.abs(ppl - S) > Math.max(50, S * .1) ? `<p class="warn">La billetterie prévoit ${fmt(ppl)} entrées, mais ${fmt(S)} spectateurs sont attendus. <button data-pr="tsync">Caler les spectateurs attendus sur ${fmt(ppl)}</button></p>` : ''}
+  <table><tr><th>Catégorie</th><th class="n">Prix (€)</th><th class="n">Places</th><th class="n">Remplissage</th><th class="n">Recette</th><th></th></tr>${C.map(c => `<tr><td><input type="text" data-tc="${c.id}:nom" value="${esc(c.nom)}" style="width:100%"></td><td class="n"><input type="number" step="any" data-tc="${c.id}:prix" value="${c.prix || ''}" style="width:70px"></td><td class="n"><input type="number" data-tc="${c.id}:cap" value="${c.cap || ''}" style="width:80px"></td><td class="n"><input type="number" data-tc="${c.id}:taux" value="${c.taux || ''}" style="width:56px"> %</td><td class="n">${x.free ? '—' : fmt((+c.prix || 0) * (+c.cap || 0) * fill(c)) + ' €'}</td><td><button data-pr="tdel" data-id="${c.id}">×</button></td></tr>`).join('')}</table>
+  <p><button data-pr="tadd">Ajouter une catégorie</button></p>
+  <label class="p">Commission de la billetterie (%)<input type="number" step="any" data-hy="feeTix" value="${HY.feeTix}"></label>${fee ? `<p class="note">Soit ${fmt(fee)} € de frais, ajoutés aux dépenses.</p>` : ''}
+  <p class="note">L'outil ne vend pas de billets : gardez votre billetterie (Weezevent, HelloAsso, Billetweb…) et importez la liste des billets dans l'onglet « Entrées » pour le contrôle le jour J.</p>`;
+}
+function scen(f) { const s0 = HY.spect; TF = f; HY.spect = Math.round(s0 * f); let b; try { b = budget(); } finally { HY.spect = s0; TF = 1; } return b; }
+function scenHTML() {
+  const F = [[.7, 'Prudent'], [1, 'Prévu'], [1.15, 'Haut']], R = F.map(([f]) => scen(f)), S = +HY.spect || 0;
+  if (!R[1].rec && !R[1].dep) return '';
+  let be = ''; for (let k = 0; k < 2; k++) { const a = R[k].solde, b = R[k + 1].solde; if (a < 0 && b >= 0) { const f = F[k][0] + (F[k + 1][0] - F[k][0]) * (-a) / (b - a); be = `Le budget s'équilibre autour de <b>${fmt(S * f)} spectateurs</b> (${Math.round(f * 100)} % de l'affluence prévue).`; } }
+  if (!be) be = R[0].solde >= 0 ? 'Même avec 30 % de public en moins, le budget reste à l\'équilibre.' : R[2].solde < 0 ? '<span class="late">Même avec 15 % de public en plus, le budget reste en déficit.</span>' : '';
+  return `<h2>Scénarios d'affluence</h2><table><tr><th></th>${F.map(f => `<th class="n">${f[1]}</th>`).join('')}</tr><tr><td>Spectateurs</td>${F.map(f => `<td class="n">${fmt(S * f[0])}</td>`).join('')}</tr><tr><td>Recettes</td>${R.map(b => `<td class="n">${fmt(b.rec)} €</td>`).join('')}</tr><tr><td>Dépenses</td>${R.map(b => `<td class="n">${fmt(b.dep)} €</td>`).join('')}</tr><tr><th>Résultat</th>${R.map(b => `<th class="n ${b.solde < 0 ? 'late' : ''}">${fmt(b.solde)} €</th>`).join('')}</tr></table><p>${be}</p><p class="note">Seules la billetterie et les dépenses liées au public (toilettes, déchets, secouristes) varient avec l'affluence ; partenariats et subventions restent fixes.</p>`;
+}
+function kpiOf() {
+  const b = budget(), it = sponItems(), st = homeSteps();
+  return { date: HY.date || '', sport: HY.sport, lieu: HY.lieu || '', rec: Math.round(b.rec), dep: Math.round(b.dep), solde: Math.round(b.solde), sold: Math.round(sponSold()), pot: Math.round(it.reduce((a, i) => a + itPrice(i), 0)), done: st.filter(s => s[1]).length, steps: st.length, spect: +HY.spect || 0, parts: +HY.parts || 0 };
+}
+function portTab() {
+  const L2 = Object.entries(ST.projects).map(([id, p]) => ({ id, p, k: p.kpi || {} })).sort((a, b) => ((a.k.date || '9999') < (b.k.date || '9999') ? -1 : 1)), T = L2.reduce((a, r) => (a.rec += r.k.rec || 0, a.dep += r.k.dep || 0, a.sold += r.k.sold || 0, a.pot += r.k.pot || 0, a), { rec: 0, dep: 0, sold: 0, pot: 0 }), today = new Date(new Date().toDateString());
+  return `<p class="note">Tous vos événements, avec leur résultat prévu et leur avancement.</p>
+  <div class="kpi"><div><b>${L2.length}</b><span>événement(s)</span></div><div><b class="${T.rec - T.dep < 0 ? 'late' : ''}">${fmt(T.rec - T.dep)} €</b><span>résultat cumulé prévu</span></div><div><b>${fmt(T.rec)} €</b><span>recettes prévues</span></div><div><b>${fmt(T.sold)} €</b><span>partenariats vendus sur ${fmt(T.pot)} €</span></div></div>
+  <table><tr><th>Événement</th><th class="n">Résultat</th><th class="n">Partenariats</th><th>Avancement</th><th></th></tr>${L2.map(r => { const k = r.k, d = k.date ? Math.round((new Date(k.date + 'T00:00') - today) / 864e5) : null; return `<tr><td><b style="font-weight:500">${esc(r.p.name || 'Sans nom')}</b><br><span class="note">${(SPORTS[k.sport] || {}).nom || ''}${k.date ? ' — ' + new Date(k.date + 'T00:00').toLocaleDateString('fr-FR') + (d != null ? (d > 0 ? ', J-' + d : d === 0 ? ', aujourd\'hui' : ', passé') : '') : ''}</span></td><td class="n ${k.solde < 0 ? 'late' : ''}">${k.rec != null ? fmt(k.solde) + ' €' : '—'}</td><td class="n">${k.pot ? Math.round(100 * (k.sold || 0) / k.pot) + ' %' : '—'}</td><td style="min-width:90px"><div class="prog" style="margin:6px 0 0"><i style="width:${k.steps ? Math.round(100 * k.done / k.steps) : 0}%"></i></div><span class="note">${k.steps ? k.done + ' / ' + k.steps : ''}</span></td><td>${r.id === ST.cur ? '<span class="note">ouvert</span>' : `<button data-pa="open" data-id="${r.id}">Ouvrir</button>`}</td></tr>`; }).join('')}</table>
+  <p><button data-ya="wnew" class="go">Nouvel événement</button> <button data-xa="next">Préparer l'édition suivante de l'événement ouvert</button> <button data-pa="dup" data-id="${ST.cur}">Copie exacte</button></p>
+  <p class="note">Les chiffres d'un événement se mettent à jour quand vous l'ouvrez. L'édition suivante reprend parcours, plan, billetterie, équipe et réglages ; partenaires et exposants repassent à relancer, la date et le jour J sont remis à zéro.</p>`;
+}
+function alerts() {
+  const o = [], b = budget(), x = xt(), it = sponItems(), go = (t, m) => o.push([t, m]);
+  if (!ready()) go('Épreuve', isSite() ? 'Le site n\'est pas encore placé sur la carte.' : 'Le parcours n\'est pas encore tracé.'); else if (!mkSum()) go('Épreuve', 'Le parcours n\'a pas été analysé : signaleurs, panneaux et besoins sont incomplets.');
+  if (b.dep && b.solde < 0) go('Budget', `Déficit prévu de ${fmt(-b.solde)} €.`);
+  const opt = it.filter(i => i.st === 1); if (opt.length) go('Partenariats', `${opt.length} emplacement(s) en option, à transformer en vente (${fmt(opt.reduce((a, i) => a + itPrice(i), 0))} €).`);
+  const exi = (x.exh || []).filter(e => e.st === 'Confirmé' && (!e.assu || !e.kbis)).length; if (exi) go('Exposants', `${exi} dossier(s) d'exposant incomplet(s).`);
+  const due = (x.exh || []).filter(e => e.st === 'Confirmé').reduce((a, e) => a + Math.max(0, (+e.tarif || 0) - (+e.paye || 0)), 0); if (due) go('Exposants', `${fmt(due)} € restent à encaisser auprès des exposants.`);
+  const R = retro(), late = R.filter(r => r.late).length, bl = R.filter(r => tstOf(r.id).s === 2).length; if (late || bl) go('Organisation', `${late} tâche(s) en retard, ${bl} bloquée(s).`);
+  const ben = benTotal(), conf = x.people.filter(p => /Bénévole|Signaleur/.test(p.type) && p.ok).length; if (ben && conf < ben) go('Équipe', `Il manque ${ben - conf} bénévole(s) confirmé(s) sur ${ben}.`);
+  return o;
+}
+function homeTab() {
+  if (isBlank()) return `${(W.step || 0) === 0 ? '<div class="hero"><h1>Vendez mieux, dépensez juste, maîtrisez le jour J.</h1><p class="props">Cinq questions, et l\'outil prépare le parcours, les partenariats à vendre, la billetterie, le budget, l\'équipe et les démarches.</p></div>' : ''}${wizard()}`;
+  const st = homeSteps(), nx = st.find(s => !s[1]), d = daysTo(), nd = st.filter(s => s[1]).length, b = budget(), it = sponItems(), pot = it.reduce((a, i) => a + itPrice(i), 0), sold = sponSold(), al = alerts(), S = +HY.spect || 0;
+  return `<div class="hero"><p class="eyebrow">${SPORTS[HY.sport].nom}</p><h1>${esc(pName())}</h1><p class="props">${dateFr()}${HY.start ? ' à ' + HY.start.replace(':', ' h ') : ''}${HY.lieu ? ' — ' + esc(HY.lieu) : ''}</p></div>
+  <div class="kpi"><div><b class="${b.dep && b.solde < 0 ? 'late' : ''}">${b.dep ? fmt(b.solde) + ' €' : '—'}</b><span>${b.dep ? 'résultat prévu' : 'budget à chiffrer'}</span></div><div><b>${d == null ? '—' : d > 0 ? 'J-' + d : d === 0 ? 'Jour J' : 'J+' + (-d)}</b><span>${d == null ? 'date à fixer' : d > 0 ? 'avant l\'événement' : d === 0 ? 'c\'est aujourd\'hui' : 'après l\'événement'}</span></div><div><b>${fmt(sold)} €</b><span>partenariats vendus sur ${fmt(pot)} €</span></div><div><b>${xt().free ? 'Gratuit' : fmt(tickRev()) + ' €'}</b><span>billetterie prévue</span></div><div><b>${fmt(b.rec)} €</b><span>recettes prévues</span></div><div><b>${S && b.dep ? fmt(b.dep / S, 2) + ' €' : '—'}</b><span>coût par spectateur</span></div></div>
+  ${al.length ? `<h2>À surveiller</h2><div class="steps">${al.map(a => `<button data-ya="go" data-id="${a[0]}"><i style="border-color:#c58a1e;background:#fbf1dc"></i><span><b>${a[1]}</b><em>${a[0]}</em></span></button>`).join('')}</div>` : ''}
+  <div class="prog"><i style="width:${Math.round(100 * nd / st.length)}%"></i></div><p class="note">${nd} étape(s) faite(s) sur ${st.length}</p>
+  ${nx ? `<button class="next" data-ya="go" data-id="${nx[2]}"><span>À faire maintenant</span><b>${nx[0]}</b><em>${nx[3]}</em></button>` : '<p><b>Toutes les étapes sont faites.</b></p>'}
+  <div class="steps">${st.map(s => `<button data-ya="go" data-id="${s[2]}" class="${s[1] ? 'done' : ''}"><i></i><span><b>${s[0]}</b><em>${s[3]}</em></span></button>`).join('')}</div>
+  <h2>En bref</h2><label class="p">Date<input type="date" data-hy="date" value="${HY.date || ''}"></label><label class="p">Heure de début<input type="time" data-hy="start" value="${HY.start || ''}"></label><label class="p">Lieu<input type="text" data-hy="lieu" value="${esc(HY.lieu || '')}"></label><label class="p">Participants attendus<input type="number" data-hy="parts" value="${HY.parts}"></label><label class="p">Spectateurs attendus<input type="number" data-hy="spect" value="${HY.spect}"></label><label class="p">Organisateur<input type="text" data-hy="orga" value="${esc(HY.orga || '')}"></label>
+  <p style="margin-top:22px"><button data-ya="wnew">Nouvel événement</button></p>`;
+}
+TABS['Partenariats'] = () => sponTab(); TABS['Billetterie'] = () => tickTab(); TABS['Portefeuille'] = () => portTab();
+function proAct(a, id) {
+  const x = xt();
+  if (a === 'spadd') { const n = ($('#spNew').value || '').trim(); if (!n) return; spx()['u:' + uid2('s')] = { nom: n.slice(0, 80), st: 0 }; }
+  else if (a === 'spdel') delete spx()[id];
+  else if (a === 'spdoc') { const t = $('#spDoc'); if (t) t.value = sponReport(spSel, id === '1'); return; }
+  else if (a === 'spcopy') { const t = $('#spDoc').value; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Texte copié.'), () => { $('#spDoc').select(); document.execCommand('copy'); }); return; }
+  else if (a === 'spprint') { $('#print').innerHTML = `<pre style="white-space:pre-wrap;font:11.5pt/1.5 serif;margin:0">${esc($('#spDoc').value)}</pre>`; print(); return; }
+  else if (a === 'spcsv') { csvOut('partenariats', [['Catégorie', 'Emplacement', 'Contacts estimés', 'Statut', 'Partenaire', 'Prix conseillé (€)', 'Prix (€)']].concat(sponItems().map(i => [i.cat, i.nom, i.contacts, SPS[i.st], i.who, i.conseil, itPrice(i)]))); return; }
+  else if (a === 'tadd') tkc().push({ id: uid2('k'), nom: 'Nouvelle catégorie', prix: 0, cap: 0, taux: 80 });
+  else if (a === 'tdel') x.tick = tkc().filter(c => c.id !== id);
+  else if (a === 'tsync') HY.spect = Math.round(tickPeople());
+  store(); panel(true);
+}
 function libSave() { ST.types = JSON.parse(JSON.stringify(TYPES)); store(); }
 function loadProject(id) {
   ST.cur = id; const p = ST.projects[id] || {};
@@ -1370,6 +1477,10 @@ $('#body').addEventListener('change', e => {
   if (t.id === 'pfSel') { pfKey = t.value; panel(true); return; }
   if (t.id === 'impFile') { const f = t.files[0]; if (!f) return; f.text().then(x => { try { const d = JSON.parse(x); if (!d.project) throw 0; store(); for (const k in d.profiles || {}) if (!SPORTS[k]) { SPORTS[k] = d.profiles[k]; ST.profiles[k] = d.profiles[k]; } for (const k in d.types || {}) if (!TYPES[k]) TYPES[k] = d.types[k]; if (d.types) ST.types = JSON.parse(JSON.stringify(TYPES)); const k = 'p' + Date.now().toString(36); ST.projects[k] = d.project; loadProject(k); store(); } catch (err) { alert('Ce fichier n\'est pas un projet exporté par cet outil.'); } }); t.value = ''; return; }
   if (t.dataset.w) { W[t.dataset.w] = t.value; return; }
+  if (t.dataset.sp) { const v = t.dataset.sp, i = v.lastIndexOf(':'), k = v.slice(0, i), fl = v.slice(i + 1), s = spx()[k] = spx()[k] || {}; if (fl === 'st') s.st = +t.value; else if (fl === 'who') s.who = t.value.trim().slice(0, 80); else { if (t.value === '') delete s.prix; else s.prix = parseFloat(t.value) || 0; } store(); panel(true); return; }
+  if (t.dataset.tc) { const [i, fl] = t.dataset.tc.split(':'), c = tkc().find(c => c.id === i); if (c) { c[fl] = fl === 'nom' ? t.value.slice(0, 60) : (parseFloat(t.value) || 0); store(); panel(true); } return; }
+  if (t.dataset.free) { xt().free = t.checked; store(); panel(true); return; }
+  if (t.dataset.pr2) { spSel = t.value; const d = $('#spDoc'); if (d) d.value = sponReport(spSel, false); return; }
   if (t.dataset.en) { const [i, fl] = t.dataset.en.split(':'), e = rc().ent.find(e => e.id === i); if (e) { e[fl] = fl === 'num' ? String(+t.value || '') : t.value.slice(0, 80); store(); if (fl === 'num') panel(true); } return; }
   if (t.dataset.ex) { const [i, fl] = t.dataset.ex.split(':'), e = exh().find(e => e.id === i); if (e) { e[fl] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : fl === 'stand' ? (t.value ? +t.value : null) : t.value.slice(0, 120); store(); if (fl === 'stand' || fl === 'st') drawObj(); if (t.type !== 'text') panel(true); } return; }
   if (t.dataset.ts) { const [i, fl] = t.dataset.ts.split(':'), x = xt(); x.ts = x.ts || {}; const s = x.ts[i] = x.ts[i] || {}; s[fl] = fl === 'who' ? t.value : +t.value; if (fl === 's') { if (+t.value === 3) DONE[i] = true; else delete DONE[i]; } store(); panel(true); return; }
@@ -1388,19 +1499,20 @@ $('#body').addEventListener('change', e => {
   if (t.dataset.tk) { ST.tasks = tasks().map(x => ({ ...x })); const x = ST.tasks.find(x => x.id === t.dataset.tk); if (x) x[t.dataset.f] = t.dataset.f === 'j' ? (parseFloat(t.value) || 0) : t.value; store(); if (t.dataset.f === 'j') panel(true); return; }
   if (t.dataset.pf) { const k = pfKey && SPORTS[pfKey] ? pfKey : HY.sport, f = t.dataset.pf; SPORTS[k][f] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; ST.profiles[k] = { ...SPORTS[k] }; if (f === 'nom') { $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; } store(); return; }
   if (t.dataset.ty) { const T = TYPES[t.dataset.ty], f = t.dataset.f; if (!T) return; T[f] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; libSave(); checkObj(); drawObj(); return; }
-  if (t.dataset.hy) { HY[t.dataset.hy] = t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; store(); if (tab === 'Implantation') { checkObj(); drawObj(); panel(true); } else if (/^(Besoins|Jour J|Bilan|Accueil|Budget|Documents)$/.test(tab)) panel(true); }
+  if (t.dataset.hy) { HY[t.dataset.hy] = t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; store(); if (tab === 'Implantation') { checkObj(); drawObj(); panel(true); } else if (/^(Besoins|Jour J|Bilan|Accueil|Budget|Documents|Partenariats|Billetterie)$/.test(tab)) panel(true); }
   if (t.dataset.ob) { const o = OBJ.find(o => o.id === selO), v = parseFloat(t.value); if (o && v > 0) { o[t.dataset.ob] = v; checkObj(); store(); drawObj(); panel(true); } }
   if (t.dataset.cost) { COST[t.dataset.cost] = parseFloat(t.value) || 0; store(); panel(true); }
   if (t.id === 'pTop') { HY.pTop = parseFloat(t.value) || 0; store(); panel(true); }
 });
 $('#body').addEventListener('click', e => {
-  const d = (e.target.closest('[data-pa],[data-oa],[data-da],[data-xa],[data-ya],[data-ra],[data-add]') || e.target).dataset;
+  const d = (e.target.closest('[data-pa],[data-oa],[data-da],[data-xa],[data-ya],[data-ra],[data-pr],[data-add]') || e.target).dataset;
   if (d.pa) { projAct(d.pa, d.id); return; }
   if (d.oa) { siteAct(d.oa); return; }
   if (d.da) { drawAct(d.da, d.k, d.t); return; }
   if (d.xa) { cycleAct(d.xa, d.id); return; }
   if (d.ya) { orgAct(d.ya, d.id); return; }
   if (d.ra) { raceAct(d.ra, d.id); return; }
+  if (d.pr) { proAct(d.pr, d.id); return; }
   if (d.add) { placing = placing === d.add ? null : d.add; panel(true); return; }
   const r = e.target.closest('tr.go'); if (!r || !A) return;
   if (r.dataset.obGo) { const o = OBJ.find(o => o.id === +r.dataset.obGo); if (o) { selO = o.id; map.setView([o.lat, o.lng], Math.max(map.getZoom(), 18)); drawObj(); panel(true); } return; }
