@@ -219,7 +219,7 @@ const SPORTS = {
   site:  { nom: 'Événement sur site, sans parcours (tournoi, village, salon)', site: true, snap: false, vFast: 1, vSlow: 1, ravito: 0, secours: 0, signal: 'route', motor: false, climb: 0, parts: 300, spect: 1000, delai: 60, corner: false },
   auto:  { nom: 'Sport mécanique sur route fermée (côte, spéciale)', snap: true, vFast: 110, vSlow: 70, ravito: 0, secours: 3, signal: 'route', motor: true, climb: .3, parts: 120, spect: 4000, delai: 60, corner: true }
 };
-const HY = { sport: 'run', date: '', start: '09:00', tours: 1, parts: 800, spect: 1500, close: 30, reopen: 15, nBoards: 12, perRavito: 4, perSecours: 2, base: 12, perJ: 2, nMarge: 5, nLot: 1, nEau: .25, nGob: 1.5, nFruit: .5, nPoub: 100, nRadio: 5, risP2: .35, risE1: .25, risE2: .25, tarif: 0, lieu: '', orga: '', orgaTel: '' };
+const HY = { sport: 'run', date: '', start: '09:00', tours: 1, parts: 800, spect: 1500, close: 30, reopen: 15, nBoards: 12, perRavito: 4, perSecours: 2, base: 12, perJ: 2, nMarge: 5, nLot: 1, nEau: .25, nGob: 1.5, nFruit: .5, nPoub: 100, nRadio: 5, risP2: .35, risE1: .25, risE2: .25, tarif: 0, lieu: '', orga: '', orgaTel: '', mpMax: 250, perMP: 2 };
 const COST = { signaleur: 0, barriere: 0, rubalise: 0, fleche: 0, ravito: 0, secours: 0, panneau: 0 };
 Object.entries({ run: 2, trail: 2, velo: 4, rando: 2, auto: 20, site: 0 }).forEach(([k, v]) => SPORTS[k].recul = v);
 HY.nStands = 8; HY.wcRatio = 100; HY.duree = 6;
@@ -426,8 +426,8 @@ async function analyse(status) {
   r.winner = tF[N - 1] * laps; r.lastIn = tS[N - 1] * laps;
   if (S.motor) { const dur = (HY.duree || 6) * 60; r.last = () => T0 + dur; r.lastIn = dur; }
   // virages serrés
-  const C = [], w = Math.max(1, Math.round(20 / DS));
-  for (let i = w; i < N - w; i++) { const a = Math.atan2(P[i][1] - P[i - w][1], P[i][0] - P[i - w][0]), b = Math.atan2(P[i + w][1] - P[i][1], P[i + w][0] - P[i][0]); let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; if (Math.abs(d) > 1.0 && (!C.length || (i - C[C.length - 1].i) * DS > 40)) C.push({ i, ang: d * 180 / Math.PI, dir: d > 0 ? 'gauche' : 'droite' }); }
+  const C = [], w = Math.max(1, Math.round((S.motor ? 40 : 20) / DS)), thr = S.motor ? .45 : 1.0, gapC = S.motor ? 80 : 40;
+  for (let i = w; i < N - w; i++) { const a = Math.atan2(P[i][1] - P[i - w][1], P[i][0] - P[i - w][0]), b = Math.atan2(P[i + w][1] - P[i][1], P[i + w][0] - P[i][0]); let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; if (Math.abs(d) > thr && (!C.length || (i - C[C.length - 1].i) * DS > gapC)) C.push({ i, ang: d * 180 / Math.PI, dir: d > 0 ? 'gauche' : 'droite' }); }
   r.C = C;
   // signaleurs et barrières
   for (const j of JJ) {
@@ -450,6 +450,13 @@ async function analyse(status) {
   r.SP = SP;
   // zones interdites au public (sports rapides) : extérieur des virages serrés
   r.FZ = S.corner ? C.filter(c => S.motor || GR[c.i] < .03).map(c => ({ i: c.i, len: S.motor ? 80 : 40, why: 'Extérieur du virage à ' + c.dir })) : [];
+  r.MP = [];
+  if (S.motor) { const mx = Math.max(60, +HY.mpMax || 250) / DS, back = Math.round(50 / DS), req = [{ i: 0, why: r.loop ? 'Ligne de départ et d\'arrivée' : 'Départ' }];
+    for (const c of C) { const i = Math.max(0, c.i - back); if (!req.some(q => Math.abs(q.i - i) * DS < 40)) req.push({ i, why: 'Avant le virage à ' + c.dir + ' (' + Math.round(Math.abs(c.ang)) + '°)' }); }
+    if (!r.loop) req.push({ i: N - 1, why: 'Arrivée' });
+    req.sort((a, b) => a.i - b.i); const end = r.loop ? N : N - 1;
+    for (let k = 0; k < req.length; k++) { r.MP.push(req[k]); const a = req[k].i, b = k + 1 < req.length ? req[k + 1].i : (r.loop ? end : a); const n = Math.ceil((b - a) / mx) - 1; for (let m = 1; m <= n; m++) r.MP.push({ i: Math.round(a + (b - a) * m / (n + 1)) % N, why: 'Intervalle : un poste au plus tous les ' + HY.mpMax + ' m' }); }
+    r.MP.forEach((p, k) => p.nom = 'Poste ' + (k + 1)); }
   // panneaux publicitaires
   const B = [], win = Math.max(1, Math.round(60 / DS));
   for (let i = 0; i < N; i += Math.max(1, Math.round(100 / DS))) {
@@ -466,7 +473,8 @@ async function analyse(status) {
   // quantités
   const sig = JJ.reduce((a, j) => a + j.sig, 0);
   r.Q = { sig, bar: JJ.reduce((a, j) => a + j.bar, 0), rub: Math.round(JJ.filter(j => j.rub).length * 15 + ends.length * 400 + r.FZ.reduce((a, z) => a + z.len, 0)), fleche: C.length + JJ.length + Math.ceil(total / 1000), ravito: r.RAV.length, secours: r.SEC.length, benRav: r.RAV.length * HY.perRavito, benSec: r.SEC.length * HY.perSecours, base: HY.base };
-  r.Q.ben = sig + r.Q.benRav + r.Q.base;
+  r.Q.com = r.MP.length * Math.max(1, Math.round(+HY.perMP || 2)); r.Q.nMP = r.MP.length;
+  r.Q.ben = sig + r.Q.benRav + r.Q.base + r.Q.com;
   return r;
 }
 
@@ -536,7 +544,7 @@ const TABS = {
     <p class="note">Les prix sont vides : saisissez les vôtres, le total se calcule.${siteCost() ? ' Éléments du site en plus : <b>' + fmt(siteCost()) + ' €</b> (détail dans « Implantation »).' : ''}</p>
     <h2>Sources</h2><p class="note">Voirie et bâtiments : ${A.source === 'IGN' ? 'IGN, BD TOPO' : '© contributeurs OpenStreetMap'}. Altitudes : IGN (France uniquement). Fond de carte : © contributeurs OpenStreetMap. Itinéraire entre deux clics : OSRM.${A.sparse ? ' Parcours long : la densité de bâtiments n\'est relevée qu\'au départ et à l\'arrivée.' : ''}</p>`;
   },
-  'Carrefours': () => !A ? '<p class="note">Lancez l\'analyse.</p>' : A.site ? '<p class="note">Sans objet pour un événement sur site.</p>' : `<p class="note">Chaque voie qui rejoint le tracé est listée, avec l'heure de fermeture (${HY.close} min avant le premier) et de réouverture (${HY.reopen} min après le dernier).</p>
+  'Carrefours': () => !A ? '<p class="note">Lancez l\'analyse.</p>' : A.site ? '<p class="note">Sans objet pour un événement sur site.</p>' : `${mpTable()}<p class="note">Chaque voie qui rejoint le tracé est listée, avec l'heure de fermeture (${HY.close} min avant le premier) et de réouverture (${HY.reopen} min après le dernier).</p>
     <table><tr><th>Position</th><th>Voie</th><th class="n">Signaleurs</th><th class="n">Barrières</th><th>Fermé</th></tr>${A.J.map(j => `<tr class="go" data-go="${j.i}"><td>${km(j.i)}</td><td>${jn(j)}${j.rub ? '<br><span class="note">rubalise</span>' : ''}${j.cls === 1 ? '<br><span class="note">accès de desserte : barrière seule, signaleur si l\'accès reste utilisé</span>' : ''}${(j.ups || []).map(u => `<br><span class="note">fermeture conseillée en amont, à ${u.d} m${u.nom ? ' (' + u.nom + ')' : ''}</span>`).join('')}</td><td class="n">${j.sig || '—'}</td><td class="n">${j.bar || '—'}</td><td>${hm(j.t0)} – ${hm(j.t1)}</td></tr>`).join('')}</table>
     <h2>Virages serrés à flécher (${A.C.length})</h2><table>${A.C.map(c => `<tr class="go" data-go="${c.i}"><td>${km(c.i)}</td><td>à ${c.dir}, ${fmt(Math.abs(c.ang))}°</td></tr>`).join('')}</table>`,
   'Secours et public': () => !A ? '<p class="note">Lancez l\'analyse.</p>' : `<h2>Postes de secours (${A.SEC.length})</h2><table>${A.SEC.map(s => `<tr class="go" data-go="${s.i}"><td>${km(s.i)}</td><td>${s.nom}</td></tr>`).join('')}</table>
@@ -641,7 +649,7 @@ function drawObj() {
   for (const o of OBJ) {
     const T = TYPES[o.t], bad = o.al && o.al.length, on = o.id === selO, pick = e => { L.DomEvent.stopPropagation(e); selO = o.id; drawObj(); if (tab === 'Implantation') panel(true); };
     L.polygon(oCorners(o), { color: on ? '#000' : bad ? '#d1001f' : '#333', weight: on ? 3.5 : bad ? 2.5 : 1, fillColor: T.c, fillOpacity: .8 }).addTo(lyObj).on('click', pick);
-    const m = L.marker([o.lat, o.lng], { draggable: true, icon: ico(bad ? '#ffd0d0' : '#fff', T.s) }).addTo(lyObj);
+    const m = L.marker([o.lat, o.lng], { draggable: true, icon: ico(bad ? '#ffd0d0' : '#fff', (typeof exhOf === 'function' && exhOf(o) ? esc(exhOf(o).nom).slice(0, 18) : T.s)) }).addTo(lyObj);
     m.on('click', pick); m.on('dragend', () => { const p = m.getLatLng(); o.lat = p.lat; o.lng = p.lng; selO = o.id; checkObj(); store(); drawObj(); if (tab === 'Implantation') panel(true); });
   }
 }
@@ -717,8 +725,8 @@ function siteAct(a) {
 }
 
 let tab = 'Accueil';
-const PHASES = [['Mon événement', ['Accueil', 'Projets']], ['Avant : concevoir', ['Épreuve', 'Synthèse', 'Carrefours', 'Secours et public', 'Panneaux', 'Implantation', 'Plan du site']], ['Avant : préparer', ['Besoins', 'Budget', 'Équipe', 'Documents', 'Organisation', 'Réglages']], ['Pendant', ['Jour J']], ['Après', ['Bilan']]];
-function panel(keep) { const sc = $('#body').scrollTop; $('#tabs').innerHTML = PHASES.map(([n, l]) => `<span class="ph">${n}</span>` + l.map(t => `<button class="${t === tab ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')).join(''); $('#body').innerHTML = TABS[tab](); $('#body').scrollTop = keep ? sc : 0; $('#crumb').textContent = ((PHASES.find(p => p[1].includes(tab)) || [''])[0] + ' / ' + tab); if (!keep) { const b = $('#body'); b.classList.remove('in'); void b.offsetWidth; b.classList.add('in'); } }
+const PHASES = [['Mon événement', ['Accueil', 'Projets']], ['Avant : concevoir', ['Épreuve', 'Synthèse', 'Carrefours', 'Secours et public', 'Panneaux', 'Implantation', 'Plan du site']], ['Avant : préparer', ['Besoins', 'Budget', 'Équipe', 'Engagés', 'Exposants', 'Documents', 'Organisation', 'Réglages']], ['Pendant', ['Jour J', 'Chrono', 'Entrées']], ['Après', ['Bilan', 'Résultats']]];
+function panel(keep) { const sc = $('#body').scrollTop; $('#tabs').innerHTML = PHASES.map(([n, l]) => `<span class="ph">${n}</span>` + l.map(t => `<button class="${t === tab ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')).join(''); $('#body').innerHTML = TABS[tab](); $('#body').scrollTop = keep ? sc : 0; $('#crumb').textContent = ((PHASES.find(p => p[1].includes(tab)) || [''])[0] + ' / ' + tab); { const b = $('#body'); b.classList.remove('in'); if (!keep) { void b.offsetWidth; b.classList.add('in'); } } }
 $('#tabs').onclick = e => { if (e.target.dataset.tab) { tab = e.target.dataset.tab; panel(); } };
 // ───────── Plan du site : tracés, zones, postes, signalisation, notes ─────────
 const LT = {
@@ -868,8 +876,8 @@ const nowM = () => { const d = new Date(); return d.getHours() * 60 + d.getMinut
 const hh = t => { t = ((Math.round(t) % 1440) + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
 const startM = () => { const m = /^(\d+):(\d+)/.exec(HY.start); return m ? +m[1] * 60 + +m[2] : 540; };
 // résumé de la dernière analyse, gardé avec le projet pour servir le jour J sans réseau
-function mkSum() { if (A && A.Q && !A.site) SUMM = { Q: { ...A.Q }, len: A.len, nrav: A.RAV.length, nsec: A.SEC.length, winner: A.winner, lastIn: A.lastIn, posts: A.J.filter(j => j.sig).map(j => ({ nom: jn(j), km: +(j.i * A.DS / 1000).toFixed(1), sig: j.sig, t0: j.t0, t1: j.t1 })) }; else if (A && A.site) SUMM = { Q: { ...A.Q }, len: 0, nrav: 0, nsec: 1, posts: [], site: true }; return SUMM; }
-const benTotal = () => { const s = mkSum(), q = s ? s.Q : null, plan = DRAW.filter(x => x.k === 'point' && PT[x.t].staff).reduce((a, x) => a + (x.n || 1), 0); return (q ? (q.sig || 0) + (q.benRav || 0) + (q.base || HY.base) : HY.base) + plan; };
+function mkSum() { if (A && A.Q && !A.site) SUMM = { Q: { ...A.Q }, len: A.len, nrav: A.RAV.length, nsec: A.SEC.length, winner: A.winner, lastIn: A.lastIn, posts: A.J.filter(j => j.sig).map(j => ({ nom: jn(j), km: +(j.i * A.DS / 1000).toFixed(1), sig: j.sig, t0: j.t0, t1: j.t1, role: A.sport.motor ? 'garde(s) de fermeture' : 'signaleur(s)' })).concat((A.MP || []).map(p => ({ nom: p.nom + ' (commissaires)', km: +(p.i * A.DS / 1000).toFixed(1), sig: Math.max(1, Math.round(+HY.perMP || 2)), t0: A.T0 - HY.close, t1: A.last(p.i) + HY.reopen, role: 'commissaire(s)' }))) }; else if (A && A.site) SUMM = { Q: { ...A.Q }, len: 0, nrav: 0, nsec: 1, posts: [], site: true }; return SUMM; }
+const benTotal = () => { const s = mkSum(), q = s ? s.Q : null, plan = DRAW.filter(x => x.k === 'point' && PT[x.t].staff).reduce((a, x) => a + (x.n || 1), 0); return (q ? (q.sig || 0) + (q.com || 0) + (q.benRav || 0) + (q.base || HY.base) : HY.base) + plan; };
 function ris() {
   const P = +HY.spect || 0, P1 = P <= 100000 ? P : 100000 + (P - 100000) / 2, i = (+HY.risP2 || .3) + (+HY.risE1 || .25) + (+HY.risE2 || .25), r = i * P1 / 1000;
   let nom, n;
@@ -881,7 +889,17 @@ function ris() {
 function needRows() {
   const s = mkSum(), q = s ? s.Q : null, P = +HY.parts || 0, S = +HY.spect || 0, R = k => +HY[k] || 0, ben = benTotal(), rows = [], add = (cat, key, nom, n, un, why) => { if (n > 0) rows.push({ cat, key: 'N:' + key, nom, q: Math.ceil(n), un, why }); };
   const nrav = s ? s.nrav : 0, planBar = DRAW.filter(x => x.k === 'ligne' && x.t === 'barriere').reduce((a, x) => a + dUnits(x), 0), km = s ? s.len / 1000 : 0, rs = ris();
-  if (!(SPORTS[HY.sport] || {}).site) {
+  const MOT = !!(SPORTS[HY.sport] || {}).motor, nMP = q && q.nMP || 0;
+  if (MOT) {
+    add('Participants', 'numeros', 'Numéros de course (jeux d\'autocollants)', P * (1 + R('nMarge') / 100), 'jeux', `${fmt(P)} engagés + ${R('nMarge')} % de marge`);
+    add('Participants', 'transpondeur', 'Transpondeurs de chronométrage', P, 'unités', 'un par engagé');
+    add('Participants', 'paddock', 'Emplacements de paddock', P, 'emplacements', 'un par engagé');
+    if (q) { add('Sécurité de la piste', 'commissaire', 'Commissaires de piste', q.com, 'personnes', `${nMP} postes × ${HY.perMP}`); add('Sécurité de la piste', 'drapeaux', 'Jeux de drapeaux de signalisation', nMP, 'jeux', 'un par poste'); add('Sécurité de la piste', 'extincteur', 'Extincteurs', nMP * 2, 'unités', 'deux par poste'); }
+    add('Sécurité de la piste', 'depann', 'Dépanneuses ou plateaux', Math.max(1, km / 3), 'véhicules', 'un pour 3 km de piste');
+    add('Sécurité de la piste', 'ambpiste', 'Ambulances de piste', Math.max(1, km / 5), 'véhicules', 'une pour 5 km de piste');
+    add('Sécurité de la piste', 'medecin', 'Médecin de course', 1, 'personne', 'au PC course');
+  }
+  if (!(SPORTS[HY.sport] || {}).site && !MOT) {
     add('Participants', 'dossard', 'Dossards', P * (1 + R('nMarge') / 100), 'unités', `${fmt(P)} participants + ${R('nMarge')} % de marge`);
     add('Participants', 'epingle', 'Épingles à dossard', P * 4 * (1 + R('nMarge') / 100), 'unités', '4 par dossard');
     add('Participants', 'puce', 'Puces de chronométrage', P * (1 + R('nMarge') / 100), 'unités', 'une par dossard');
@@ -892,7 +910,7 @@ function needRows() {
     add('Ravitaillement', 'table', 'Tables de ravitaillement', (nrav || 1) * Math.max(2, Math.ceil(P / 150)), 'tables', '1 pour 150 participants, 2 au minimum par point');
   }
   if (q) {
-    add('Sécurité du parcours', 'signaleur', 'Signaleurs', q.sig, 'personnes', 'calculé carrefour par carrefour');
+    add('Sécurité du parcours', 'signaleur', MOT ? 'Gardes aux points de fermeture' : 'Signaleurs', q.sig, 'personnes', 'calculé carrefour par carrefour');
     add('Sécurité du parcours', 'k10', 'Panneaux K10 (piquet mobile)', q.sig, 'unités', 'un par signaleur');
     add('Sécurité du parcours', 'barriere', 'Barrières', (q.bar || 0) + planBar, 'unités', `${fmt(q.bar || 0)} aux carrefours + ${fmt(planBar)} tracées sur le plan`);
     add('Sécurité du parcours', 'rubalise', 'Rubalise', (q.rub || 0) / 100, 'rouleaux de 100 m', `${fmt(q.rub || 0)} m calculés`);
@@ -906,7 +924,7 @@ function needRows() {
   add('Équipe', 'benevole', 'Bénévoles', ben, 'personnes', 'signaleurs, ravitaillements, départ et arrivée, postes du plan');
   add('Équipe', 'gilet', 'Gilets haute visibilité', ben, 'unités', 'un par bénévole');
   add('Équipe', 'repas', 'Repas ou collations des bénévoles', ben + rs.n, 'unités', 'bénévoles et secouristes');
-  add('Équipe', 'radio', 'Radios ou téléphones de liaison', 3 + Math.ceil((q ? q.sig : 0) / (R('nRadio') || 5)), 'unités', `PC, secours, arrivée, puis 1 pour ${R('nRadio') || 5} signaleurs`);
+  add('Équipe', 'radio', 'Radios ou téléphones de liaison', 3 + nMP + Math.ceil((q ? q.sig : 0) / (R('nRadio') || 5)), 'unités', `PC, secours, arrivée${nMP ? ', un par poste de commissaires' : ''}, puis 1 pour ${R('nRadio') || 5} signaleurs`);
   for (const r of planRows()) if (r.key !== 'L:barriere') rows.push({ cat: 'Plan du site', key: r.key, nom: r.nom, q: r.q, un: r.un, why: r.dim + (r.capa ? ', ' + r.capa : ''), fixedCost: r.fixed ? r.cost : null });
   const X = xt(); for (const n of X.needX) { const m = n.base === 'part' ? P : n.base === 'spect' ? S : n.base === 'ben' ? ben : 1; rows.push({ cat: 'Mes ajouts', key: 'X:' + n.id, nom: n.nom, q: Math.ceil(n.k * m), un: n.un, why: n.base === 'fixe' ? 'quantité fixée par vous' : fmt(n.k, 2) + ' par ' + ({ part: 'participant', spect: 'spectateur', ben: 'bénévole' })[n.base] }); }
   for (let i = rows.length - 1; i >= 0; i--) if (X.needOff[rows[i].key]) rows.splice(i, 1);
@@ -941,7 +959,7 @@ function dayPlan() {
   return l.sort((a, b) => a.m - b.m);
 }
 function dayPosts() {
-  const s = mkSum(), o = (s ? s.posts : []).map((p, k) => ({ id: 'j' + k, nom: p.nom, det: `km ${fmt(p.km, 1)} — ${p.sig} signaleur(s) — fermé de ${hh(p.t0)} à ${hh(p.t1)}`, n: p.sig }));
+  const s = mkSum(), o = (s ? s.posts : []).map((p, k) => ({ id: 'j' + k, nom: p.nom, det: `km ${fmt(p.km, 1)} — ${p.sig} ${p.role || 'signaleur(s)'} — de ${hh(p.t0)} à ${hh(p.t1)}`, n: p.sig }));
   DRAW.filter(x => x.k === 'point' && PT[x.t].staff).forEach(x => o.push({ id: 'p' + x.id, nom: PT[x.t].nom, det: (x.txt ? x.txt + ' — ' : '') + (x.n || 1) + ' personne(s)', n: x.n || 1 }));
   return o;
 }
@@ -1008,8 +1026,8 @@ const pName = () => (ST.projects[ST.cur] || {}).name || 'Mon événement';
 const isSite = () => !!(SPORTS[HY.sport] || {}).site;
 function budget() {
   const x = xt(), P = +HY.parts || 0, ins = P * (+HY.tarif || 0), sum = (l, f) => l.reduce((a, p) => a + (+f(p) || 0), 0);
-  const part = sum(x.people.filter(p => p.type === 'Partenaire'), p => p.montant), prest = sum(x.people.filter(p => p.type === 'Prestataire'), p => p.montant), need = sum(needRows(), r => r.cost), recX = sum(x.bud.rec, l => l.v), depX = sum(x.bud.dep, l => l.v), rec = ins + part + recX, dep = need + prest + depX;
-  return { ins, part, prest, need, recX, depX, rec, dep, solde: rec - dep, seuil: +HY.tarif > 0 ? Math.max(0, Math.ceil((dep - part - recX) / HY.tarif)) : null, tarifEq: P ? Math.max(0, (dep - part - recX) / P) : null };
+  const part = sum(x.people.filter(p => p.type === 'Partenaire'), p => p.montant), prest = sum(x.people.filter(p => p.type === 'Prestataire'), p => p.montant), need = sum(needRows(), r => r.cost), recX = sum(x.bud.rec, l => l.v), depX = sum(x.bud.dep, l => l.v), exh = sum((x.exh || []).filter(e => e.st === 'Confirmé'), e => e.tarif), rec = ins + part + exh + recX, dep = need + prest + depX;
+  return { ins, part, exh, prest, need, recX, depX, rec, dep, solde: rec - dep, seuil: +HY.tarif > 0 ? Math.max(0, Math.ceil((dep - part - recX) / HY.tarif)) : null, tarifEq: P ? Math.max(0, (dep - part - recX) / P) : null };
 }
 // ── Accueil et assistant ──
 let W = {}, geo = [];
@@ -1042,6 +1060,7 @@ function homeSteps() {
     ['Équilibrer le budget', b.rec > 0 && b.solde >= 0, 'Budget', b.rec || b.dep ? 'Recettes ' + fmt(b.rec) + ' €, dépenses ' + fmt(b.dep) + ' €.' : 'Tarif, partenaires, subventions, dépenses.'],
     ['Réunir l\'équipe', ben > 0 && conf >= ben, 'Équipe', conf + ' confirmé(s) sur ' + ben + ' nécessaires.'],
     ['Faire les démarches', tk.length > 0 && dn === tk.length, 'Organisation', dn + ' sur ' + tk.length + ' faites.'],
+    ['Inscrire les engagés', (x.race || { ent: [] }).ent.length > 0, 'Engagés', ((x.race || { ent: [] }).ent.length) + ' engagé(s) sur ' + fmt(HY.parts) + ' attendus.'],
     ['Préparer les courriers', Object.keys(x.docs).length > 0, 'Documents', 'Mairie, riverains, bénévoles, signaleurs.'],
     ['Tenir le jour J', Object.keys(LV.step || {}).length > 0, 'Jour J', 'Déroulé, postes, main courante.'],
     ['Faire le bilan', Object.keys(LV.real || {}).length > 0, 'Bilan', 'Fréquentation, comptes, enseignements.']
@@ -1065,7 +1084,7 @@ function budgetTab() {
   const lines = (k) => x.bud[k].map(l => `<tr><td><input type="text" data-bl="${k}:${l.id}:t" value="${esc(l.t)}"></td><td class="n"><input type="number" step="any" style="width:90px" data-bl="${k}:${l.id}:v" value="${l.v || ''}"></td><td><button data-ya="bldel" data-id="${k}:${l.id}">×</button></td></tr>`).join('');
   return `<p class="note">Le budget se remplit en partie tout seul : les dépenses de matériel viennent de l'onglet « Besoins », les partenaires et prestataires de l'onglet « Équipe ».</p>
   <label class="p">Tarif d'inscription (€)<input type="number" step="any" data-hy="tarif" value="${HY.tarif || ''}"></label><label class="p">Participants attendus<input type="number" data-hy="parts" value="${HY.parts}"></label>
-  <h2>Recettes</h2><table><tr><td>Inscriptions (${fmt(P)} × ${fmt(+HY.tarif || 0, 2)} €)</td><td class="n">${fmt(b.ins)} €</td><td></td></tr><tr><td>Partenaires (onglet Équipe)</td><td class="n">${fmt(b.part)} €</td><td></td></tr>${lines('rec')}<tr><th>Total des recettes</th><th class="n">${fmt(b.rec)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="rec">Ajouter une recette</button></p>
+  <h2>Recettes</h2><table><tr><td>Inscriptions (${fmt(P)} × ${fmt(+HY.tarif || 0, 2)} €)</td><td class="n">${fmt(b.ins)} €</td><td></td></tr><tr><td>Partenaires (onglet Équipe)</td><td class="n">${fmt(b.part)} €</td><td></td></tr><tr><td>Exposants confirmés (onglet Exposants)</td><td class="n">${fmt(b.exh)} €</td><td></td></tr>${lines('rec')}<tr><th>Total des recettes</th><th class="n">${fmt(b.rec)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="rec">Ajouter une recette</button></p>
   <h2>Dépenses</h2><table><tr><td>Matériel et équipe (onglet Besoins)</td><td class="n">${fmt(b.need)} €</td><td></td></tr><tr><td>Prestataires (onglet Équipe)</td><td class="n">${fmt(b.prest)} €</td><td></td></tr>${lines('dep')}<tr><th>Total des dépenses</th><th class="n">${fmt(b.dep)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="dep">Ajouter une dépense</button></p>
   <h2>Résultat</h2><p style="font-size:16px">${b.rec || b.dep ? `<b class="${b.solde < 0 ? 'late' : ''}">${b.solde < 0 ? 'Déficit de ' + fmt(-b.solde) : 'Excédent de ' + fmt(b.solde)} €</b>` : '<span class="note">Saisissez un tarif et vos dépenses.</span>'}</p>
   ${b.seuil != null && b.dep ? `<p>À dépenses égales, il faut <b>${fmt(b.seuil)} inscrits</b> pour équilibrer${P ? ' (' + fmt(P) + ' attendus)' : ''}.</p>` : ''}${b.tarifEq != null && b.dep ? `<p>Avec ${fmt(P)} participants, le tarif d'équilibre est de <b>${fmt(b.tarifEq, 2)} €</b>.</p>` : ''}${P && b.dep ? `<p>Coût par participant : <b>${fmt(b.dep / P, 2)} €</b>.</p>` : ''}
@@ -1147,6 +1166,175 @@ function orgAct(a, id) {
   else if (a === 'needadd') { const n = $('#yNeedN').value.trim(), q = parseFloat($('#yNeedQ').value); if (!n || !(q > 0)) { alert('Indiquez un nom et une quantité.'); return; } x.needX.push({ id: uid2('n'), nom: n.slice(0, 80), k: q, base: $('#yNeedB').value, un: $('#yNeedU').value.trim().slice(0, 20) || 'unités' }); }
   store(); panel(true);
 }
+// ───────── L'événement lui-même : commissaires, engagés, chrono, résultats, exposants, entrées ─────────
+function mpTable() {
+  if (!A || !A.MP || !A.MP.length) return '';
+  return `<h2>Postes de commissaires</h2><p>${A.MP.length} postes, <b>${fmt(A.Q.com)} commissaires</b> (${HY.perMP} par poste), un poste au plus tous les ${HY.mpMax} m et un avant chaque virage.</p>
+  <table><tr><th>Poste</th><th>Position</th><th>Raison</th></tr>${A.MP.map(p => `<tr class="go" data-go="${p.i}"><td><b>${p.nom}</b></td><td>${km(p.i)}</td><td class="note">${p.why}</td></tr>`).join('')}</table>
+  <label class="p">Distance maximale entre deux postes (m)<input type="number" data-hy="mpMax" value="${HY.mpMax}"></label><label class="p">Commissaires par poste<input type="number" data-hy="perMP" value="${HY.perMP}"></label>
+  <p class="note">Relancez l'analyse après un changement. Les postes doivent se voir l'un l'autre : l'outil ne le vérifie pas ici, faites-le sur place. Règles fédérales (FFSA, FFM) non lues : ces valeurs sont des hypothèses.</p>
+  <h2>Points de fermeture des routes</h2>`;
+}
+// ── Engagés et chronométrage ──
+const rc = () => { const x = xt(); x.race = x.race || { ent: [], t0: null, pass: [] }; return x.race; };
+const fmtT = ms => { if (ms == null || !isFinite(ms)) return '—'; const ng = ms < 0; ms = Math.abs(ms); const h = Math.floor(ms / 36e5), m = Math.floor(ms / 6e4) % 60, s = Math.floor(ms / 1e3) % 60, d = Math.floor(ms / 100) % 10; return (ng ? '−' : '') + (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0') + ',' + d; };
+const lapsN = () => Math.max(1, Math.round(+HY.tours || 1));
+function engTab() {
+  const R = rc(), E = R.ent.slice().sort((a, b) => (+a.num || 0) - (+b.num || 0)), dup = E.filter((e, k) => k && String(e.num) === String(E[k - 1].num)).map(e => e.num), cats = [...new Set(E.map(e => e.cat).filter(Boolean))];
+  return `<p class="note">La liste des engagés sert au chronométrage le jour J et au classement. Un engagé, c'est un numéro, un nom et une catégorie.</p>
+  <div class="kpi"><div><b>${fmt(E.length)}</b><span>engagé(s)${HY.parts ? ' sur ' + fmt(HY.parts) + ' attendus' : ''}</span></div><div><b>${cats.length || '—'}</b><span>catégorie(s)</span></div></div>
+  ${dup.length ? `<p class="late">Numéros en double : ${dup.join(', ')}.</p>` : ''}
+  <h2>Ajouter</h2><p><input id="eNum" type="number" placeholder="N°" style="width:70px"> <input id="eNom" type="text" placeholder="Nom" style="width:38%"> <input id="eCat" type="text" placeholder="Catégorie" list="eCats" style="width:26%"><datalist id="eCats">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist> <button data-ra="eadd" class="go">Ajouter</button></p>
+  <p class="note">Sans numéro, l'outil prend le suivant. Pour une liste existante, collez une personne par ligne : numéro ; nom ; catégorie ; club.</p>
+  <textarea id="eBulk" rows="3" style="width:100%" placeholder="12 ; Inès Garnier ; Senior femmes ; AC Couëron"></textarea><p><button data-ra="ebulk">Ajouter la liste</button></p>
+  ${E.length ? `<h2>Liste</h2><table><tr><th>N°</th><th>Nom</th><th>Catégorie</th><th>Club ou équipe</th><th></th></tr>${E.map(e => `<tr><td><input type="number" data-en="${e.id}:num" value="${esc(e.num)}" style="width:64px"></td><td><input type="text" data-en="${e.id}:nom" value="${esc(e.nom)}" style="width:100%"></td><td><input type="text" data-en="${e.id}:cat" value="${esc(e.cat || '')}" list="eCats" style="width:100%"></td><td><input type="text" data-en="${e.id}:club" value="${esc(e.club || '')}" style="width:100%"></td><td><button data-ra="edel" data-id="${e.id}">×</button></td></tr>`).join('')}</table>
+  <p><button data-ra="ecsv">Exporter la liste (tableur)</button></p>` : ''}`;
+}
+function chronoTab() {
+  const R = rc(), laps = lapsN(), byN = {}; for (const e of R.ent) byN[e.num] = e;
+  if (!R.t0) return `<p class="note">Le chronométrage enregistre l'heure de passage de chaque numéro, à la ligne d'arrivée ou à chaque tour. Il tient sur un seul appareil, au poste de chronométrage.</p>
+  <div class="kpi"><div><b>${fmt(R.ent.length)}</b><span>engagé(s)</span></div><div><b>${laps}</b><span>tour(s) à faire</span></div></div>
+  ${R.ent.length ? '' : '<p class="late">Aucun engagé : ajoutez-les dans l\'onglet « Engagés ». Vous pouvez aussi chronométrer sans liste, les numéros seront signalés comme inconnus.</p>'}
+  <button class="next" data-ra="top"><span>Quand le départ est donné</span><b>Top départ</b><em>Le chronomètre démarre à l'instant du clic.</em></button>
+  <label class="p">Nombre de tours<input type="number" data-hy="tours" value="${HY.tours}"></label>`;
+  const last = R.pass.slice(-15).reverse(), cnt = {}; for (const p of R.pass) cnt[p.num] = (cnt[p.num] || 0) + 1;
+  const fin = R.ent.filter(e => (cnt[e.num] || 0) >= laps).length;
+  return `<div class="kpi"><div><b id="cClock">${fmtT(Date.now() - R.t0)}</b><span>depuis le départ, donné à ${new Date(R.t0).toLocaleTimeString('fr-FR')}</span></div><div><b>${fin} / ${R.ent.length || '—'}</b><span>arrivé(s)${laps > 1 ? ' (' + laps + ' tours)' : ''}</span></div></div>
+  <label class="fld"><span>Numéro qui passe la ligne, puis Entrée</span><input id="cNum" type="number" inputmode="numeric" autocomplete="off" placeholder="N°"></label>
+  <p><button data-ra="pass" class="go">Enregistrer le passage</button></p>
+  <h2>Derniers passages</h2><table>${last.map(p => { const e = byN[p.num], k = R.pass.filter(q => q.num === p.num && q.t <= p.t).length; return `<tr><td class="n">${fmtT(p.t - R.t0)}</td><td><b>${esc(p.num)}</b> ${e ? esc(e.nom) : '<span class="late">numéro inconnu</span>'}</td><td class="note">${laps > 1 ? 'tour ' + k + ' / ' + laps : k > 1 ? 'passage en double' : 'arrivée'}</td><td><button data-ra="pdel" data-id="${p.id}" title="Supprimer ce passage">×</button></td></tr>`; }).join('') || '<tr><td class="note">Aucun passage enregistré.</td></tr>'}</table>
+  <p style="margin-top:22px"><button data-ra="untop" class="link">Annuler le départ et effacer les passages</button></p>`;
+}
+function results() {
+  const R = rc(), laps = lapsN(), by = {}, known = new Set(R.ent.map(e => String(e.num)));
+  for (const p of R.pass) (by[p.num] = by[p.num] || []).push(p.t);
+  const rows = R.ent.map(e => ({ e, ts: (by[e.num] || []).slice().sort((a, b) => a - b) }));
+  for (const k in by) if (!known.has(String(k))) rows.push({ e: { num: k, nom: 'Numéro inconnu', cat: '' }, ts: by[k].slice().sort((a, b) => a - b), unk: true });
+  for (const r of rows) { const ts = r.ts.slice(0, laps); r.n = ts.length; r.fin = r.n >= laps; r.last = r.n ? ts[r.n - 1] - R.t0 : null; const L2 = ts.map((t, k) => t - (k ? ts[k - 1] : R.t0)); r.best = L2.length ? Math.min(...L2) : null; }
+  rows.sort((a, b) => (b.fin - a.fin) || (b.n - a.n) || ((a.last == null ? 1e15 : a.last) - (b.last == null ? 1e15 : b.last)) || ((+a.e.num || 0) - (+b.e.num || 0)));
+  const lead = rows[0] && rows[0].fin ? rows[0].last : null, cr = {}; let rk = 0;
+  for (const r of rows) { if (r.fin) { r.rk = ++rk; if (r.e.cat) r.crk = cr[r.e.cat] = (cr[r.e.cat] || 0) + 1; } r.gap = r.fin && lead != null ? r.last - lead : null; }
+  return { rows, laps };
+}
+function resTab() {
+  const R = rc(), { rows, laps } = results(), fin = rows.filter(r => r.fin).length, run = rows.filter(r => r.n && !r.fin).length, dns = rows.filter(r => !r.n).length;
+  if (!R.t0) return '<p class="note">Le classement apparaîtra ici dès le top départ, dans l\'onglet « Chrono ».</p>';
+  return `<div class="kpi"><div><b>${fin}</b><span>classé(s)</span></div><div><b>${run}</b><span>${laps > 1 ? 'en course ou abandon' : 'passages incomplets'}</span></div><div><b>${dns}</b><span>sans passage</span></div><div><b>${rows[0] && rows[0].fin ? fmtT(rows[0].last) : '—'}</b><span>temps du premier</span></div></div>
+  <table><tr><th class="n">Rang</th><th>N°</th><th>Nom</th><th>Catégorie</th>${laps > 1 ? '<th class="n">Tours</th><th class="n">Meilleur tour</th>' : ''}<th class="n">Temps</th><th class="n">Écart</th></tr>
+  ${rows.map(r => `<tr><td class="n">${r.rk || (r.n ? 'en course' : '—')}</td><td>${esc(r.e.num)}</td><td class="${r.unk ? 'late' : ''}">${esc(r.e.nom)}</td><td>${esc(r.e.cat || '')}${r.crk ? ' <span class="note">(' + r.crk + ')</span>' : ''}</td>${laps > 1 ? `<td class="n">${r.n}</td><td class="n">${fmtT(r.best)}</td>` : ''}<td class="n">${r.fin ? fmtT(r.last) : ''}</td><td class="n">${r.gap ? '+' + fmtT(r.gap) : ''}</td></tr>`).join('')}</table>
+  <p><button data-ra="rcsv">Exporter le classement (tableur)</button> <button data-ra="rprint">Imprimer</button> <button data-ra="rbilan">Reporter dans le bilan</button></p>
+  <p class="note">Classement au temps réel, depuis le top départ commun. Les départs par vagues et le temps net (puce) ne sont pas gérés : pour une course officielle, gardez un chronométreur agréé.</p>`;
+}
+// ── Exposants ──
+const EXS = ['Prospect', 'Relancé', 'Confirmé', 'Annulé'];
+const exh = () => { const x = xt(); x.exh = x.exh || []; return x.exh; };
+const standObjs = () => OBJ.filter(o => TYPES[o.t] && /Commerces/.test(TYPES[o.t].cat || '') || (TYPES[o.t] && TYPES[o.t].val));
+const standName = o => { const l = standObjs(); return TYPES[o.t].nom + ' ' + (l.indexOf(o) + 1); };
+const exhOf = o => exh().find(e => e.stand === o.id && e.st !== 'Annulé');
+function exhTab() {
+  const L2 = exh(), conf = L2.filter(e => e.st === 'Confirmé'), ca = conf.reduce((a, e) => a + (+e.tarif || 0), 0), enc = L2.reduce((a, e) => a + (+e.paye || 0), 0), miss = conf.filter(e => !e.assu || !e.kbis), free = standObjs().filter(o => !exhOf(o));
+  const row = e => `<tr><td><input type="text" data-ex="${e.id}:nom" value="${esc(e.nom)}" style="width:100%" placeholder="Nom"><br><input type="text" data-ex="${e.id}:act" value="${esc(e.act || '')}" style="width:100%" placeholder="Activité"><br><input type="text" data-ex="${e.id}:tel" value="${esc(e.tel || '')}" style="width:48%" placeholder="Téléphone"> <input type="text" data-ex="${e.id}:mail" value="${esc(e.mail || '')}" style="width:48%" placeholder="Courriel"></td>
+  <td><select data-ex="${e.id}:st">${EXS.map(s => `<option${e.st === s ? ' selected' : ''}>${s}</option>`).join('')}</select><br><select data-ex="${e.id}:stand" style="max-width:150px;margin-top:4px"><option value="">Sans emplacement</option>${standObjs().map(o => { const t = exhOf(o); return `<option value="${o.id}"${e.stand === o.id ? ' selected' : ''}${t && t !== e ? ' disabled' : ''}>${standName(o)}${t && t !== e ? ' (pris)' : ''}</option>`; }).join('')}</select></td>
+  <td><input type="number" step="any" data-ex="${e.id}:tarif" value="${e.tarif || ''}" style="width:78px" placeholder="Tarif €"><br><input type="number" step="any" data-ex="${e.id}:paye" value="${e.paye || ''}" style="width:78px;margin-top:4px" placeholder="Payé €">${(+e.tarif || 0) > (+e.paye || 0) && e.st === 'Confirmé' ? `<br><span class="late note">reste ${fmt((+e.tarif || 0) - (+e.paye || 0))} €</span>` : ''}</td>
+  <td><label class="note"><input type="checkbox" data-ex="${e.id}:assu"${e.assu ? ' checked' : ''}> assurance</label><br><label class="note"><input type="checkbox" data-ex="${e.id}:kbis"${e.kbis ? ' checked' : ''}> Kbis ou identité</label><br><button data-ra="xdel" data-id="${e.id}">×</button></td></tr>`;
+  return `<p class="note">Commerçants, food trucks, associations, partenaires avec stand : suivez chaque dossier, attribuez un emplacement du plan et suivez les paiements.</p>
+  <div class="kpi"><div><b>${conf.length} / ${L2.length}</b><span>confirmé(s)</span></div><div><b>${fmt(ca)} €</b><span>attendus, ${fmt(enc)} € encaissés</span></div><div><b class="${miss.length ? 'late' : ''}">${miss.length}</b><span>dossier(s) incomplet(s)</span></div><div><b>${free.length}</b><span>emplacement(s) libre(s) sur le plan</span></div></div>
+  <p><input id="xNom" type="text" placeholder="Nom de l'exposant" style="width:55%"> <button data-ra="xadd" class="go">Ajouter</button></p>
+  ${standObjs().length ? '' : '<p class="note">Pour attribuer des emplacements, placez des stands, barnums ou food trucks dans l\'onglet « Implantation ».</p>'}
+  ${EXS.map(s => { const l = L2.filter(e => e.st === s); return l.length ? `<h2>${s} (${l.length})</h2><table>${l.map(row).join('')}</table>` : ''; }).join('')}
+  ${L2.length ? '<p><button data-ra="xcsv">Exporter les exposants (tableur)</button></p>' : ''}
+  <p class="note">Les exposants confirmés entrent dans les recettes du budget. Leur nom s'affiche sur le plan, à leur emplacement.</p>`;
+}
+// ── Entrées : contrôle des billets et jauge ──
+const tx = () => { const x = xt(); x.tix = x.tix || { list: {}, log: [], mode: 'in', re: true, count: 0 }; return x.tix; };
+let LASTS = null, camS = null;
+function txStats() {
+  const T = tx(), L2 = Object.values(T.list), n = L2.length, inside = L2.filter(t => t[1] === 1).length + (n ? 0 : T.count), came = L2.filter(t => t[1] >= 1).length, cap = Math.max(planCap(), (+HY.spect || 0) + (+HY.parts || 0)), types = {};
+  for (const t of L2) { const y = types[t[0]] = types[t[0]] || [0, 0]; y[0]++; if (t[1] >= 1) y[1]++; }
+  return `<div class="kpi"><div><b>${fmt(inside)}</b><span>personnes sur le site${cap ? ' — ' + Math.round(100 * inside / cap) + ' % de ' + fmt(cap) : ''}</span></div><div><b>${n ? fmt(came) + ' / ' + fmt(n) : fmt(T.log.filter(l => l[3] === 'in').length)}</b><span>${n ? 'billets entrés' : 'entrées comptées'}</span></div></div>
+  ${cap ? `<div class="prog"><i style="width:${Math.min(100, Math.round(100 * inside / cap))}%;background:${inside > cap ? '#b3401f' : inside > .9 * cap ? '#c58a1e' : 'var(--ok)'}"></i></div>` : ''}
+  ${Object.keys(types).length > 1 ? `<table>${Object.entries(types).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${fmt(v[1])} / ${fmt(v[0])}</td></tr>`).join('')}</table>` : ''}`;
+}
+const txVerdict = () => LASTS ? `<div style="padding:16px 18px;border-radius:12px;margin:12px 0;font-size:19px;font-weight:600;color:#fff;background:${LASTS.cls === 'ok' ? 'var(--ok)' : LASTS.cls === 'warn' ? '#c58a1e' : '#b3401f'}">${esc(LASTS.res)}<div style="font-size:12.5px;font-weight:400;opacity:.85">${esc(LASTS.c)}</div></div>` : '';
+function txRefresh() { const a = $('#xVerdict'), b = $('#xStats'), c = $('#xLog'); if (a) a.innerHTML = txVerdict(); if (b) b.innerHTML = txStats(); if (c) c.innerHTML = txLog(); }
+const txLog = () => tx().log.slice(-8).reverse().map(l => `<tr><td>${new Date(l[0]).toLocaleTimeString('fr-FR')}</td><td>${l[3] === 'in' ? 'Entrée' : 'Sortie'}</td><td>${esc(l[2])}</td><td class="note">${esc(l[1])}</td></tr>`).join('');
+function scan(code) {
+  const T = tx(), c = String(code == null ? '' : code).trim(), n = Object.keys(T.list).length; let res, cls = 'ok';
+  if (!n) { T.count = Math.max(0, T.count + (T.mode === 'in' ? 1 : -1)); res = T.mode === 'in' ? 'Entrée comptée' : 'Sortie comptée'; }
+  else { if (!c) return; const t = T.list[c];
+    if (!t) { res = 'Code inconnu : à vérifier'; cls = 'warn'; }
+    else if (T.mode === 'in') { if (t[1] === 1) { res = 'Déjà entré'; cls = 'bad'; } else if (t[1] === 2 && !T.re) { res = 'Sorti : pas de retour'; cls = 'bad'; } else { t[1] = 1; res = 'Valide — ' + t[0]; } }
+    else { if (t[1] !== 1) { res = 'Ce billet n\'est pas entré'; cls = 'warn'; } else { t[1] = 2; res = 'Sortie — ' + t[0]; } } }
+  T.log.push([Date.now(), c || '—', res, T.mode]); if (T.log.length > 5000) T.log.shift();
+  LASTS = { res, cls, c: c || (T.mode === 'in' ? 'compteur +1' : 'compteur −1') }; store(); txRefresh();
+  if (navigator.vibrate) navigator.vibrate(cls === 'ok' ? 40 : [80, 60, 80]);
+  const i = $('#xCode'); if (i) { i.value = ''; i.focus(); }
+}
+async function camOn() {
+  if (camS) return; if (!('BarcodeDetector' in window)) { toast('Ce navigateur ne sait pas lire les codes avec la caméra. Utilisez Chrome sur Android, ou une douchette branchée sur l\'ordinateur.'); return; }
+  try { const det = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13', 'code_39', 'pdf417'] }), st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }), v = $('#xVid'); v.hidden = false; v.srcObject = st; await v.play(); camS = { st, last: '', lt: 0 };
+    const loop = async () => { if (!camS) return; try { const r = await det.detect(v); if (r[0]) { const c = r[0].rawValue, t = Date.now(); if (c !== camS.last || t - camS.lt > 2500) { camS.last = c; camS.lt = t; scan(c); } } } catch (e) { } setTimeout(loop, 250); }; loop(); }
+  catch (e) { toast('Caméra inaccessible : ' + e.message); }
+}
+function camOff() { if (camS) { camS.st.getTracks().forEach(t => t.stop()); camS = null; } const v = $('#xVid'); if (v) v.hidden = true; }
+function entTab() {
+  const T = tx(), n = Object.keys(T.list).length;
+  return `<p class="note">${n ? fmt(n) + ' billets importés. Scannez ou tapez chaque code : l\'outil dit s\'il est valide, déjà utilisé ou inconnu.' : 'Sans liste de billets, l\'outil compte simplement les entrées et les sorties. Importez une liste pour contrôler chaque billet.'}</p>
+  <p><button data-ra="mode" data-id="in" class="${T.mode === 'in' ? 'on' : ''}">Entrées</button> <button data-ra="mode" data-id="out" class="${T.mode === 'out' ? 'on' : ''}">Sorties</button>${n ? ` <label class="note" style="margin-left:8px"><input type="checkbox" data-tx="re"${T.re ? ' checked' : ''}> retour autorisé</label>` : ''}</p>
+  ${n ? `<label class="fld"><span>Code du billet, puis Entrée (une douchette tape le code toute seule)</span><input id="xCode" type="text" autocomplete="off" placeholder="Code"></label><p><button data-ra="scan" class="go">Valider</button> <button data-ra="cam">Scanner avec la caméra</button> <button data-ra="camoff" class="link">Couper la caméra</button></p><video id="xVid" hidden playsinline muted style="width:100%;border-radius:10px;margin-top:8px;background:#000"></video>`
+  : `<p><button data-ra="scan" class="go" style="padding:14px 22px;font-size:16px">${T.mode === 'in' ? '+1 entrée' : '−1 sortie'}</button></p>`}
+  <div id="xVerdict">${txVerdict()}</div><div id="xStats">${txStats()}</div>
+  <h2>Derniers passages</h2><table id="xLog">${txLog()}</table>
+  <h2>Liste des billets</h2><p class="note">Exportez la liste depuis votre billetterie (Weezevent, HelloAsso, Billetweb…) et collez-la : une ligne par billet, code ; type.</p>
+  <textarea id="xImp" rows="3" style="width:100%" placeholder="A1B2C3 ; Pass journée"></textarea><p><button data-ra="timp">Importer</button>${n ? ' <button data-ra="tclear" class="link">Vider la liste</button>' : ''} <button data-ra="tcsv">Exporter le journal</button> <button data-ra="treset0" class="link">Remettre les compteurs à zéro</button></p>
+  <p class="note">Tout est enregistré sur cet appareil : plusieurs portes ne se voient pas entre elles. Avec deux portes, utilisez un appareil par porte et additionnez les jauges ; un même billet pourrait alors passer deux fois.</p>`;
+}
+// ── Feuille de route : phases, statuts, responsables ──
+const TST = ['À faire', 'En cours', 'Bloqué', 'Fait'], TPR = ['Normale', 'Haute', 'Urgente'];
+const phaseOf = j => j < -1 ? 'Préparation' : j === -1 ? 'Montage' : j === 0 ? 'Exploitation, jour J' : j === 1 ? 'Démontage' : 'Bilan';
+const tstOf = id => { const x = xt(); x.ts = x.ts || {}; const s = x.ts[id] || {}; return { s: DONE[id] ? 3 : (s.s || 0), who: s.who || '', p: s.p || 0 }; };
+function orgTab() {
+  const R = retro(), x = xt(), who = [...new Set(x.people.filter(p => p.type !== 'Autorité').map(p => p.nom).filter(Boolean))], ph = [...new Set(R.map(r => phaseOf(r.j)))], st = R.map(r => tstOf(r.id)), bl = st.filter(s => s.s === 2).length, late = R.filter(r => r.late).length, dn = st.filter(s => s.s === 3).length;
+  const row = x2 => { const s = tstOf(x2.id); return `<tr><td style="white-space:nowrap" class="${x2.late ? 'late' : ''}">${x2.dt ? x2.dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}<br>${x2.legal ? '<span class="note">J' + x2.j + '</span>' : `<input type="number" data-tk="${x2.id}" data-f="j" value="${x2.j}" style="width:58px" title="Jours avant (négatif) ou après l'événement">`}</td>
+  <td>${x2.legal ? x2.t + '<br><span class="note">délai légal relevé sur des fiches de préfecture, à confirmer auprès de la vôtre</span>' : `<textarea data-tk="${x2.id}" data-f="t" rows="2" style="width:100%;font:inherit;padding:4px 6px">${esc(x2.t)}</textarea>`}${x2.late ? '<br><b class="late note">échéance dépassée</b>' : ''}</td>
+  <td><select data-ts="${x2.id}:s" style="border-color:${['var(--ln)', '#7aa0c8', '#b3401f', 'var(--ok)'][s.s]}">${TST.map((t, k) => `<option value="${k}"${s.s === k ? ' selected' : ''}>${t}</option>`).join('')}</select><br><select data-ts="${x2.id}:who" style="max-width:130px;margin-top:4px"><option value="">Responsable</option>${who.map(w => `<option${s.who === w ? ' selected' : ''}>${esc(w)}</option>`).join('')}</select><br><select data-ts="${x2.id}:p" style="margin-top:4px">${TPR.map((t, k) => `<option value="${k}"${s.p === k ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
+  <td>${x2.legal ? '' : `<button data-pa="tdel" data-id="${x2.id}" title="Supprimer">×</button>`}</td></tr>`; };
+  return `${HY.date ? '' : '<div class="warn">Saisissez la date de l\'événement pour obtenir les échéances datées.</div>'}
+  <div class="kpi"><div><b>${dn} / ${R.length}</b><span>tâches faites</span></div><div><b class="${late || bl ? 'late' : ''}">${late + bl}</b><span>${late} en retard, ${bl} bloquée(s)</span></div></div>
+  <p class="note">Chaque tâche a un statut, un responsable et une priorité. Les responsables sont les personnes de l'onglet « Équipe ».</p>
+  ${ph.map(p => `<h2>${p}</h2><table>${R.filter(r => phaseOf(r.j) === p).map(row).join('')}</table>`).join('')}
+  <p><button data-pa="tadd">Ajouter une tâche</button> <button data-pa="treset">Rétablir la liste type</button></p>
+  <p class="note">Hors délai de dépôt, ces échéances sont des usages courants, pas des obligations. La liste des tâches est commune à tous vos événements ; statuts et responsables sont propres à chacun.</p>`;
+}
+TABS['Organisation'] = () => orgTab(); TABS['Engagés'] = () => engTab(); TABS['Chrono'] = () => chronoTab(); TABS['Résultats'] = () => resTab(); TABS['Exposants'] = () => exhTab(); TABS['Entrées'] = () => entTab();
+setInterval(() => { const c = $('#cClock'), R = XT.race; if (c && R && R.t0) c.textContent = fmtT(Date.now() - R.t0); if (camS && !$('#xVid')) camOff(); }, 200);
+document.addEventListener('keydown', e => { if (e.key !== 'Enter') return; if (e.target.id === 'cNum') { e.preventDefault(); raceAct('pass'); } else if (e.target.id === 'xCode') { e.preventDefault(); raceAct('scan'); } else if (/^(eNum|eNom|eCat)$/.test(e.target.id)) { e.preventDefault(); raceAct('eadd'); } else if (e.target.id === 'xNom') { e.preventDefault(); raceAct('xadd'); } });
+function raceAct(a, id) {
+  const R = rc(), nextNum = () => R.ent.reduce((m, e) => Math.max(m, +e.num || 0), 0) + 1;
+  if (a === 'eadd') { const nm = ($('#eNom').value || '').trim(); if (!nm) { toast('Saisissez au moins un nom.'); return; } R.ent.push({ id: uid2('e'), num: String($('#eNum').value || nextNum()), nom: nm.slice(0, 80), cat: ($('#eCat').value || '').trim().slice(0, 40) }); store(); panel(true); const f = $('#eNom'); if (f) f.focus(); return; }
+  if (a === 'ebulk') { const l = ($('#eBulk').value || '').split('\n').map(r => r.split(/[;\t]/).map(c => c.trim())).filter(r => r.some(Boolean)); let k = 0; for (const r of l.slice(0, 5000)) { const num = String(/^\d+$/.test(r[0]) ? +r.shift() : nextNum()); if (!r[0]) continue; R.ent.push({ id: uid2('e'), num, nom: r[0].slice(0, 80), cat: (r[1] || '').slice(0, 40), club: (r[2] || '').slice(0, 60) }); k++; } toast(k + ' engagé(s) ajouté(s).'); }
+  else if (a === 'edel') R.ent = R.ent.filter(e => e.id !== id);
+  else if (a === 'ecsv') { csvOut('engages', [['N°', 'Nom', 'Catégorie', 'Club']].concat(R.ent.map(e => [e.num, e.nom, e.cat || '', e.club || '']))); return; }
+  else if (a === 'top') { R.t0 = Date.now(); R.pass = []; toast('Départ donné à ' + new Date(R.t0).toLocaleTimeString('fr-FR') + '.'); store(); panel(); const f = $('#cNum'); if (f) f.focus(); return; }
+  else if (a === 'untop') { if (!confirm('Annuler le départ et effacer tous les passages ?')) return; R.t0 = null; R.pass = []; }
+  else if (a === 'pass') { const f = $('#cNum'), v = (f.value || '').trim(); if (!v) { f.focus(); return; } R.pass.push({ id: uid2('c'), num: String(+v), t: Date.now() }); const e = R.ent.find(e => String(e.num) === String(+v)), k = R.pass.filter(p => p.num === String(+v)).length; toast(`N° ${+v}${e ? ' — ' + e.nom : ' — numéro inconnu'}${lapsN() > 1 ? ' — tour ' + k + ' / ' + lapsN() : ''}`); store(); panel(true); const g = $('#cNum'); if (g) g.focus(); return; }
+  else if (a === 'pdel') R.pass = R.pass.filter(p => p.id !== id);
+  else if (a === 'rcsv') { const { rows, laps } = results(); csvOut('classement', [['Rang', 'N°', 'Nom', 'Catégorie', 'Rang catégorie', 'Tours', 'Temps', 'Écart', 'Meilleur tour']].concat(rows.map(r => [r.rk || '', r.e.num, r.e.nom, r.e.cat || '', r.crk || '', r.n + '/' + laps, r.fin ? fmtT(r.last) : '', r.gap ? fmtT(r.gap) : '', fmtT(r.best)]))); return; }
+  else if (a === 'rprint') { $('#print').innerHTML = `<h1>Classement — ${esc(pName())}</h1><p>${dateFr()}</p>` + resTab().replace(/<p><button[\s\S]*?<\/p>/, ''); print(); return; }
+  else if (a === 'rbilan') { const { rows } = results(); LV.real = LV.real || {}; LV.real.partants = rows.filter(r => r.n).length; LV.real.arrivants = rows.filter(r => r.fin).length; if (R.ent.length) LV.real.inscrits = R.ent.length; toast('Partants et arrivants reportés dans le bilan.'); }
+  else if (a === 'xadd') { const n = ($('#xNom').value || '').trim(); if (!n) return; exh().push({ id: uid2('x'), nom: n.slice(0, 80), st: 'Prospect' }); }
+  else if (a === 'xdel') { xt().exh = exh().filter(e => e.id !== id); drawObj(); }
+  else if (a === 'xcsv') { csvOut('exposants', [['Nom', 'Activité', 'Téléphone', 'Courriel', 'Statut', 'Emplacement', 'Tarif (€)', 'Payé (€)', 'Assurance', 'Kbis']].concat(exh().map(e => { const o = OBJ.find(o => o.id === e.stand); return [e.nom, e.act || '', e.tel || '', e.mail || '', e.st, o ? standName(o) : '', e.tarif || '', e.paye || '', e.assu ? 'oui' : '', e.kbis ? 'oui' : '']; }))); return; }
+  else if (a === 'mode') { tx().mode = id; }
+  else if (a === 'scan') { const f = $('#xCode'); scan(f ? f.value : ''); return; }
+  else if (a === 'cam') { camOn(); return; }
+  else if (a === 'camoff') { camOff(); return; }
+  else if (a === 'timp') { const T = tx(); let k = 0; for (const r of ($('#xImp').value || '').split('\n')) { const c = r.split(/[;\t,]/).map(s => s.trim()); if (!c[0] || /^code$/i.test(c[0])) continue; if (!T.list[c[0]]) { T.list[c[0]] = [(c[1] || 'Billet').slice(0, 40), 0]; k++; } } toast(k + ' billet(s) importé(s).'); }
+  else if (a === 'tclear') { if (!confirm('Vider la liste des billets ?')) return; tx().list = {}; }
+  else if (a === 'treset0') { if (!confirm('Remettre les compteurs à zéro ? Les billets redeviennent valides.')) return; const T = tx(); for (const k in T.list) T.list[k][1] = 0; T.count = 0; T.log = []; LASTS = null; }
+  else if (a === 'tcsv') { csvOut('entrees', [['Heure', 'Sens', 'Code', 'Résultat']].concat(tx().log.map(l => [new Date(l[0]).toLocaleTimeString('fr-FR'), l[3] === 'in' ? 'entrée' : 'sortie', l[1], l[2]]))); return; }
+  store(); panel(true);
+}
 function libSave() { ST.types = JSON.parse(JSON.stringify(TYPES)); store(); }
 function loadProject(id) {
   ST.cur = id; const p = ST.projects[id] || {};
@@ -1182,6 +1370,10 @@ $('#body').addEventListener('change', e => {
   if (t.id === 'pfSel') { pfKey = t.value; panel(true); return; }
   if (t.id === 'impFile') { const f = t.files[0]; if (!f) return; f.text().then(x => { try { const d = JSON.parse(x); if (!d.project) throw 0; store(); for (const k in d.profiles || {}) if (!SPORTS[k]) { SPORTS[k] = d.profiles[k]; ST.profiles[k] = d.profiles[k]; } for (const k in d.types || {}) if (!TYPES[k]) TYPES[k] = d.types[k]; if (d.types) ST.types = JSON.parse(JSON.stringify(TYPES)); const k = 'p' + Date.now().toString(36); ST.projects[k] = d.project; loadProject(k); store(); } catch (err) { alert('Ce fichier n\'est pas un projet exporté par cet outil.'); } }); t.value = ''; return; }
   if (t.dataset.w) { W[t.dataset.w] = t.value; return; }
+  if (t.dataset.en) { const [i, fl] = t.dataset.en.split(':'), e = rc().ent.find(e => e.id === i); if (e) { e[fl] = fl === 'num' ? String(+t.value || '') : t.value.slice(0, 80); store(); if (fl === 'num') panel(true); } return; }
+  if (t.dataset.ex) { const [i, fl] = t.dataset.ex.split(':'), e = exh().find(e => e.id === i); if (e) { e[fl] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : fl === 'stand' ? (t.value ? +t.value : null) : t.value.slice(0, 120); store(); if (fl === 'stand' || fl === 'st') drawObj(); if (t.type !== 'text') panel(true); } return; }
+  if (t.dataset.ts) { const [i, fl] = t.dataset.ts.split(':'), x = xt(); x.ts = x.ts || {}; const s = x.ts[i] = x.ts[i] || {}; s[fl] = fl === 'who' ? t.value : +t.value; if (fl === 's') { if (+t.value === 3) DONE[i] = true; else delete DONE[i]; } store(); panel(true); return; }
+  if (t.dataset.tx) { tx()[t.dataset.tx] = t.checked; store(); return; }
   if (t.dataset.doc) { xt().docs[t.dataset.doc] = t.value.slice(0, 20000); store(); return; }
   if (t.dataset.bl) { const [k, i, fl] = t.dataset.bl.split(':'), l = xt().bud[k].find(l => l.id === i); if (l) { l[fl] = fl === 'v' ? (parseFloat(t.value) || 0) : t.value.slice(0, 80); store(); if (fl === 'v') panel(true); } return; }
   if (t.dataset.pe) { const [i, fl] = t.dataset.pe.split(':'), p = xt().people.find(p => p.id === i); if (p) { p[fl] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : t.value.slice(0, 120); store(); if (t.type !== 'text') panel(true); } return; }
@@ -1202,12 +1394,13 @@ $('#body').addEventListener('change', e => {
   if (t.id === 'pTop') { HY.pTop = parseFloat(t.value) || 0; store(); panel(true); }
 });
 $('#body').addEventListener('click', e => {
-  const d = (e.target.closest('[data-pa],[data-oa],[data-da],[data-xa],[data-ya],[data-add]') || e.target).dataset;
+  const d = (e.target.closest('[data-pa],[data-oa],[data-da],[data-xa],[data-ya],[data-ra],[data-add]') || e.target).dataset;
   if (d.pa) { projAct(d.pa, d.id); return; }
   if (d.oa) { siteAct(d.oa); return; }
   if (d.da) { drawAct(d.da, d.k, d.t); return; }
   if (d.xa) { cycleAct(d.xa, d.id); return; }
   if (d.ya) { orgAct(d.ya, d.id); return; }
+  if (d.ra) { raceAct(d.ra, d.id); return; }
   if (d.add) { placing = placing === d.add ? null : d.add; panel(true); return; }
   const r = e.target.closest('tr.go'); if (!r || !A) return;
   if (r.dataset.obGo) { const o = OBJ.find(o => o.id === +r.dataset.obGo); if (o) { selO = o.id; map.setView([o.lat, o.lng], Math.max(map.getZoom(), 18)); drawObj(); panel(true); } return; }
@@ -1219,6 +1412,7 @@ function drawRes() {
   for (const z of A.FZ) { const n = Math.round(z.len / 2 / A.DS); L.polyline(A.LL.slice(Math.max(0, z.i - n), z.i + n + 1), { color: '#ff3b2f', weight: 12, opacity: .55 }).addTo(lyRes); }
   for (const j of A.J) for (const u of j.ups || []) L.circleMarker(A.inv(u.p), { radius: 4, color: '#ffb020', weight: 2, fillOpacity: 0 }).bindTooltip(`Fermeture en amont${u.nom ? ', ' + u.nom : ''} — à ${u.d} m du parcours`).addTo(lyRes);
   for (const j of A.J) L.marker(A.LL[j.i], { icon: ico(j.sig ? '#ffb020' : '#e6e6e6') }).bindTooltip(`${jn(j)} — ${j.sig} signaleur(s), ${j.bar} barrière(s)`).addTo(lyRes);
+  for (const p of A.MP || []) L.marker(A.LL[p.i], { icon: ico('#bbf7d0', 'C' + p.nom.slice(6)) }).bindTooltip(p.nom + ' — ' + p.why).addTo(lyRes);
   for (const s of A.SEC) L.marker(A.LL[s.i], { icon: ico('#ff6b6b', '+') }).bindTooltip(s.nom).addTo(lyRes);
   for (const s of A.RAV) L.marker(A.LL[s.i], { icon: ico('#7ee0ff', 'R') }).bindTooltip(s.nom).addTo(lyRes);
   for (const b of A.B) L.marker(A.LL[b.i], { icon: ico('#4aa8ff', 'P' + b.n) }).bindTooltip(`Panneau ${b.n} — indice ${b.idx}`).addTo(lyRes);
@@ -1253,7 +1447,7 @@ function palItems(q) {
   PHASES.forEach(([g, l]) => l.forEach(t => it.push({ t, s: g, f: go(t) })));
   it.push({ t: 'Nouvel événement', s: 'Action', f: () => orgAct('wnew') }, { t: 'Analyser le parcours', s: 'Action', f: () => $('#bRun').click() }, { t: 'Afficher la photo aérienne', s: 'Carte', f: () => setBase('ortho') }, { t: 'Afficher le plan', s: 'Carte', f: () => setBase('plan') }, { t: 'Exporter le projet', s: 'Action', f: () => projAct('export') }, { t: 'Imprimer le dossier', s: 'Action', f: () => $('#bPr').click() });
   for (const k in ST.projects) if (k !== ST.cur) it.push({ t: ST.projects[k].name || 'Sans nom', s: 'Ouvrir ce projet', f: () => projAct('open', k) });
-  if (q) { for (const p of xt().people) it.push({ t: p.nom, s: p.type + (p.tel ? ' — ' + p.tel : ''), f: go('Équipe') }); for (const r of needRows()) it.push({ t: r.nom, s: fmt(r.q) + ' ' + r.un, f: go('Besoins') }); for (const k in DOCS) it.push({ t: DOCS[k], s: 'Courrier', f: () => { docK = k; tab = 'Documents'; panel(); } }); }
+  if (q) { for (const p of xt().people) it.push({ t: p.nom, s: p.type + (p.tel ? ' — ' + p.tel : ''), f: go('Équipe') }); for (const e of rc().ent) it.push({ t: e.nom, s: 'Engagé n° ' + e.num + (e.cat ? ', ' + e.cat : ''), f: go('Engagés') }); for (const e of exh()) it.push({ t: e.nom, s: 'Exposant, ' + e.st.toLowerCase(), f: go('Exposants') }); for (const r of needRows()) it.push({ t: r.nom, s: fmt(r.q) + ' ' + r.un, f: go('Besoins') }); for (const k in DOCS) it.push({ t: DOCS[k], s: 'Courrier', f: () => { docK = k; tab = 'Documents'; panel(); } }); }
   const w = nrm(q).split(/\s+/).filter(Boolean);
   return it.filter(x => w.every(v => nrm(x.t + ' ' + x.s).includes(v))).slice(0, 10);
 }
