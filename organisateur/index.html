@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organisateur d'épreuve — tous sports</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#0f1418;--pn:#171e24;--ln:#2a343d;--tx:#e8edf1;--mu:#93a1ad;--ac:#4aa8ff}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+#app{display:grid;grid-template-columns:430px 1fr;grid-template-rows:auto 1fr 110px;height:100%}
+header{grid-column:1/3;display:flex;gap:10px;align-items:center;padding:8px 14px;background:#0b0f12;border-bottom:1px solid var(--ln);flex-wrap:wrap}
+header h1{font-size:16px;margin:0;font-weight:650}
+.tag{background:#5a2a12;color:#ffc9a3;border-radius:4px;padding:2px 8px;font-size:12px}
+.sp{flex:1}
+button,select,input{font:inherit}
+button{background:#22303b;color:var(--tx);border:1px solid var(--ln);border-radius:6px;padding:6px 10px;cursor:pointer}
+button:hover{background:#2c3e4c}
+button.on,button.go{background:var(--ac);color:#04121f;border-color:var(--ac)}
+button:disabled{opacity:.5;cursor:default}
+#side{grid-row:2/4;background:var(--pn);border-right:1px solid var(--ln);display:flex;flex-direction:column;min-height:0}
+#tabs{display:flex;flex-wrap:wrap;gap:4px;padding:8px;border-bottom:1px solid var(--ln)}
+#tabs button{padding:4px 8px;font-size:13px}
+#body{overflow:auto;padding:10px 12px;flex:1}
+#map{min-height:0;background:#ddd}
+#prof{background:#0b0f12;border-top:1px solid var(--ln)}
+#prof svg{width:100%;height:100%;display:block}
+h2{font-size:15px;margin:14px 0 6px}
+h2:first-child{margin-top:0}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{padding:4px 6px;border-bottom:1px solid var(--ln);text-align:left;vertical-align:top}
+th{color:var(--mu);font-weight:500}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.go{cursor:pointer}
+tr.go:hover{background:#1f2a33}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kpi div{background:#1c252d;border-radius:8px;padding:8px 10px}
+.kpi b{display:block;font-size:19px}
+.kpi span{color:var(--mu);font-size:12px}
+.note{color:var(--mu);font-size:12.5px}
+.warn{background:#3a2a10;border:1px solid #6b4b14;border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0}
+label.p{display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;margin:6px 0;font-size:13px}
+label.p input,label.p select,td input{width:100%;background:#0b0f12;color:var(--tx);border:1px solid var(--ln);border-radius:5px;padding:4px 6px}
+td input{width:80px;text-align:right}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.late{color:#ff8a5c}
+.mk{border-radius:50%;border:2px solid #111;width:14px;height:14px}
+.lbl{background:#fff;border:1.5px solid #111;border-radius:9px;padding:0 5px;font:bold 11px sans-serif;color:#111;white-space:nowrap}
+#print{display:none}
+@media print{
+  html,body{background:#fff;color:#000;height:auto}
+  #app{display:none}
+  #print{display:block;padding:0 6mm;font-size:10.5pt}
+  #print h1{font-size:18pt;margin:0 0 4pt}
+  #print h2{font-size:13pt;margin:14pt 0 4pt;break-after:avoid}
+  #print td,#print th{border-bottom:1px solid #bbb;color:#000}
+  #print th{color:#444}
+  #print .warn{background:#fff3d6;border:1px solid #c90;color:#000}
+  #print .note{color:#444}
+  #print .kpi div{background:#f0f0f0}
+  #print .kpi span{color:#444}
+  #print svg{width:100%;height:auto;border:1px solid #999}
+  #print input{border:0;background:none;color:#000}
+  .late{color:#b00}
+}
+.tipm{background:rgba(255,255,255,.88);border:0;box-shadow:none;font:600 11px sans-serif;color:#111;padding:1px 4px;text-align:center}
+.tipm::before{display:none}
+.ph{flex-basis:100%;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin-top:2px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Organisateur d'épreuve</h1><b id="pname" style="color:#ffd23f"></b><span class="tag">Prototype</span>
+    <select id="sport"></select>
+    <span class="sp"></span>
+    <button id="bSnap" class="on" title="Le tracé suit les routes entre deux clics">Suivre les routes</button>
+    <button id="bUndo">Annuler le dernier point</button>
+    <button id="bClear">Effacer</button>
+    <label><input type="file" id="gpx" accept=".gpx" hidden><button id="bGpx" type="button">Importer un GPX</button></label>
+    <button id="bRun" class="go" disabled>Analyser</button>
+    <button id="bPr" disabled>Imprimer</button>
+  </header>
+  <div id="side"><div id="tabs"></div><div id="body"></div></div>
+  <div id="map"></div>
+  <div id="prof"></div>
+</div>
+<div id="print"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fmt = (v, d = 0) => (+v).toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
+const hm = t => { t = ((t % 1440) + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ' h ' + String(Math.round(t % 60)).padStart(2, '0'); };
+
+// ───────── Profils de sport. Toutes les valeurs sont des hypothèses de départ, modifiables. ─────────
+const SPORTS = {
+  run:   { nom: 'Course à pied sur route', snap: true,  vFast: 20, vSlow: 7,  ravito: 5,  secours: 5,  signal: 'route', motor: false, climb: .5, parts: 800,  spect: 1500, delai: 60, corner: false },
+  trail: { nom: 'Trail, course nature',    snap: false, vFast: 14, vSlow: 4,  ravito: 10, secours: 10, signal: 'cross', motor: false, climb: 2,  parts: 400,  spect: 500,  delai: 60, corner: false },
+  velo:  { nom: 'Cyclisme sur route',      snap: true,  vFast: 45, vSlow: 25, ravito: 40, secours: 20, signal: 'route', motor: false, climb: 3,  parts: 150,  spect: 2000, delai: 60, corner: true },
+  rando: { nom: 'Randonnée, marche, cyclotourisme (sans classement)', snap: true, vFast: 18, vSlow: 4, ravito: 10, secours: 10, signal: 'route', motor: false, climb: 1.5, parts: 300, spect: 200, delai: 30, corner: false },
+  site:  { nom: 'Événement sur site, sans parcours (tournoi, village, salon)', site: true, snap: false, vFast: 1, vSlow: 1, ravito: 0, secours: 0, signal: 'route', motor: false, climb: 0, parts: 300, spect: 1000, delai: 60, corner: false },
+  auto:  { nom: 'Sport mécanique sur route fermée (côte, spéciale)', snap: true, vFast: 110, vSlow: 70, ravito: 0, secours: 3, signal: 'route', motor: true, climb: .3, parts: 120, spect: 4000, delai: 60, corner: true }
+};
+const HY = { sport: 'run', date: '', start: '09:00', tours: 1, parts: 800, spect: 1500, close: 30, reopen: 15, nBoards: 12, perRavito: 4, perSecours: 2, base: 12, perJ: 2, nMarge: 5, nLot: 1, nEau: .25, nGob: 1.5, nFruit: .5, nPoub: 100, nRadio: 5, risP2: .35, risE1: .25, risE2: .25 };
+const COST = { signaleur: 0, barriere: 0, rubalise: 0, fleche: 0, ravito: 0, secours: 0, panneau: 0 };
+Object.entries({ run: 2, trail: 2, velo: 4, rando: 2, auto: 20, site: 0 }).forEach(([k, v]) => SPORTS[k].recul = v);
+HY.nStands = 8; HY.wcRatio = 100; HY.duree = 6;
+Object.assign(HY, pick(SPORTS.run));
+const HY0 = { ...HY }, SPORTS0 = JSON.parse(JSON.stringify(SPORTS));
+function pick(s) { return { vFast: s.vFast, vSlow: s.vSlow, ravito: s.ravito, secours: s.secours, parts: s.parts, spect: s.spect, delai: s.delai, setback: s.recul }; }
+
+// ───────── Carte et tracé ─────────
+const map = L.map('map', { maxZoom: 21 }).setView([46.6, 2.5], 6);
+const baseOSM = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 21, maxNativeZoom: 19, attribution: '© contributeurs OpenStreetMap' }), baseOrtho = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { maxZoom: 21, maxNativeZoom: 19, attribution: '© IGN' });
+const lyRoute = L.layerGroup().addTo(map), lyRes = L.layerGroup().addTo(map), lyObj = L.layerGroup().addTo(map);
+let WP = [], LEGS = [], snap = true, A = null, busy = false;
+const KEY = 'organisateur-v2';
+function line() { const o = []; LEGS.forEach(l => l.forEach((p, k) => { if (!o.length || k) o.push(p); })); return o; }
+function drawRoute() {
+  lyRoute.clearLayers();
+  const l = line();
+  if (l.length > 1) L.polyline(l, { color: '#111', weight: 7, opacity: .85 }).addTo(lyRoute), L.polyline(l, { color: '#ffd23f', weight: 3 }).addTo(lyRoute);
+  WP.forEach((p, k) => L.circleMarker(p, { radius: k === 0 || k === WP.length - 1 ? 7 : 4, color: '#111', weight: 2, fillColor: k === 0 ? '#3ecf7a' : k === WP.length - 1 ? '#ff5a4d' : '#fff', fillOpacity: 1 }).addTo(lyRoute));
+  $('#bRun').disabled = !ready() || busy;
+}
+async function leg(a, b) {
+  if (!snap) return [a, b];
+  try {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`), j = await r.json();
+    if (j.code === 'Ok') return j.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+  } catch (e) { }
+  return [a, b];
+}
+async function addPoint(ll) { const p = [ll.lat, ll.lng]; if (SPORTS[HY.sport].site) { WP = [p]; LEGS = []; drawRoute(); store(); panel(); return; } WP.push(p); if (WP.length === 1 && map.getZoom() < 11) map.setView(p, 14); if (WP.length > 1) { LEGS.push([WP[WP.length - 2], p]); drawRoute(); LEGS[LEGS.length - 1] = await leg(WP[WP.length - 2], p); } drawRoute(); store(); panel(); }
+map.on('click', e => {
+  if (busy) return;
+  if (drawing) { drawClick(e.latlng); return; }
+  if (placing && A) { const o = addObj(placing, e.latlng.lat, e.latlng.lng); selO = o.id; placing = null; checkObj(); store(); drawObj(); panel(true); return; }
+  if (tab === 'Épreuve') addPoint(e.latlng);
+});
+$('#bUndo').onclick = () => { WP.pop(); LEGS.pop(); drawRoute(); store(); panel(); };
+$('#bClear').onclick = () => { WP = []; LEGS = []; A = null; lyRes.clearLayers(); drawRoute(); store(); panel(); $('#prof').innerHTML = ''; $('#bPr').disabled = true; };
+$('#bSnap').onclick = e => { snap = !snap; e.target.classList.toggle('on', snap); };
+$('#bGpx').onclick = () => $('#gpx').click();
+$('#gpx').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const x = new DOMParser().parseFromString(await f.text(), 'text/xml'), pts = [...x.querySelectorAll('trkpt, rtept')].map(n => [+n.getAttribute('lat'), +n.getAttribute('lon')]).filter(p => isFinite(p[0]) && isFinite(p[1]));
+  if (pts.length < 2) { alert('Aucun tracé trouvé dans ce fichier.'); return; }
+  WP = [pts[0], pts[pts.length - 1]]; LEGS = [pts]; A = null; drawRoute(); map.fitBounds(L.latLngBounds(pts).pad(.1)); store(); panel(); e.target.value = '';
+};
+let ST = { cur: 'p1', projects: {}, profiles: {}, types: null, tasks: null }, DONE = {};
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.projects) ST = Object.assign(ST, s); else { const o = JSON.parse(localStorage.getItem('organisateur-v1')); if (o && o.WP) ST.projects.p1 = Object.assign({ name: 'Mon épreuve' }, o); } } catch (e) { }
+if (!ST.projects[ST.cur]) { const k = Object.keys(ST.projects)[0]; if (k) ST.cur = k; else { ST.cur = 'p1'; ST.projects.p1 = { name: 'Mon épreuve' }; } }
+for (const k in ST.profiles) SPORTS[k] = Object.assign({}, SPORTS[k] || {}, ST.profiles[k]);
+function snapshot() { return { name: (ST.projects[ST.cur] || {}).name || 'Sans nom', WP, LEGS, HY: { ...HY }, COST: { ...COST }, snap, done: DONE, OBJ: OBJ.map(o => ({ id: o.id, t: o.t, lat: o.lat, lng: o.lng, L: o.L, W: o.W, ang: o.ang })), DRAW: DRAW.map(d => ({ id: d.id, k: d.k, t: d.t, pts: d.pts, txt: d.txt, n: d.n })), BG: BG && !BG.big ? BG : null, LV, SUMM }; }
+function store() { ST.projects[ST.cur] = snapshot(); try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { } }
+const ready = () => (SPORTS[HY.sport] || {}).site ? WP.length >= 1 : line().length >= 2;
+
+// ───────── Analyse ─────────
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function overpass(q) {
+  const urls = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+  for (let pass = 0; pass < 1; pass++) {
+    for (const u of urls) {
+      try { const c = new AbortController(), t = setTimeout(() => c.abort(), 30000), r = await fetch(u, { method: 'POST', signal: c.signal, body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }); clearTimeout(t); if (r.ok) { const j = await r.json(); if (j && j.elements) return j; } } catch (e) { }
+    }
+  }
+  throw new Error('Les données de voirie n\'ont pas pu être chargées (service Overpass indisponible).');
+}
+// ───────── Source principale en France : BD TOPO de l'IGN (rapide, officielle) ─────────
+async function wfs(type, box, props) {
+  const out = [];
+  for (let start = 0; start < 20000; start += 5000) {
+    const r = await fetch(`https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=BDTOPO_V3:${type}&BBOX=${box.map(v => v.toFixed(5)).join(',')},urn:ogc:def:crs:EPSG::4326&OUTPUTFORMAT=application/json&COUNT=5000&STARTINDEX=${start}&PROPERTYNAME=${props}`);
+    if (!r.ok) throw new Error('IGN'); const j = await r.json(); out.push(...j.features); if (j.features.length < 5000) break;
+  }
+  return out;
+}
+function boxes(LL, m) {
+  const o = [], flush = b => { const dla = m / 110540, dlo = m / (111320 * Math.cos(b[0] * Math.PI / 180)); o.push([b[0] - dla, b[1] - dlo, b[2] + dla, b[3] + dlo]); }; let b = null;
+  for (const p of LL) {
+    if (!b) b = [p[0], p[1], p[0], p[1]]; else { b[0] = Math.min(b[0], p[0]); b[1] = Math.min(b[1], p[1]); b[2] = Math.max(b[2], p[0]); b[3] = Math.max(b[3], p[1]); }
+    if ((b[2] - b[0]) * 110540 > 1300 || (b[3] - b[1]) * 111320 * Math.cos(p[0] * Math.PI / 180) > 1300) { flush(b); b = [p[0], p[1], p[0], p[1]]; }
+  }
+  if (b) flush(b); return o;
+}
+const inFrance = p => p[0] > 41.2 && p[0] < 51.2 && p[1] > -5.3 && p[1] < 9.7;
+async function ign(LL, ends, dense) {
+  const el = [], seen = new Set(), run = async (l, fn) => { for (let i = 0; i < l.length; i += 4) await Promise.all(l.slice(i, i + 4).map(fn)); };
+  const HW = { 4: 'primary', 3: 'secondary', 2: 'residential', 1: 'service', 0: 'track', '-1': 'path' };
+  await run(boxes(LL, 60), async b => { for (const x of await wfs('troncon_de_route', b, 'cleabs,nature,importance,position_par_rapport_au_sol,nom_voie_ban_gauche,nom_collaboratif_gauche,cpx_toponyme_route_nommee,cpx_numero,geometrie')) {
+    const p = x.properties, id = p.cleabs || x.id; if (seen.has(id) || !x.geometry || x.geometry.type !== 'LineString') continue; seen.add(id);
+    const n = p.nature || '', imp = +p.importance || 5, cls = /Sentier|Escalier|cyclable/.test(n) ? -1 : /Chemin|empierr/.test(n) ? 0 : /Bac|maritime/.test(n) ? null : imp <= 2 ? 4 : imp === 3 ? 3 : imp <= 5 ? 2 : 1; if (cls === null) continue;
+    el.push({ id, tags: { highway: HW[cls], name: p.nom_voie_ban_gauche || p.nom_collaboratif_gauche || p.cpx_toponyme_route_nommee || p.cpx_numero || '', bridge: p.position_par_rapport_au_sol && p.position_par_rapport_au_sol !== '0' ? 'yes' : '', junction: /Rond-point/.test(n) ? 'roundabout' : '' }, geometry: x.geometry.coordinates.map(c => ({ lat: c[1], lon: c[0] })) });
+  } });
+  const bb = dense ? boxes(LL, 100) : ends.map(p => boxes([p], 240)[0]);
+  await run(bb, async b => { for (const x of await wfs('batiment', b, 'cleabs,geometrie')) {
+    const id = (x.properties || {}).cleabs || x.id; if (seen.has(id) || !x.geometry) continue; seen.add(id);
+    const ring = x.geometry.type === 'MultiPolygon' ? x.geometry.coordinates[0][0] : x.geometry.coordinates[0]; if (!ring || ring.length < 3) continue;
+    let la = 0, lo = 0; for (const c of ring) { la += c[1]; lo += c[0]; } la /= ring.length; lo /= ring.length;
+    el.push({ id, tags: { building: 'yes' }, center: { lat: la, lon: lo } });
+    if (ends.some(e => Math.hypot((e[0] - la) * 110540, (e[1] - lo) * 111320 * Math.cos(la * Math.PI / 180)) < 240)) el.push({ id, tags: { building: 'yes' }, geometry: ring.map(c => ({ lat: c[1], lon: c[0] })) });
+  } });
+  return { elements: el };
+}
+// simplification d'une ligne (Douglas-Peucker) : indices des points gardés
+function simplify(P, tol) {
+  const keep = new Uint8Array(P.length), st = [[0, P.length - 1]]; keep[0] = keep[P.length - 1] = 1;
+  while (st.length) { const [a, b] = st.pop(); if (b - a < 2) continue; const ax = P[a][0], ay = P[a][1], dx = P[b][0] - ax, dy = P[b][1] - ay, l2 = dx * dx + dy * dy || 1; let m = -1, md = tol * tol;
+    for (let i = a + 1; i < b; i++) { const t = clamp(((P[i][0] - ax) * dx + (P[i][1] - ay) * dy) / l2, 0, 1), d = (P[i][0] - ax - t * dx) ** 2 + (P[i][1] - ay - t * dy) ** 2; if (d > md) { md = d; m = i; } }
+    if (m > 0) { keep[m] = 1; st.push([a, m], [m, b]); } }
+  const o = []; for (let i = 0; i < P.length; i++) if (keep[i]) o.push(i); return o;
+}
+async function alti(pts) {
+  const out = [];
+  for (let i = 0; i < pts.length; i += 150) {
+    const ch = pts.slice(i, i + 150), u = `https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json?lon=${ch.map(p => p[1].toFixed(6)).join('|')}&lat=${ch.map(p => p[0].toFixed(6)).join('|')}&resource=ign_rge_alti_wld&zonly=true`;
+    const r = await fetch(u), j = await r.json(); out.push(...j.elevations); await sleep(120);
+  }
+  return out.map(z => z < -1000 ? null : z);
+}
+const ROADS = { motorway: 4, trunk: 4, primary: 4, secondary: 3, tertiary: 3, unclassified: 2, residential: 2, living_street: 2, service: 1, track: 0, path: -1, footway: -1, cycleway: -1, pedestrian: -1, steps: -1 };
+async function analyseSite(status) {
+  const c = WP[0], S = SPORTS[HY.sport], KX = 111320 * Math.cos(c[0] * Math.PI / 180), KY = 110540;
+  const xy = p => [(p[1] - c[1]) * KX, (p[0] - c[0]) * KY], inv = p => [p[1] / KY + c[0], p[0] / KX + c[1]];
+  status('Bâtiments…');
+  let osm = { elements: [] }, source = 'IGN';
+  if (inFrance(c)) { try { osm = await ign([c], [c], false); } catch (e) { osm = { elements: [] }; } }
+  if (!osm.elements.length) { source = 'OSM'; osm = await overpass(`[out:json][timeout:60];way["building"](around:350,${c[0].toFixed(5)},${c[1].toFixed(5)});out geom;`); }
+  const T0 = (() => { const m = /^(\d+):(\d+)/.exec(HY.start); return m ? +m[1] * 60 + +m[2] : 540; })(), dur = (HY.duree || 6) * 60;
+  return { sport: S, site: true, DS: 10, P: [[0, 0]], N: 1, len: 0, xy, inv, LL: [c], loop: true, Z: null, up: 0, down: 0, GR: new Float32Array(1), J: [], C: [], BU: new Float32Array(1), SP: Float32Array.of(HY.spect), FZ: [], B: [], RAV: [],
+    source, BLD: osm.elements.filter(w => w.geometry && w.tags && w.tags.building).map(w => w.geometry.map(g => xy([g.lat, g.lon]))), near: (x, y) => ({ i: 0, d: Math.hypot(x, y) }),
+    SEC: [{ i: 0, nom: 'Poste de secours du site' }], laps: 1, T0, first: () => T0, last: () => T0 + dur, winner: dur, lastIn: dur,
+    Q: { sig: 0, bar: 0, rub: 0, fleche: 0, ravito: 0, secours: 1, benRav: 0, benSec: HY.perSecours, base: HY.base, ben: HY.base } };
+}
+async function analyse(status) {
+  if (SPORTS[HY.sport].site) return analyseSite(status);
+  const ll = line(), S = SPORTS[HY.sport], r = { sport: S };
+  const lat0 = ll[0][0], lon0 = ll[0][1], KX = 111320 * Math.cos(lat0 * Math.PI / 180), KY = 110540;
+  const xy = p => [(p[1] - lon0) * KX, (p[0] - lat0) * KY], inv = p => [p[1] / KY + lat0, p[0] / KX + lon0];
+  // rééchantillonnage
+  const raw = ll.map(xy); let total = 0; for (let i = 1; i < raw.length; i++) total += Math.hypot(raw[i][0] - raw[i - 1][0], raw[i][1] - raw[i - 1][1]);
+  const DS = clamp(Math.ceil(total / 1800 / 5) * 5, 10, 50), P = []; let acc = 0, nd = 0;
+  for (let i = 1; i < raw.length; i++) { const a = raw[i - 1], b = raw[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]); while (nd <= acc + L) { const t = L ? (nd - acc) / L : 0; P.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); nd += DS; } acc += L; }
+  const N = P.length; r.DS = DS; r.P = P; r.N = N; r.len = total; r.inv = inv; r.LL = P.map(inv);
+  r.loop = Math.hypot(raw[0][0] - raw[raw.length - 1][0], raw[0][1] - raw[raw.length - 1][1]) < 150;
+  // relief
+  status('Relief…');
+  let Z = null; try { Z = await alti(r.LL); if (Z.some(z => z == null)) Z = null; } catch (e) { }
+  r.Z = Z; r.up = 0; r.down = 0;
+  const GR = new Float32Array(N);
+  const relief = () => {if (Z) { const w = Math.max(1, Math.round(40 / DS)); const sm = Z.map((z, i) => { let s = 0, c = 0; for (let k = -w; k <= w; k++) if (Z[i + k] != null) { s += Z[i + k]; c++; } return s / c; }); for (let i = 1; i < N; i++) { const d = sm[i] - sm[i - 1]; if (d > 0) r.up += d; else r.down -= d; GR[i] = d / DS; } } };
+  r.GR = GR;
+  // voirie et bâtiments autour du tracé
+  status('Voirie et bâtiments…');
+  const poly = []; for (const i of simplify(P, 8)) poly.push(r.LL[i][0].toFixed(5), r.LL[i][1].toFixed(5));
+  let osm = { elements: [] };
+  if (inFrance(r.LL[0])) { try { osm = await ign(r.LL, [r.LL[0], r.LL[N - 1]], total < 16000); r.source = 'IGN'; r.sparse = total >= 16000; } catch (e) { osm = { elements: [] }; } }
+  if (!osm.elements.some(e => e.tags.highway)) try { r.source = 'OSM'; osm = await overpass(`[out:json][timeout:60];(way["highway"](around:42,${poly.join(',')});)->.h;.h out body geom;way["building"](around:95,${poly.join(',')});out center;(way["building"](around:220,${r.LL[0][0].toFixed(5)},${r.LL[0][1].toFixed(5)});way["building"](around:220,${r.LL[N - 1][0].toFixed(5)},${r.LL[N - 1][1].toFixed(5)}););out geom;`); } catch (e) { r.noOSM = true; }
+  const CELL = 40, hash = new Map(); P.forEach((p, i) => { const k = Math.floor(p[0] / CELL) + ',' + Math.floor(p[1] / CELL); (hash.get(k) || hash.set(k, []).get(k)).push(i); });
+  const near = (x, y) => { let b = -1, bd = 1e12; const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL); for (let a = -2; a <= 2; a++) for (let c = -2; c <= 2; c++) { const l = hash.get((cx + a) + ',' + (cy + c)); if (l) for (const i of l) { const d = (P[i][0] - x) ** 2 + (P[i][1] - y) ** 2; if (d < bd) { bd = d; b = i; } } } return { i: b, d: Math.sqrt(bd) }; };
+  const tol = DS * .6 + 6, J = [], BU = new Float32Array(N), BLD = [], BR = [];
+  const ENDS = new Map(), ek = g => g.lat.toFixed(5) + ',' + g.lon.toFixed(5);
+  if (r.source === 'IGN') for (const w of osm.elements) if (w.geometry && w.tags && w.tags.highway) for (const g of [w.geometry[0], w.geometry[w.geometry.length - 1]]) ENDS.set(ek(g), (ENDS.get(ek(g)) || 0) + 1);
+  // giratoires : tout l'anneau d'un giratoire touché par le tracé compte comme le touchant
+  const NEARK = new Set(), ring = osm.elements.filter(w => w.geometry && w.tags && w.tags.junction === 'roundabout');
+  if (ENDS.size) { for (const w of ring) if (w.geometry.some(g => { const p = xy([g.lat, g.lon]); return near(p[0], p[1]).d < tol; })) { NEARK.add(ek(w.geometry[0])); NEARK.add(ek(w.geometry[w.geometry.length - 1])); }
+    // raccords courts : un tronçon de moins de 30 m qui part du tracé sans s'en éloigner prolonge le carrefour jusqu'à son autre bout
+    for (const w of osm.elements) { if (!w.geometry || !w.tags || !(ROADS[w.tags.highway] >= 1) || w.tags.junction) continue; const q = w.geometry.map(g => { const p = xy([g.lat, g.lon]); return { p, d: near(p[0], p[1]).d }; }), e = q.length - 1; let len = 0; for (let k = 1; k <= e; k++) len += Math.hypot(q[k].p[0] - q[k - 1].p[0], q[k].p[1] - q[k - 1].p[1]); if (len >= 30 || q.some(v => v.d > 22)) continue; if (q[0].d < tol && q[e].d >= tol) NEARK.add(ek(w.geometry[e])); else if (q[e].d < tol && q[0].d >= tol) NEARK.add(ek(w.geometry[0])); }
+    for (let ch = true; ch;) { ch = false; for (const w of ring) { const a = ek(w.geometry[0]), b = ek(w.geometry[w.geometry.length - 1]); if (NEARK.has(a) !== NEARK.has(b)) { NEARK.add(a); NEARK.add(b); ch = true; } } } }
+  for (const w of osm.elements) {
+    if (w.tags && w.tags.building) { if (w.geometry) BLD.push(w.geometry.map(g => xy([g.lat, g.lon]))); else if (w.center) { const p = xy([w.center.lat, w.center.lon]), n = near(p[0], p[1]); if (n.i >= 0 && n.d < 90) BU[n.i]++; } continue; }
+    if (!w.geometry || !w.tags) continue;
+    const cls = ROADS[w.tags.highway]; if (cls === undefined) continue;
+    if (w.tags.service && /driveway|parking_aisle/.test(w.tags.service)) continue;
+    const V = w.geometry.map((g, k, a) => { const p = xy([g.lat, g.lon]), n = near(p[0], p[1]); return { p, i: n.i, d: n.d, on: n.d < tol || ((k === 0 || k === a.length - 1) && n.d < 70 && NEARK.has(ek(g))) }; });
+    if ((w.tags.bridge && w.tags.bridge !== 'no') || (w.tags.tunnel && w.tags.tunnel !== 'no')) { const on = V.filter(v => v.on).map(v => v.i); if (on.length >= 2) { const a = Math.min(...on), b = Math.max(...on); if ((b - a) * DS < 1500 && b > a) BR.push([a, b]); } }
+    if (w.tags.junction === 'roundabout') continue;
+    for (let k = 0; k < V.length; k++) {
+      if (!V[k].on) continue;
+      for (const q of [k - 1, k + 1]) {
+        if (q < 0 || q >= V.length || V[q].on) continue;
+        // la voie quitte le tracé : il faut qu'elle s'en éloigne vraiment
+        let far = false; for (let m = q, c = 0; m >= 0 && m < V.length && c < 6; m += q - k, c++) if (V[m].d > 22) { far = true; break; }
+        if (!far && Math.hypot(V[q].p[0] - V[k].p[0], V[q].p[1] - V[k].p[1]) < 30) continue;
+        if (cls < 0 && S.signal === 'route') continue;
+        // fermeture en amont : le carrefour précédent sur la rue qui arrive, s'il est proche
+        let up = null; if (ENDS.size && cls >= 1) { const st = q - k, e = st > 0 ? V.length - 1 : 0; let dl = 0; for (let m = k; m !== e; m += st) dl += Math.hypot(V[m + st].p[0] - V[m].p[0], V[m + st].p[1] - V[m].p[1]); if (V[e].d > 25 && dl >= 30 && dl <= 160 && ENDS.get(ek(w.geometry[e])) >= 3) up = { p: V[e].p, d: Math.round(dl), nom: w.tags.name || '' }; }
+        J.push({ i: V[k].i, cls, nom: w.tags.name || w.tags.ref || '', type: w.tags.highway, way: w.id, p: V[k].p, up });
+      }
+    }
+  }
+  if (Z) for (const [a, b] of BR) { const a2 = Math.max(0, a - 2), b2 = Math.min(N - 1, b + 2); for (let i = a2 + 1; i < b2; i++) Z[i] = Z[a2] + (Z[b2] - Z[a2]) * (i - a2) / (b2 - a2); }
+  r.bridges = BR.length; relief();
+  J.sort((a, b) => a.i - b.i);
+  const JJ = [];
+  for (const j of J) { const g = JJ.find(q => Math.abs(q.i - j.i) * DS < 30 && Math.hypot(q.p[0] - j.p[0], q.p[1] - j.p[1]) < 30); if (g) { if (!g.ways.includes(j.way)) { g.ways.push(j.way); g.br++; g.cls = Math.max(g.cls, j.cls); if (j.nom && !g.noms.includes(j.nom)) g.noms.push(j.nom); if (j.up) g.ups.push(j.up); } } else JJ.push({ i: j.i, p: j.p, cls: j.cls, br: 1, ways: [j.way], noms: j.nom ? [j.nom] : [], ups: j.up ? [j.up] : [] }); }
+  // extrémités d'un parcours ouvert : la route continue, il faut la fermer aux deux bouts
+  if (!r.loop && S.signal === 'route') { for (const [i, t] of [[0, 'Début du parcours fermé'], [N - 1, 'Fin du parcours fermé']]) if (!JJ.some(q => Math.abs(q.i - i) * DS < 30)) JJ.push({ i, p: P[i], cls: 2, br: 1, ways: [], noms: [t], ups: [], end: true }); JJ.sort((a, b) => a.i - b.i); }
+  r.J = JJ; r.BU = BU; r.BLD = BLD; r.xy = xy; r.near = near;
+  // vitesses et horaires de passage
+  const T0 = (() => { const m = /^(\d+):(\d+)/.exec(HY.start); return m ? +m[1] * 60 + +m[2] : 540; })();
+  const tF = new Float32Array(N), tS = new Float32Array(N), VL = new Float32Array(N);
+  for (let i = 1; i < N; i++) { const k = Math.max(.3, 1 / (1 + S.climb * 10 * Math.max(0, GR[i]))); VL[i] = k; tF[i] = tF[i - 1] + DS / 1000 / (HY.vFast * k) * 60; tS[i] = tS[i - 1] + DS / 1000 / (HY.vSlow * k) * 60; }
+  VL[0] = VL[1] || 1;
+  const laps = Math.max(1, Math.round(HY.tours)); r.laps = laps; r.T0 = T0; r.tF = tF; r.tS = tS;
+  r.first = i => T0 + tF[i]; r.last = i => T0 + tS[N - 1] * (laps - 1) + tS[i];
+  r.winner = tF[N - 1] * laps; r.lastIn = tS[N - 1] * laps;
+  if (S.motor) { const dur = (HY.duree || 6) * 60; r.last = () => T0 + dur; r.lastIn = dur; }
+  // virages serrés
+  const C = [], w = Math.max(1, Math.round(20 / DS));
+  for (let i = w; i < N - w; i++) { const a = Math.atan2(P[i][1] - P[i - w][1], P[i][0] - P[i - w][0]), b = Math.atan2(P[i + w][1] - P[i][1], P[i + w][0] - P[i][0]); let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; if (Math.abs(d) > 1.0 && (!C.length || (i - C[C.length - 1].i) * DS > 40)) C.push({ i, ang: d * 180 / Math.PI, dir: d > 0 ? 'gauche' : 'droite' }); }
+  r.C = C;
+  // signaleurs et barrières
+  for (const j of JJ) {
+    const pj = S.motor ? 1 : Math.max(1, Math.round(+HY.perJ || 2)); j.sig = j.cls >= 2 ? pj : 0; if (!S.motor && j.sig && j.cls >= 3) j.sig = pj + 1;
+    j.bar = j.cls >= 1 ? j.br : 0; j.rub = j.cls <= 0;
+    j.t0 = r.first(j.i) - HY.close; j.t1 = r.last(j.i) + HY.reopen;
+  }
+  // ravitaillements, secours
+  const every = (km, nm) => { const o = []; if (km > 0) for (let d = km; d < total / 1000 - km * .4; d += km) o.push({ i: Math.min(N - 1, Math.round(d * 1000 / DS)), nom: nm }); return o; };
+  r.RAV = every(HY.ravito, 'Ravitaillement'); if (HY.ravito > 0) r.RAV.push({ i: N - 1, nom: 'Ravitaillement d\'arrivée' });
+  r.SEC = [{ i: 0, nom: 'Poste de secours, départ' + (r.loop ? ' et arrivée' : '') }].concat(every(HY.secours, 'Poste de secours')); if (!r.loop) r.SEC.push({ i: N - 1, nom: 'Poste de secours, arrivée' });
+  // public : répartition estimée
+  const sumB = BU.reduce((a, b) => a + b, 0), SP = new Float32Array(N), zone = Math.max(1, Math.round(150 / DS));
+  const share = sumB > 0 ? .5 : 1, ends = r.loop ? [0] : [0, N - 1];
+  for (const e of ends) for (let i = Math.max(0, e - zone); i <= Math.min(N - 1, e + zone); i++) SP[i] += HY.spect * share * (r.loop ? 1 : (e ? .65 : .35)) / (2 * zone + 1);
+  let sumG = 0; if (S.climb >= 2) for (let i = 0; i < N; i++) sumG += Math.max(0, GR[i] - .04);
+  const hill = sumG > 0 ? .3 : 0, rest = HY.spect * (1 - share);
+  if (sumB > 0) for (let i = 0; i < N; i++) SP[i] += rest * (1 - hill) * BU[i] / sumB;
+  if (hill) for (let i = 0; i < N; i++) SP[i] += rest * (sumB > 0 ? hill : 1) * Math.max(0, GR[i] - .04) / sumG;
+  r.SP = SP;
+  // zones interdites au public (sports rapides) : extérieur des virages serrés
+  r.FZ = S.corner ? C.filter(c => S.motor || GR[c.i] < .03).map(c => ({ i: c.i, len: S.motor ? 80 : 40, why: 'Extérieur du virage à ' + c.dir })) : [];
+  // panneaux publicitaires
+  const B = [], win = Math.max(1, Math.round(60 / DS));
+  for (let i = 0; i < N; i += Math.max(1, Math.round(100 / DS))) {
+    let sp = 0; for (let k = Math.max(0, i - win); k <= Math.min(N - 1, i + win); k++) sp += SP[k];
+    const slow = C.some(c => Math.abs(c.i - i) * DS < 40) ? .7 : 1, v = (HY.vFast + HY.vSlow) / 2 * VL[i] * slow, sec = 30 / (v / 3.6);
+    const passes = HY.parts * laps, where = i < zone ? 'Départ' : i > N - 1 - zone ? 'Arrivée' : GR[i] > .05 ? 'Montée' : slow < 1 ? 'Virage serré' : BU[i] > 2 ? 'Traversée d\'agglomération' : 'Pleine ligne';
+    B.push({ i, sp: Math.round(sp), passes, sec, where, score: passes * sec + sp * 60 * (where === 'Départ' || where === 'Arrivée' ? 3 : 1) });
+  }
+  if (!r.loop) { const f = B.find(b => b.i > N - 1 - zone) || null; if (!f) { let sp = 0; for (let k = N - 1 - win; k < N; k++) sp += SP[Math.max(0, k)]; B.push({ i: N - 1, sp: Math.round(sp), passes: HY.parts * laps, sec: 30 / ((HY.vFast + HY.vSlow) / 2 / 3.6), where: 'Arrivée', score: 1e12 }); } }
+  B.sort((a, b) => b.score - a.score);
+  const BB = []; for (const b of B) { if (BB.length >= HY.nBoards) break; if (BB.some(q => { const d = Math.abs(q.i - b.i); return Math.min(d, r.loop ? N - d : d) * DS < 250; })) continue; BB.push(b); }
+  const top = BB[0] ? BB[0].score : 1; BB.forEach((b, k) => { b.n = k + 1; b.idx = Math.round(100 * b.score / top); });
+  r.B = BB;
+  // quantités
+  const sig = JJ.reduce((a, j) => a + j.sig, 0);
+  r.Q = { sig, bar: JJ.reduce((a, j) => a + j.bar, 0), rub: Math.round(JJ.filter(j => j.rub).length * 15 + ends.length * 400 + r.FZ.reduce((a, z) => a + z.len, 0)), fleche: C.length + JJ.length + Math.ceil(total / 1000), ravito: r.RAV.length, secours: r.SEC.length, benRav: r.RAV.length * HY.perRavito, benSec: r.SEC.length * HY.perSecours, base: HY.base };
+  r.Q.ben = sig + r.Q.benRav + r.Q.base;
+  return r;
+}
+
+// ───────── Rétroplanning ─────────
+const TASKS0 = [
+  [-180, 'Fixer la date, le lieu et le format ; inscrire l\'épreuve au calendrier de la fédération'], [-150, 'Reconnaître le parcours ou le site sur place et le figer'],
+  [-120, 'Budget prévisionnel ; démarchage des partenaires avec le plan des panneaux et des stands'], [-100, 'Demander les accords des communes et des propriétaires privés'],
+  [-90, 'Rédiger le dossier de sécurité : plan, signaleurs, secours, zones public'], [-74, 'Convention avec l\'association de secouristes et le médecin'],
+  [null, 'LEGAL'], [-60, 'Ouvrir les inscriptions ; lancer le recrutement des bénévoles'], [-45, 'Transmettre la liste des signaleurs ; commander barrières, rubalise, dossards, ravitaillement'],
+  [-30, 'Obtenir les arrêtés de circulation des maires ; informer les riverains'], [-14, 'Affecter chaque bénévole à un poste ; imprimer les fiches de poste'],
+  [-7, 'Réunion des responsables ; vérifier la météo et les travaux'], [-1, 'Balisage, montage du site, pose des barrières et des panneaux publicitaires'],
+  [0, 'Jour de l\'épreuve'], [1, 'Démontage, nettoyage, retour du matériel'], [14, 'Bilan : comptes, remerciements, compte rendu aux partenaires et aux communes']
+].map(([j, t], k) => ({ id: 't' + k, j, t, legal: t === 'LEGAL' }));
+const tasks = () => ST.tasks || TASKS0;
+function retro() {
+  const S = SPORTS[HY.sport], d = HY.date ? new Date(HY.date + 'T00:00') : null, today = new Date(); today.setHours(0, 0, 0, 0);
+  return tasks().map(x => { const j = x.legal ? -S.delai : (+x.j || 0), t = x.legal ? `Déposer la déclaration ou la demande d'autorisation sur la plateforme de l'État (au plus tard ${S.delai} jours avant ; trois mois si plusieurs départements)` : x.t, dt = d ? new Date(d.getTime() + j * 864e5) : null;
+    return { id: x.id, j, t, legal: x.legal, dt, done: !!DONE[x.id], late: dt && j < 0 && dt < today && !DONE[x.id] }; }).sort((a, b) => a.j - b.j);
+}
+
+// ───────── Affichage ─────────
+const km = i => fmt(i * A.DS / 1000, 1) + ' km';
+const jn = j => j.noms.length ? j.noms.join(', ') : ({ 4: 'grande route', 3: 'route', 2: 'rue', 1: 'voie de desserte', 0: 'chemin', '-1': 'sentier' }[j.cls]);
+let pfKey = null;
+const pfFields = [['nom', 'Nom du profil', 'text'], ['vFast', 'Vitesse du premier (km/h)', 'number'], ['vSlow', 'Vitesse du dernier (km/h)', 'number'], ['ravito', 'Ravitaillement tous les (km)', 'number'], ['secours', 'Poste de secours tous les (km)', 'number'], ['parts', 'Participants habituels', 'number'], ['spect', 'Spectateurs habituels', 'number'], ['delai', 'Délai de dépôt en préfecture (jours)', 'number'], ['recul', 'Recul du public (m)', 'number'], ['climb', 'Ralentissement en montée (0 à 3)', 'number']];
+const pfFlags = [['motor', 'Sport motorisé'], ['corner', 'Extérieur des virages interdit au public'], ['snap', 'Le tracé suit les routes'], ['site', 'Événement sur site, sans parcours']];
+const sportOptions = () => Object.entries(SPORTS).map(([k, s]) => `<option value="${k}">${s.nom}</option>`).join('');
+const TABS = {
+  'Projets': () => `<p class="note">Chaque épreuve est un projet enregistré dans ce navigateur. Exportez un fichier pour le sauvegarder ou le transmettre.</p>
+    <table>${Object.entries(ST.projects).map(([id, p]) => `<tr><td>${id === ST.cur ? `<input type="text" id="pName" value="${(p.name || '').replace(/"/g, '&quot;')}" style="width:100%;text-align:left">` : (p.name || 'Sans nom')}<br><span class="note">${(SPORTS[(p.HY || {}).sport] || SPORTS.run).nom}${(p.HY || {}).date ? ', ' + new Date(p.HY.date + 'T00:00').toLocaleDateString('fr-FR') : ''}</span></td><td style="white-space:nowrap">${id === ST.cur ? '<b>ouvert</b>' : `<button data-pa="open" data-id="${id}">Ouvrir</button>`} <button data-pa="dup" data-id="${id}">Dupliquer</button> <button data-pa="pdel" data-id="${id}">✕</button></td></tr>`).join('')}</table>
+    <p><button data-pa="new" class="go">+ Nouvelle épreuve</button> <button data-pa="export">Exporter le projet ouvert</button> <button data-pa="import">Importer un fichier</button><input type="file" id="impFile" accept=".json" hidden></p>
+    <p class="note">Le fichier exporté contient l'épreuve, vos profils et votre catalogue d'éléments.</p>`,
+  'Réglages': () => { const k = pfKey && SPORTS[pfKey] ? pfKey : HY.sport, s = SPORTS[k];
+    return `<p class="note">Adaptez l'outil à vos événements : vos types d'épreuve, vos éléments à placer, vos prix. Ces réglages valent pour tous vos projets.</p>
+    <h2>Profils d'épreuve</h2><label class="p">Profil à régler<select id="pfSel">${Object.entries(SPORTS).map(([q, x]) => `<option value="${q}" ${q === k ? 'selected' : ''}>${x.nom}</option>`).join('')}</select></label>
+    ${pfFields.map(([f, t, ty]) => `<label class="p">${t}<input type="${ty}" step="any" data-pf="${f}" value="${String(s[f] ?? '').replace(/"/g, '&quot;')}"></label>`).join('')}
+    <label class="p">Signaleurs<select data-pf="signal"><option value="route" ${s.signal === 'route' ? 'selected' : ''}>à chaque voie rejointe</option><option value="cross" ${s.signal === 'cross' ? 'selected' : ''}>aux traversées de route seulement</option></select></label>
+    ${pfFlags.map(([f, t]) => `<label class="p">${t}<input type="checkbox" data-pf="${f}" ${s[f] ? 'checked' : ''} style="width:auto;justify-self:start"></label>`).join('')}
+    <p><button data-pa="pfnew">+ Nouveau profil (copie de celui-ci)</button> ${SPORTS0[k] ? '<button data-pa="pfreset">Valeurs d\'origine</button>' : '<button data-pa="pfdel">Supprimer ce profil</button>'} <button data-pa="pfuse">Utiliser pour l'épreuve ouverte</button></p>
+    <h2>Catalogue des éléments à placer</h2><p class="note">Longueur × largeur en mètres. Capacité : par élément (ex. 4 cabines) ou par m² (ex. 2,5 places). « Public » : le recul par rapport au parcours est contrôlé. « Valeur » : l'indice de fréquentation est calculé.</p>
+    ${Object.entries(TYPES).map(([q, T]) => `<div style="border:1px solid var(--ln);border-left:6px solid ${T.c};border-radius:6px;padding:6px 8px;margin:6px 0"><input type="text" data-ty="${q}" data-f="nom" value="${T.nom.replace(/"/g, '&quot;')}" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;padding:3px 6px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px;font-size:12px">${[['L', 'Long.'], ['W', 'Larg.'], ['capU', 'Cap./élém.'], ['capM2', 'Cap./m²'], ['prix', 'Prix €'], ['s', 'Code'], ['unit', 'Unité']].map(([f, t]) => `<label>${t}<input type="${f === 's' || f === 'unit' ? 'text' : 'number'}" step="any" data-ty="${q}" data-f="${f}" value="${T[f] ?? ''}" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;padding:2px 4px"></label>`).join('')}<label>Couleur<input type="color" data-ty="${q}" data-f="c" value="${T.c}" style="width:100%;height:24px;padding:0;border:0;background:none"></label></div>
+      <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" data-ty="${q}" data-f="pub" ${T.pub ? 'checked' : ''}> Public</label> &nbsp; <label><input type="checkbox" data-ty="${q}" data-f="val" ${T.val ? 'checked' : ''}> Valeur</label> &nbsp; <button data-pa="tydel" data-id="${q}" style="padding:1px 8px;float:right">Supprimer</button></div></div>`).join('')}
+    <p><button data-pa="tyadd">+ Nouvel élément</button> <button data-pa="tyreset">Catalogue d'origine</button></p>`; },
+  'Épreuve': () => {
+    const S = SPORTS[HY.sport], l = line();
+    return `<p class="note">${S.site ? (WP.length ? 'Centre du site posé. Cliquez « Analyser », puis ouvrez « Implantation ».' : '<b>Cliquez sur la carte</b> pour indiquer le centre du site.') : l.length < 2 ? '<b>Cliquez sur la carte</b> pour poser le départ, puis les points de passage. Le dernier point est l\'arrivée. Vous pouvez aussi importer un fichier GPX.' : 'Tracé posé : ' + WP.length + ' point(s). Réglez l\'épreuve puis cliquez « Analyser ».'}</p>
+    ${[['date', 'Date de l\'épreuve', 'date'], ['start', 'Heure du départ', 'time'], ['duree', 'Durée de l\'événement (h) : sur site ou sport mécanique', 'number'], ['tours', 'Nombre de tours', 'number'], ['parts', 'Participants attendus', 'number'], ['spect', 'Spectateurs attendus', 'number'], ['vFast', 'Vitesse du premier (km/h)', 'number'], ['vSlow', 'Vitesse du dernier (km/h)', 'number'], ['ravito', 'Un ravitaillement tous les (km)', 'number'], ['secours', 'Un poste de secours tous les (km)', 'number'], ['close', 'Fermeture avant le premier (min)', 'number'], ['reopen', 'Réouverture après le dernier (min)', 'number'], ['perJ', 'Signaleurs par carrefour', 'number'], ['perRavito', 'Bénévoles par ravitaillement', 'number'], ['base', 'Bénévoles départ, arrivée, inscriptions', 'number'], ['nBoards', 'Nombre de panneaux à placer', 'number']].map(([k, t, ty]) => `<label class="p">${t}<input type="${ty}" step="any" data-hy="${k}" value="${HY[k]}"></label>`).join('')}
+    <p class="note">Ces valeurs sont des hypothèses de départ pour « ${S.nom} ». Aucune ne vient d'un règlement : remplacez-les par celles de votre fédération.</p>`;
+  },
+  'Synthèse': () => {
+    if (!A) return '<p class="note">Lancez l\'analyse pour obtenir la synthèse.</p>'; const q = A.Q;
+    if (A.site) return `<div class="warn">Événement sur site : pas de parcours. L'essentiel se passe dans l'onglet « Implantation ».</div>
+    <div class="kpi"><div><b>${fmt(HY.parts)}</b><span>participants attendus</span></div><div><b>${fmt(HY.spect)}</b><span>spectateurs attendus</span></div><div><b>${hm(A.T0)} – ${hm(A.T0 + A.lastIn)}</b><span>horaires</span></div><div><b>${OBJ.length}</b><span>éléments placés</span></div>
+    <div><b>${fmt(OBJ.reduce((a, o) => a + o.L * o.W, 0))} m²</b><span>surface occupée</span></div><div><b>${siteCost() ? fmt(siteCost()) + ' €' : '—'}</b><span>coût des éléments</span></div><div><b>${A.BLD.length}</b><span>bâtiments réels pris en compte</span></div><div><b>${OBJ.filter(o => o.al && o.al.length).length + GL.length}</b><span>point(s) à corriger</span></div></div>
+    <h2>Sources</h2><p class="note">Bâtiments : ${A.source === 'IGN' ? 'IGN, BD TOPO' : '© contributeurs OpenStreetMap'}.</p>`;
+    return `<div class="warn">Prototype. Les calculs partent de données publiques et d'hypothèses : ils préparent le travail, ils ne remplacent ni la reconnaissance sur place ni l'avis de la préfecture.</div>
+    ${A.noOSM ? '<div class="warn"><b>Voirie non chargée.</b> Le service de cartes n\'a pas répondu : carrefours, signaleurs, barrières et répartition du public ne sont pas calculés. Relancez l\'analyse dans quelques minutes.</div>' : ''}
+    <div class="kpi"><div><b>${fmt(A.len / 1000, 2)} km</b><span>${A.loop ? 'boucle' : 'ligne'}${A.laps > 1 ? ', ' + A.laps + ' tours' : ''}</span></div><div><b>${A.Z ? '+' + fmt(A.up) + ' m' : 'inconnu'}</b><span>dénivelé positif</span></div>
+    <div><b>${A.J.length}</b><span>carrefours et accès</span></div><div><b>${q.sig}</b><span>signaleurs</span></div>
+    <div><b>${q.ben}</b><span>bénévoles au total</span></div><div><b>${q.bar}</b><span>barrières</span></div>
+    <div><b>${hm(A.T0 - HY.close)}</b><span>première fermeture de route</span></div><div><b>${hm(A.T0 + A.lastIn + HY.reopen)}</b><span>dernière réouverture</span></div>
+    <div><b>${hm(A.T0 + A.winner)}</b><span>${A.sport.motor ? 'durée d\'une montée, départ compris' : 'arrivée du premier'}</span></div><div><b>${hm(A.T0 + A.lastIn)}</b><span>${A.sport.motor ? 'fin de l\'épreuve' : 'arrivée du dernier'}</span></div></div>
+    <h2>Matériel et coûts</h2>
+    <table><tr><th>Poste</th><th class="n">Quantité</th><th class="n">Prix unitaire (€)</th><th class="n">Total</th></tr>${[['signaleur', 'Signaleurs (gilet, panneau)', q.sig], ['barriere', 'Barrières', q.bar], ['rubalise', 'Rubalise (m)', q.rub], ['fleche', 'Flèches et panneaux de balisage', q.fleche], ['ravito', 'Ravitaillements', q.ravito], ['secours', 'Postes de secours', q.secours], ['panneau', 'Panneaux publicitaires', A.B.length]].map(([k, t, n]) => `<tr><td>${t}</td><td class="n">${fmt(n)}</td><td class="n"><input type="number" step="any" data-cost="${k}" value="${COST[k] || ''}"></td><td class="n">${COST[k] ? fmt(n * COST[k]) + ' €' : '—'}</td></tr>`).join('')}
+    <tr><th>Total</th><th></th><th></th><th class="n">${fmt([['signaleur', q.sig], ['barriere', q.bar], ['rubalise', q.rub], ['fleche', q.fleche], ['ravito', q.ravito], ['secours', q.secours], ['panneau', A.B.length]].reduce((a, [k, n]) => a + n * (COST[k] || 0), 0))} €</th></tr></table>
+    <p class="note">Les prix sont vides : saisissez les vôtres, le total se calcule.${siteCost() ? ' Éléments du site en plus : <b>' + fmt(siteCost()) + ' €</b> (détail dans « Implantation »).' : ''}</p>
+    <h2>Sources</h2><p class="note">Voirie et bâtiments : ${A.source === 'IGN' ? 'IGN, BD TOPO' : '© contributeurs OpenStreetMap'}. Altitudes : IGN (France uniquement). Fond de carte : © contributeurs OpenStreetMap. Itinéraire entre deux clics : OSRM.${A.sparse ? ' Parcours long : la densité de bâtiments n\'est relevée qu\'au départ et à l\'arrivée.' : ''}</p>`;
+  },
+  'Carrefours': () => !A ? '<p class="note">Lancez l\'analyse.</p>' : A.site ? '<p class="note">Sans objet pour un événement sur site.</p>' : `<p class="note">Chaque voie qui rejoint le tracé est listée, avec l'heure de fermeture (${HY.close} min avant le premier) et de réouverture (${HY.reopen} min après le dernier).</p>
+    <table><tr><th>Position</th><th>Voie</th><th class="n">Signaleurs</th><th class="n">Barrières</th><th>Fermé</th></tr>${A.J.map(j => `<tr class="go" data-go="${j.i}"><td>${km(j.i)}</td><td>${jn(j)}${j.rub ? '<br><span class="note">rubalise</span>' : ''}${j.cls === 1 ? '<br><span class="note">accès de desserte : barrière seule, signaleur si l\'accès reste utilisé</span>' : ''}${(j.ups || []).map(u => `<br><span class="note">fermeture conseillée en amont, à ${u.d} m${u.nom ? ' (' + u.nom + ')' : ''}</span>`).join('')}</td><td class="n">${j.sig || '—'}</td><td class="n">${j.bar || '—'}</td><td>${hm(j.t0)} – ${hm(j.t1)}</td></tr>`).join('')}</table>
+    <h2>Virages serrés à flécher (${A.C.length})</h2><table>${A.C.map(c => `<tr class="go" data-go="${c.i}"><td>${km(c.i)}</td><td>à ${c.dir}, ${fmt(Math.abs(c.ang))}°</td></tr>`).join('')}</table>`,
+  'Secours et public': () => !A ? '<p class="note">Lancez l\'analyse.</p>' : `<h2>Postes de secours (${A.SEC.length})</h2><table>${A.SEC.map(s => `<tr class="go" data-go="${s.i}"><td>${km(s.i)}</td><td>${s.nom}</td></tr>`).join('')}</table>
+    <h2>Ravitaillements (${A.RAV.length})</h2><table>${A.RAV.map(s => `<tr class="go" data-go="${s.i}"><td>${km(s.i)}</td><td>${s.nom}</td><td>${hm(A.first(s.i))} – ${hm(A.last(s.i))}</td></tr>`).join('') || '<tr><td>aucun</td></tr>'}</table>
+    <h2>Où sera le public</h2><p class="note">Estimation : la moitié des ${fmt(HY.spect)} spectateurs au départ et à l'arrivée, le reste réparti selon la densité de bâtiments le long du tracé${A.sport.climb >= 2 ? ', dont 30 % dans les montées de plus de 4 %' : ''}.</p>
+    <table><tr><th>Secteur</th><th class="n">Spectateurs estimés</th></tr>${(() => { const n = Math.max(1, Math.round(1000 / A.DS)), o = []; for (let a = 0; a < A.N; a += n) { let s = 0; for (let i = a; i < Math.min(A.N, a + n); i++) s += A.SP[i]; o.push(`<tr class="go" data-go="${Math.min(A.N - 1, a + (n >> 1))}"><td>km ${fmt(a * A.DS / 1000)} à ${fmt(Math.min(A.len, (a + n) * A.DS) / 1000, 1)}</td><td class="n">${fmt(s)}</td></tr>`); } return o.join(''); })()}</table>
+    ${A.FZ.length ? `<h2>Zones à interdire au public (${A.FZ.length})</h2><p class="note">Pour un sport rapide, l'extérieur des virages serrés est à interdire. Pour le détail en relief (zones en contrebas, vue entre postes), utilisez le dossier 3D.</p><table>${A.FZ.map(z => `<tr class="go" data-go="${z.i}"><td>${km(z.i)}</td><td>${z.why}, ${z.len} m</td></tr>`).join('')}</table>` : ''}`,
+  'Panneaux': () => !A ? '<p class="note">Lancez l\'analyse.</p>' : A.site ? '<p class="note">Sans objet pour un événement sur site : la valeur des emplacements dépend d\'un parcours.</p>' : `<p class="note">Un panneau vaut par ceux qui passent devant et par ceux qui stationnent à côté. L'indice 100 est le meilleur emplacement du parcours : il sert à fixer des prix relatifs, pas à promettre une audience.</p>
+    <table><tr><th>N°</th><th>Emplacement</th><th class="n">Passages</th><th class="n">Temps devant</th><th class="n">Public à côté</th><th class="n">Indice</th></tr>${A.B.map(b => `<tr class="go" data-go="${b.i}"><td><span class="dot" style="background:#4aa8ff"></span>${b.n}</td><td>${km(b.i)}<br><span class="note">${b.where}</span></td><td class="n">${fmt(b.passes)}</td><td class="n">${fmt(b.sec, 1)} s</td><td class="n">${fmt(b.sp)}</td><td class="n"><b>${b.idx}</b></td></tr>`).join('')}</table>
+    <h2>Grille de prix</h2><label class="p">Prix du meilleur emplacement (€)<input type="number" step="any" id="pTop" value="${HY.pTop || ''}"></label>
+    ${HY.pTop ? `<table>${A.B.map(b => `<tr><td>Panneau ${b.n}</td><td class="n">${fmt(HY.pTop * b.idx / 100)} €</td></tr>`).join('')}<tr><th>Total si tout est vendu</th><th class="n">${fmt(A.B.reduce((a, b) => a + HY.pTop * b.idx / 100, 0))} €</th></tr></table>` : '<p class="note">Saisissez un prix pour obtenir la grille proportionnelle à l\'indice.</p>'}`,
+  'Implantation': () => siteTab(),
+  'Organisation': () => {
+    const R = retro(), q = A && A.Q;
+    return `${HY.date ? '' : '<div class="warn">Saisissez la date de l\'épreuve dans l\'onglet « Épreuve » pour obtenir les échéances datées.</div>'}
+    <h2>Rétroplanning</h2><p class="note">${R.filter(x => x.done).length} tâche(s) faite(s) sur ${R.length}. Cochez, modifiez le texte ou le nombre de jours, ajoutez vos propres tâches : la liste est la vôtre et sert à toutes vos épreuves.</p>
+    <table>${R.map(x => `<tr><td><input type="checkbox" style="width:auto" data-done="${x.id}" ${x.done ? 'checked' : ''}></td><td style="white-space:nowrap">${x.dt ? x.dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}<br>${x.legal ? '<span class="note">J' + x.j + '</span>' : `<input type="number" data-tk="${x.id}" data-f="j" value="${x.j}" style="width:58px" title="Jours avant (négatif) ou après l'épreuve">`}</td><td class="${x.late ? 'late' : ''}">${x.legal ? x.t + '<br><span class="note">délai légal relevé sur des fiches de préfecture, à confirmer auprès de la vôtre ; réglable dans le profil</span>' : `<textarea data-tk="${x.id}" data-f="t" rows="2" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;font:inherit;padding:3px 5px">${x.t.replace(/</g, '&lt;')}</textarea>`}${x.late ? '<b>échéance dépassée</b>' : ''}</td><td>${x.legal ? '' : `<button data-pa="tdel" data-id="${x.id}" title="Supprimer">✕</button>`}</td></tr>`).join('')}</table>
+    <p><button data-pa="tadd">+ Ajouter une tâche</button> <button data-pa="treset">Rétablir la liste type</button></p>
+    <p class="note">Hors délai de dépôt, ces échéances sont des usages courants, pas des obligations.</p>
+    ${q ? `<h2>Équipe à réunir</h2><table><tr><td>Signaleurs aux carrefours</td><td class="n">${q.sig}</td></tr><tr><td>Bénévoles aux ravitaillements</td><td class="n">${q.benRav}</td></tr><tr><td>Départ, arrivée, inscriptions</td><td class="n">${q.base}</td></tr><tr><th>Bénévoles</th><th class="n">${q.ben}</th></tr><tr><td>Secouristes (${HY.perSecours} par poste, prestataire)</td><td class="n">${q.benSec}</td></tr></table>
+    <p class="note">Présence des signaleurs : de ${hm(A.T0 - HY.close)} à ${hm(A.T0 + A.lastIn + HY.reopen)} au plus, soit ${fmt((A.lastIn + HY.close + HY.reopen) / 60, 1)} h.</p>` : ''}`;
+  }
+};
+// ───────── Implantation du site : gradins, stands, tentes… ─────────
+const TYPES = {
+  arche:   { nom: 'Arche de départ ou d\'arrivée', L: 8, W: 1, c: '#e11d48', onRoute: true, s: 'A' },
+  gradin:  { nom: 'Gradin', L: 12, W: 6, c: '#2563eb', pub: true, s: 'G' },
+  stand:   { nom: 'Stand partenaire', L: 3, W: 3, c: '#f59e0b', pub: true, s: 'S' },
+  tente:   { nom: 'Tente (inscriptions, dossards)', L: 10, W: 5, c: '#8b5cf6', pub: true, s: 'T' },
+  buvette: { nom: 'Buvette, restauration', L: 6, W: 3, c: '#10b981', pub: true, s: 'B' },
+  wc:      { nom: 'Toilettes (bloc de 4)', L: 5, W: 1.2, c: '#64748b', s: 'WC' },
+  podium:  { nom: 'Podium', L: 6, W: 4, c: '#facc15', s: 'Po' },
+  pc:      { nom: 'PC course, chronométrage', L: 6, W: 3, c: '#0ea5e9', s: 'PC' },
+  secours: { nom: 'Poste de secours', L: 5, W: 5, c: '#ef4444', s: '+' },
+  ecran:   { nom: 'Écran géant', L: 5, W: 1, c: '#111827', s: 'É' },
+  parking: { nom: 'Parking', L: 50, W: 25, c: '#9ca3af', s: 'P' }
+};
+for (const [k, c] of Object.entries({ arche: 'Course', podium: 'Course', pc: 'Course', gradin: 'Public', ecran: 'Public', stand: 'Commerces et partenaires', buvette: 'Commerces et partenaires', tente: 'Accueil', wc: 'Sanitaires', secours: 'Secours et sécurité', parking: 'Logistique' })) TYPES[k].cat = c;
+Object.assign(TYPES, {
+  scene:     { nom: 'Scène', L: 12, W: 8, c: '#be123c', s: 'Sc', cat: 'Public' },
+  regie:     { nom: 'Régie son et lumière', L: 4, W: 3, c: '#1f2937', s: 'Rg', cat: 'Public' },
+  chapiteau: { nom: 'Chapiteau', L: 20, W: 10, c: '#a78bfa', s: 'Ch', pub: true, cat: 'Public', capM2: 1, unit: 'places' },
+  barnum:    { nom: 'Barnum 3 × 3', L: 3, W: 3, c: '#fbbf24', s: 'Ba', pub: true, cat: 'Commerces et partenaires' },
+  foodtruck: { nom: 'Food truck', L: 7, W: 2.5, c: '#fb923c', s: 'FT', pub: true, cat: 'Commerces et partenaires' },
+  bar:       { nom: 'Bar', L: 6, W: 2, c: '#34d399', s: 'Bar', pub: true, cat: 'Commerces et partenaires' },
+  boutique:  { nom: 'Boutique officielle', L: 6, W: 3, c: '#f472b6', s: 'Bo', pub: true, cat: 'Commerces et partenaires' },
+  vip:       { nom: 'Espace invités', L: 15, W: 10, c: '#c084fc', s: 'VIP', pub: true, cat: 'Commerces et partenaires', capM2: .7, unit: 'places' },
+  billet:    { nom: 'Billetterie', L: 4, W: 2, c: '#818cf8', s: 'Bi', pub: true, cat: 'Accueil' },
+  controle:  { nom: 'Entrée et contrôle des sacs', L: 6, W: 2, c: '#475569', s: 'Ct', pub: true, cat: 'Accueil' },
+  consigne:  { nom: 'Consigne, vestiaire', L: 8, W: 3, c: '#94a3b8', s: 'Cs', pub: true, cat: 'Accueil' },
+  info:      { nom: 'Point information', L: 3, W: 3, c: '#38bdf8', s: 'i', pub: true, cat: 'Accueil' },
+  presse:    { nom: 'Espace presse', L: 6, W: 4, c: '#0d9488', s: 'Pr', cat: 'Accueil' },
+  wcpmr:     { nom: 'Toilette accessible PMR', L: 2.2, W: 2.2, c: '#0891b2', s: 'PMR', cat: 'Sanitaires', capU: 1, unit: 'cabines' },
+  lavabo:    { nom: 'Rampe de lavabos', L: 3, W: 1, c: '#7dd3fc', s: 'La', cat: 'Sanitaires' },
+  douche:    { nom: 'Bloc de douches', L: 6, W: 2.4, c: '#22d3ee', s: 'Do', cat: 'Sanitaires' },
+  ambulance: { nom: 'Ambulance en attente', L: 6, W: 2.5, c: '#f87171', s: 'Am', cat: 'Secours et sécurité' },
+  pcsecu:    { nom: 'PC sécurité', L: 6, W: 3, c: '#b91c1c', s: 'PCS', cat: 'Secours et sécurité' },
+  groupe:    { nom: 'Groupe électrogène', L: 3, W: 1.5, c: '#eab308', s: 'GE', cat: 'Logistique' },
+  benne:     { nom: 'Benne à déchets', L: 6, W: 2.5, c: '#65a30d', s: 'Be', cat: 'Logistique' },
+  camion:    { nom: 'Camion, semi-remorque', L: 12, W: 2.6, c: '#78716c', s: 'Cam', cat: 'Logistique' },
+  stock:     { nom: 'Stockage du matériel', L: 6, W: 2.5, c: '#a8a29e', s: 'St', cat: 'Logistique' },
+  loge:      { nom: 'Loge, vestiaire des participants', L: 6, W: 3, c: '#d946ef', s: 'Lo', cat: 'Logistique' }
+});
+TYPES.gradin.capM2 = 2.5; TYPES.gradin.unit = 'places'; TYPES.wc.capU = 4; TYPES.wc.unit = 'cabines'; TYPES.parking.capM2 = .04; TYPES.parking.unit = 'voitures'; TYPES.stand.val = true;
+const TYPES0 = JSON.parse(JSON.stringify(TYPES));
+if (ST.types) { for (const k in TYPES) delete TYPES[k]; Object.assign(TYPES, ST.types); for (const k in TYPES0) if (!TYPES[k]) TYPES[k] = JSON.parse(JSON.stringify(TYPES0[k])); else if (!TYPES[k].cat) TYPES[k].cat = TYPES0[k].cat; }
+let OBJ = [], selO = null, placing = null, nid = 1, GL = [], DRAW = [], selD = null, drawing = null, did = 1, BG = null, LV = {}, SUMM = null;
+const cap = o => { const T = TYPES[o.t]; return T.capM2 ? Math.floor(o.L * o.W * T.capM2) : (T.capU || 0); };
+function oCorners(o) {
+  const c = Math.cos(o.ang), s = Math.sin(o.ang), kx = 111320 * Math.cos(o.lat * Math.PI / 180), out = [];
+  for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const x = a * o.L / 2 * c - b * o.W / 2 * s, y = a * o.L / 2 * s + b * o.W / 2 * c; out.push([o.lat + y / 110540, o.lng + x / kx]); }
+  return out;
+}
+const tang = i => { const a = A.P[Math.max(0, i - 1)], b = A.P[Math.min(A.N - 1, i + 1)], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [(b[0] - a[0]) / l, (b[1] - a[1]) / l]; };
+function alignAng(lat, lng) { const p = A.xy([lat, lng]), n = A.near(p[0], p[1]); if (n.i < 0) return 0; const t = tang(n.i); return Math.atan2(t[1], t[0]); }
+function addObj(t, lat, lng, ang) { const T = TYPES[t], o = { id: nid++, t, lat, lng, L: T.L, W: T.W, ang: ang == null ? alignAng(lat, lng) + (T.onRoute ? Math.PI / 2 : 0) : ang }; OBJ.push(o); return o; }
+function inPoly(p, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < a[0] + (p[1] - a[1]) * (b[0] - a[0]) / (b[1] - a[1])) c = !c; } return c; }
+const samples = q => { const o = q.slice(); for (let k = 0; k < 4; k++) o.push([(q[k][0] + q[(k + 1) % 4][0]) / 2, (q[k][1] + q[(k + 1) % 4][1]) / 2]); o.push([(q[0][0] + q[2][0]) / 2, (q[0][1] + q[2][1]) / 2]); return o; };
+function checkObj() {
+  GL = []; if (!A) return;
+  const S = A.sport, Q = OBJ.map(o => oCorners(o).map(A.xy)), SM = Q.map(samples), zone = Math.round(200 / A.DS), win = Math.round(80 / A.DS);
+  OBJ.forEach(o => o.al = []);
+  OBJ.forEach((o, k) => {
+    const T = TYPES[o.t]; let dmin = 1e9, ni = -1;
+    for (const p of SM[k]) { const n = A.near(p[0], p[1]); if (n.i >= 0 && n.d < dmin) { dmin = n.d; ni = n.i; } }
+    o.d = dmin; o.i = ni;
+    if (!T.onRoute && !A.site) { if (dmin < 3) o.al.push('empiète sur le parcours'); else if (T.pub && dmin < HY.setback) o.al.push(`à ${fmt(dmin, 1)} m du parcours, recul demandé ${HY.setback} m`); }
+    if (T.pub && S.corner && ni >= 0) for (const c of A.C) if (Math.abs(c.i - ni) * A.DS < (S.motor ? 60 : 30)) { const t = tang(c.i), ctr = SM[k][8], lat = (ctr[0] - A.P[c.i][0]) * -t[1] + (ctr[1] - A.P[c.i][1]) * t[0]; if (c.ang > 0 ? lat < 0 : lat > 0) { o.al.push('à l\'extérieur d\'un virage serré'); break; } }
+    if (A.BLD.some(b => SM[k].some(p => inPoly(p, b)) || b.some(p => inPoly(p, Q[k])))) o.al.push('chevauche un bâtiment');
+    for (let j = k + 1; j < OBJ.length; j++) if (SM[k].some(p => inPoly(p, Q[j])) || SM[j].some(p => inPoly(p, Q[k]))) { o.al.push('chevauche : ' + TYPES[OBJ[j].t].nom.toLowerCase()); OBJ[j].al.push('chevauche : ' + T.nom.toLowerCase()); }
+    o.val = 0; if (ni >= 0 && dmin < 60 && !A.site) { for (let i = Math.max(0, ni - win); i <= Math.min(A.N - 1, ni + win); i++) o.val += A.SP[i]; if (ni < zone || ni > A.N - 1 - zone) o.val += HY.parts; }
+  });
+  const n = t => OBJ.filter(o => o.t === t), need = Math.ceil((HY.parts + HY.spect) / (HY.wcRatio || 100)), have = n('wc').reduce((a, o) => a + cap(o), 0);
+  if (!A.site && TYPES.arche && !n('arche').length) GL.push('Aucune arche de départ ou d\'arrivée');
+  if (!n('secours').length) GL.push('Aucun poste de secours sur le site');
+  if (have < need) GL.push(`Toilettes : ${have} cabine(s) placée(s), ${need} conseillée(s) pour ${fmt(HY.parts + HY.spect)} personnes (réglage : 1 pour ${HY.wcRatio || 100})`);
+  if (!n('parking').length) GL.push('Aucun parking placé');
+  if (!n('pc').length) GL.push('Aucun PC course');
+}
+function drawObj() {
+  lyObj.clearLayers();
+  for (const o of OBJ) {
+    const T = TYPES[o.t], bad = o.al && o.al.length, on = o.id === selO, pick = e => { L.DomEvent.stopPropagation(e); selO = o.id; drawObj(); if (tab === 'Implantation') panel(true); };
+    L.polygon(oCorners(o), { color: on ? '#000' : bad ? '#d1001f' : '#333', weight: on ? 3.5 : bad ? 2.5 : 1, fillColor: T.c, fillOpacity: .8 }).addTo(lyObj).on('click', pick);
+    const m = L.marker([o.lat, o.lng], { draggable: true, icon: ico(bad ? '#ffd0d0' : '#fff', T.s) }).addTo(lyObj);
+    m.on('click', pick); m.on('dragend', () => { const p = m.getLatLng(); o.lat = p.lat; o.lng = p.lng; selO = o.id; checkObj(); store(); drawObj(); if (tab === 'Implantation') panel(true); });
+  }
+}
+function clash(o, bl) {
+  const q = oCorners(o).map(A.xy), sm = samples(q), T = TYPES[o.t];
+  if (bl.some(b => sm.some(p => inPoly(p, b)) || b.some(p => inPoly(p, q)))) return true;
+  for (const x of OBJ) { if (x === o) continue; const q2 = oCorners(x).map(A.xy); if (sm.some(p => inPoly(p, q2)) || samples(q2).some(p => inPoly(p, q))) return true; }
+  if (!A.site && !T.onRoute) { let d = 1e9; for (const p of sm) d = Math.min(d, A.near(p[0], p[1]).d); if (d < (T.pub ? Math.max(3, HY.setback) : 3)) return true; }
+  return false;
+}
+function propose() {
+  OBJ = []; const f = A.N - 1, b = A.P[f], t = A.site ? [1, 0] : tang(f - 1), n = [-t[1], t[0]], sb = A.site ? 4 : HY.setback;
+  let left = 0, right = 0; for (const bl of A.BLD) for (const p of bl) { const al = (p[0] - b[0]) * t[0] + (p[1] - b[1]) * t[1], la = (p[0] - b[0]) * n[0] + (p[1] - b[1]) * n[1]; if (Math.abs(al) < 90 && Math.abs(la) < 70) la > 0 ? left++ : right++; }
+  const v = left <= right ? 1 : -1, ang = Math.atan2(t[1], t[0]);
+  const bl = A.BLD.filter(q => q.some(p => Math.hypot(p[0] - b[0], p[1] - b[1]) < 200)); let moved = 0, stuck = 0;
+  const put = (ty, al, la, da = 0) => { if (!TYPES[ty] || (A.site && ty === 'arche')) return; const T = TYPES[ty], at = (a2, l2) => A.inv([b[0] + t[0] * a2 + n[0] * l2, b[1] + t[1] * a2 + n[1] * l2]), ll = at(al, la), o = addObj(ty, ll[0], ll[1], ang + da);
+    if (T.onRoute || !clash(o, bl)) return o;
+    const sg = Math.sign(la) || 1;
+    for (let dl = 0; dl <= 60; dl += 3) for (const d2 of [0, 7, -7, 14, -14, 21, -21, 30, -30]) { if (!dl && !d2) continue; const p = at(al + d2, la + sg * dl); o.lat = p[0]; o.lng = p[1]; if (!clash(o, bl)) { moved++; return o; } }
+    o.lat = ll[0]; o.lng = ll[1]; stuck++; return o; };
+  const off = (ty, extra) => v * (sb + (TYPES[ty] ? TYPES[ty].W : 3) / 2 + extra);
+  put('arche', 0, 0, Math.PI / 2);
+  put('pc', -8, off('pc', 1.5)); put('secours', -22, off('secours', 2)); put('tente', -42, off('tente', 2)); put('podium', 16, off('podium', 2));
+  for (let k = 0; k < HY.nStands; k++) put('stand', 28 + k * 3.6, off('stand', 1.5));
+  put('buvette', 28 + HY.nStands * 3.6 + 5, off('buvette', 1.5));
+  const wcU = TYPES.wc ? Math.max(1, cap({ t: 'wc', L: TYPES.wc.L, W: TYPES.wc.W })) : 4, nw = clamp(Math.ceil((HY.parts + HY.spect) / (HY.wcRatio || 100) / wcU), 1, 48); for (let k = 0; k < nw; k++) put('wc', -62 - (k % 8) * 6, off('wc', 6 + Math.floor(k / 8) * 3));
+  const gc = cap({ t: 'gradin', L: TYPES.gradin.L, W: TYPES.gradin.W }) || 100, ng = clamp(Math.ceil(HY.spect * .1 / gc), 1, 4); for (let k = 0; k < ng; k++) put('gradin', -8 - k * 13.5, -v * (sb + (TYPES.gradin ? TYPES.gradin.W : 6) / 2 + 1));
+  put('ecran', 14, -v * (sb + 3));
+  selO = null; checkObj(); store(); drawObj(); map.fitBounds(L.latLngBounds(OBJ.map(o => [o.lat, o.lng])).pad(.25), { maxZoom: 18, animate: false });
+  propose.info = { moved, stuck };
+}
+const siteCost = () => OBJ.reduce((a, o) => a + (TYPES[o.t].prix || 0), 0);
+function siteSVG() {
+  if (!A || !OBJ.length) return ''; const Q = OBJ.map(o => oCorners(o).map(A.xy)), all = Q.flat(), m = 30;
+  const x0 = Math.min(...all.map(p => p[0])) - m, x1 = Math.max(...all.map(p => p[0])) + m, y0 = Math.min(...all.map(p => p[1])) - m, y1 = Math.max(...all.map(p => p[1])) + m, w = x1 - x0, h = y1 - y0, u = w / 700;
+  const P = p => (p[0] - x0).toFixed(1) + ',' + (y1 - p[1]).toFixed(1);
+  let s = `<svg viewBox="0 0 ${w.toFixed(0)} ${h.toFixed(0)}" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif"><rect width="100%" height="100%" fill="#f4f1ea"/>`;
+  for (const b of A.BLD) s += `<polygon points="${b.map(P).join(' ')}" fill="#b8b0a2"/>`;
+  s += `<polyline points="${A.P.filter(p => p[0] > x0 - 50 && p[0] < x1 + 50 && p[1] > y0 - 50 && p[1] < y1 + 50).map(P).join(' ')}" fill="none" stroke="#222" stroke-width="${Math.max(4, 3 * u)}" stroke-linejoin="round"/>`;
+  OBJ.forEach((o, k) => { const c = Q[k], cx = (c[0][0] + c[2][0]) / 2, cy = (c[0][1] + c[2][1]) / 2; s += `<polygon points="${c.map(P).join(' ')}" fill="${TYPES[o.t].c}" fill-opacity=".8" stroke="${o.al && o.al.length ? '#d1001f' : '#222'}" stroke-width="${u}"/><text x="${(cx - x0).toFixed(1)}" y="${(y1 - cy + 3.5 * u).toFixed(1)}" font-size="${9 * u}" text-anchor="middle" font-weight="bold">${TYPES[o.t].s}</text>`; });
+  const sc = w > 400 ? 50 : 20;
+  return s + `<g transform="translate(${10 * u},${h - 16 * u})"><rect width="${sc}" height="${2 * u}" fill="#000"/><text y="${-3 * u}" font-size="${9 * u}">${sc} m</text></g><g transform="translate(${w - 14 * u},${22 * u})"><path d="M0,${-14 * u} L${5 * u},${4 * u} L0,0 L${-5 * u},${4 * u} Z"/><text y="${14 * u}" font-size="${9 * u}" text-anchor="middle">N</text></g></svg>`;
+}
+function siteTab() {
+  if (!A) return '<p class="note">Tracez le parcours et lancez l\'analyse : l\'implantation se cale sur l\'arrivée et sur les bâtiments réels.</p>';
+  const o = OBJ.find(o => o.id === selO), byT = Object.keys(TYPES).map(t => [t, OBJ.filter(o => o.t === t)]).filter(x => x[1].length), al = OBJ.filter(o => o.al && o.al.length);
+  const st = OBJ.filter(o => TYPES[o.t].val && !A.site).sort((a, b) => b.val - a.val), top = st[0] ? Math.max(1, st[0].val) : 1;
+  return `<p><button data-oa="propose" class="go">Proposer une implantation</button> <button data-oa="clear">Tout retirer</button></p>
+  <p class="note">La proposition installe le site autour de l'arrivée, du côté le moins bâti, en décalant chaque élément jusqu'à trouver une place libre de bâtiment. Ensuite : glissez l'étiquette d'un objet pour le déplacer, cliquez-le pour le régler.${propose.info && propose.info.stuck ? ' <b>' + propose.info.stuck + ' élément(s) n\'ont pas trouvé de place libre à moins de 60 m.</b>' : ''}</p>
+  <h2>Ajouter</h2>${[...new Set(Object.values(TYPES).map(T => T.cat || 'Mes éléments'))].map(c => `<p class="note" style="margin:6px 0 2px">${c}</p><p>${Object.entries(TYPES).filter(x => (x[1].cat || 'Mes éléments') === c).map(([k, T]) => `<button data-add="${k}" class="${placing === k ? 'on' : ''}" style="margin:0 4px 4px 0;border-left:6px solid ${T.c}">${T.nom}</button>`).join('')}</p>`).join('')}
+  ${placing ? '<p class="note"><b>Cliquez sur la carte</b> à l\'endroit voulu. L\'objet s\'aligne sur le parcours.</p>' : ''}
+  ${o ? `<h2>${TYPES[o.t].nom}</h2><label class="p">Longueur (m)<input type="number" step="any" data-ob="L" value="${o.L}"></label><label class="p">Largeur (m)<input type="number" step="any" data-ob="W" value="${o.W}"></label>
+  <p><button data-oa="rotL">↺ 15°</button> <button data-oa="rotR">↻ 15°</button> <button data-oa="align">Aligner sur le parcours</button> <button data-oa="dup">Dupliquer</button> <button data-oa="del">Supprimer</button></p>
+  <p class="note">${cap(o) ? 'Capacité : ' + fmt(cap(o)) + ' ' + (TYPES[o.t].unit || '') + '. ' : ''}${A.site ? '' : o.d < 1e8 ? 'À ' + fmt(o.d, 1) + ' m du parcours.' : 'Loin du parcours.'} ${o.al.length ? '<span class="late">' + o.al.join(' ; ') + '</span>' : ''}</p>` : ''}
+  <h2>${al.length + GL.length ? (al.length + GL.length) + ' point(s) à corriger' : 'Aucune alerte'}</h2>
+  <table>${GL.map(g => `<tr><td><span class="dot" style="background:#e08a00"></span></td><td>${g}</td></tr>`).join('')}${al.map(o => `<tr class="go" data-ob-go="${o.id}"><td><span class="dot" style="background:#d1001f"></span></td><td><b>${TYPES[o.t].nom}</b> : ${o.al.join(' ; ')}</td></tr>`).join('')}</table>
+  <h2>Inventaire</h2><table><tr><th>Élément</th><th class="n">Nombre</th><th class="n">Surface</th><th>Capacité</th><th class="n">Coût</th></tr>${byT.map(([t, l]) => `<tr><td><span class="dot" style="background:${TYPES[t].c}"></span>${TYPES[t].nom}</td><td class="n">${l.length}</td><td class="n">${fmt(l.reduce((a, o) => a + o.L * o.W, 0))} m²</td><td>${l.reduce((a, o) => a + cap(o), 0) ? fmt(l.reduce((a, o) => a + cap(o), 0)) + ' ' + (TYPES[t].unit || '') : ''}</td><td class="n">${TYPES[t].prix ? fmt(l.length * TYPES[t].prix) + ' €' : '—'}</td></tr>`).join('') || '<tr><td>Rien n\'est encore placé.</td></tr>'}${siteCost() ? `<tr><th>Total</th><th></th><th></th><th></th><th class="n">${fmt(siteCost())} €</th></tr>` : ''}</table>
+  <p class="note">Tailles, capacités, couleurs et prix de chaque élément se règlent dans l'onglet « Réglages », où vous pouvez aussi créer vos propres éléments.</p>
+  ${st.length ? `<h2>Valeur des stands partenaires</h2><p class="note">Indice 100 = le stand devant lequel passent le plus de spectateurs et de participants, d'après la répartition estimée du public.</p><table>${st.map((s, k) => `<tr class="go" data-ob-go="${s.id}"><td>${TYPES[s.t].nom} ${k + 1}</td><td class="n">${fmt(s.val)} personnes à proximité</td><td class="n"><b>${Math.round(100 * s.val / top)}</b></td></tr>`).join('')}</table>` : ''}
+  <h2>Réglages</h2><label class="p">Recul du public par rapport au parcours (m)<input type="number" step="any" data-hy="setback" value="${HY.setback}"></label><label class="p">Stands partenaires à proposer<input type="number" data-hy="nStands" value="${HY.nStands}"></label><label class="p">Une toilette pour combien de personnes<input type="number" data-hy="wcRatio" value="${HY.wcRatio}"></label>
+  <p class="note">Recul, places par gradin et ratio de toilettes sont des hypothèses. Les tribunes démontables et les chapiteaux ont leurs propres règles de sécurité, à vérifier avec le loueur et la commune.</p>`;
+}
+function siteAct(a) {
+  const o = OBJ.find(o => o.id === selO);
+  if (a === 'propose') { if (OBJ.length && !confirm('Remplacer l\'implantation actuelle par la proposition ?')) return; propose(); panel(true); return; }
+  if (a === 'clear') { if (!OBJ.length || !confirm('Retirer tous les éléments placés ?')) return; OBJ = []; selO = null; }
+  else if (!o) return;
+  else if (a === 'rotL') o.ang += Math.PI / 12; else if (a === 'rotR') o.ang -= Math.PI / 12;
+  else if (a === 'align') o.ang = alignAng(o.lat, o.lng) + (TYPES[o.t].onRoute ? Math.PI / 2 : 0);
+  else if (a === 'del') { OBJ = OBJ.filter(x => x !== o); selO = null; }
+  else if (a === 'dup') { const c = Math.cos(o.ang), s = Math.sin(o.ang), d = o.L + .6, q = addObj(o.t, o.lat + d * s / 110540, o.lng + d * c / (111320 * Math.cos(o.lat * Math.PI / 180)), o.ang); q.L = o.L; q.W = o.W; selO = q.id; }
+  checkObj(); store(); drawObj(); panel(true);
+}
+
+let tab = 'Épreuve';
+const PHASES = [['Avant : concevoir', ['Projets', 'Épreuve', 'Synthèse', 'Carrefours', 'Secours et public', 'Panneaux', 'Implantation', 'Plan du site']], ['Avant : préparer', ['Besoins', 'Organisation', 'Réglages']], ['Pendant', ['Jour J']], ['Après', ['Bilan']]];
+function panel(keep) { const sc = $('#body').scrollTop; $('#tabs').innerHTML = PHASES.map(([n, l]) => `<span class="ph">${n}</span>` + l.map(t => `<button class="${t === tab ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')).join(''); $('#body').innerHTML = TABS[tab](); $('#body').scrollTop = keep ? sc : 0; }
+$('#tabs').onclick = e => { if (e.target.dataset.tab) { tab = e.target.dataset.tab; panel(); } };
+// ───────── Plan du site : tracés, zones, postes, signalisation, notes ─────────
+const LT = {
+  barriere:  { nom: 'Barrière Vauban', c: '#e11d48', u: 2.5, un: 'barrières', w: 4 },
+  heras:     { nom: 'Clôture haute de chantier', c: '#7c3aed', u: 3.5, un: 'panneaux', w: 4 },
+  beton:     { nom: 'Blocs béton anti-véhicule', c: '#374151', u: 2, un: 'blocs', w: 6 },
+  rubalise:  { nom: 'Rubalise', c: '#f59e0b', u: 100, un: 'rouleaux', w: 3, dash: '6 6' },
+  cable:     { nom: 'Passage de câbles', c: '#111827', u: 1, un: 'éléments', w: 3, dash: '2 6' },
+  file:      { nom: 'File d\'attente', c: '#0ea5e9', u: 0, w: 3, dash: '10 6' },
+  flux:      { nom: 'Cheminement du public', c: '#16a34a', u: 0, w: 5, dash: '12 8' },
+  secours:   { nom: 'Voie d\'accès des secours', c: '#dc2626', u: 0, w: 7, dash: '14 6' },
+  deviation: { nom: 'Déviation de circulation', c: '#ea580c', u: 0, w: 5, dash: '14 8' },
+  livraison: { nom: 'Accès livraisons et montage', c: '#92400e', u: 0, w: 4, dash: '8 6' },
+  mesure:    { nom: 'Cote (mesure)', c: '#000', u: 0, w: 2, dash: '4 4' }
+};
+const ZT = {
+  debout:   { nom: 'Public debout', c: '#22c55e', d: 2 },
+  assis:    { nom: 'Public assis', c: '#3b82f6', d: 1 },
+  attente:  { nom: 'Zone d\'attente, parvis', c: '#0ea5e9', d: 1.5 },
+  vip:      { nom: 'Espace invités, partenaires', c: '#a855f7', d: .7 },
+  pmr:      { nom: 'Emplacement réservé PMR', c: '#06b6d4', d: .4 },
+  tech:     { nom: 'Zone technique, coulisses', c: '#6b7280', d: 0 },
+  interdit: { nom: 'Zone interdite au public', c: '#dc2626', d: 0 },
+  parking:  { nom: 'Stationnement', c: '#9ca3af', d: .04, un: 'voitures' },
+  velos:    { nom: 'Parc à vélos', c: '#65a30d', d: .6, un: 'vélos' },
+  camping:  { nom: 'Camping', c: '#84cc16', d: .02, un: 'emplacements' }
+};
+const PT = {
+  securite:   { nom: 'Agent de sécurité', s: 'Sé', bg: '#dbeafe', staff: 1, gr: 'Personnel' },
+  benevole:   { nom: 'Bénévole', s: 'Bé', bg: '#dcfce7', staff: 1, gr: 'Personnel' },
+  signaleur:  { nom: 'Signaleur', s: 'Si', bg: '#fef3c7', staff: 1, gr: 'Personnel' },
+  secouriste: { nom: 'Secouriste', s: 'Sc', bg: '#fee2e2', staff: 1, gr: 'Personnel' },
+  accueil:    { nom: 'Accueil, billetterie', s: 'Ac', bg: '#ede9fe', staff: 1, gr: 'Personnel' },
+  regisseur:  { nom: 'Régisseur, technique', s: 'Ré', bg: '#e5e7eb', staff: 1, gr: 'Personnel' },
+  barree:     { nom: 'Panneau route barrée', s: 'RB', bg: '#fecaca', gr: 'Signalisation' },
+  dev:        { nom: 'Panneau déviation', s: 'DV', bg: '#fed7aa', gr: 'Signalisation' },
+  statint:    { nom: 'Panneau stationnement interdit', s: 'SI', bg: '#fecaca', gr: 'Signalisation' },
+  pk:         { nom: 'Fléchage parking', s: 'PK', bg: '#e5e7eb', gr: 'Signalisation' },
+  entree:     { nom: 'Entrée du public', s: 'EN', bg: '#bbf7d0', gr: 'Accès' },
+  issue:      { nom: 'Issue de secours', s: 'IS', bg: '#bbf7d0', gr: 'Accès' },
+  extincteur: { nom: 'Extincteur', s: 'Ex', bg: '#fecaca', gr: 'Équipements' },
+  eau:        { nom: 'Point d\'eau', s: 'Eau', bg: '#bae6fd', gr: 'Équipements' },
+  elec:       { nom: 'Coffret électrique', s: 'Él', bg: '#fef08a', gr: 'Équipements' },
+  poubelle:   { nom: 'Point de collecte des déchets', s: 'Dé', bg: '#d9f99d', gr: 'Équipements' },
+  radio:      { nom: 'Poste radio', s: 'Ra', bg: '#e5e7eb', gr: 'Équipements' }
+};
+const LYN = { parcours: 'Parcours', analyse: 'Résultats de l\'analyse', objets: 'Éléments implantés', lignes: 'Tracés', zones: 'Zones', points: 'Postes et signalisation', notes: 'Notes', fond: 'Image de fond' };
+const LYV = Object.assign(Object.fromEntries(Object.keys(LYN).map(k => [k, true])), ST.layers || {});
+map.createPane('fond').style.zIndex = 250;
+const lyBg = L.layerGroup().addTo(map), lyDraw = L.layerGroup().addTo(map);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const dM = (a, b) => Math.hypot((a[1] - b[1]) * 111320 * Math.cos(a[0] * Math.PI / 180), (a[0] - b[0]) * 110540);
+const dLen = p => { let s = 0; for (let i = 1; i < p.length; i++) s += dM(p[i - 1], p[i]); return s; };
+const dArea = p => { if (p.length < 3) return 0; const k = 111320 * Math.cos(p[0][0] * Math.PI / 180), q = p.map(a => [(a[1] - p[0][1]) * k, (a[0] - p[0][0]) * 110540]); let s = 0; for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; s += a[0] * b[1] - b[0] * a[1]; } return Math.abs(s) / 2; };
+const dCap = d => d.k === 'zone' ? Math.floor(dArea(d.pts) * (ZT[d.t].d || 0)) : 0;
+const dUnits = d => LT[d.t].u ? Math.ceil(dLen(d.pts) / LT[d.t].u) : 0;
+const saveST = () => { try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { } };
+function setBase(k) { ST.base = k; map.removeLayer(baseOSM); map.removeLayer(baseOrtho); (k === 'ortho' ? baseOrtho : baseOSM).addTo(map).bringToBack(); saveST(); }
+function applyLayers() { [[lyRoute, 'parcours'], [lyRes, 'analyse'], [lyObj, 'objets'], [lyBg, 'fond']].forEach(([l, k]) => LYV[k] ? map.addLayer(l) : map.removeLayer(l)); drawDraw(); }
+function drawBg() { lyBg.clearLayers(); if (BG && BG.url) L.imageOverlay(BG.url, BG.b, { opacity: BG.op == null ? .6 : BG.op, interactive: false, pane: 'fond' }).addTo(lyBg); }
+function drawDraw() {
+  lyDraw.clearLayers();
+  const kind = { ligne: 'lignes', zone: 'zones', point: 'points', note: 'notes' }, re = () => { drawDraw(); if (tab === 'Plan du site') panel(true); };
+  for (const d of DRAW) {
+    if (!LYV[kind[d.k]]) continue;
+    const on = d.id === selD, pick = e => { L.DomEvent.stopPropagation(e); if (drawing) return; selD = d.id; re(); };
+    if (d.k === 'ligne') { const T = LT[d.t], l = L.polyline(d.pts, { color: T.c, weight: T.w + (on ? 3 : 0), dashArray: T.dash || null }).addTo(lyDraw).on('click', pick); if (d.t === 'mesure' || on) l.bindTooltip(fmt(dLen(d.pts), 1) + ' m', { permanent: true, direction: 'center', className: 'tipm' }); }
+    else if (d.k === 'zone') { const T = ZT[d.t], c = dCap(d); L.polygon(d.pts, { color: T.c, weight: on ? 4 : 2, fillColor: T.c, fillOpacity: .28 }).addTo(lyDraw).on('click', pick).bindTooltip(esc(d.txt || T.nom) + (c ? '<br>' + fmt(c) + ' ' + (T.un || 'pers.') : ''), { permanent: true, direction: 'center', className: 'tipm' }); }
+    else { const T = d.k === 'point' ? PT[d.t] : null, m = L.marker(d.pts[0], { draggable: true, icon: ico(d.k === 'note' ? '#fff7b0' : on ? '#fde047' : T.bg || '#fff', d.k === 'note' ? esc(d.txt || 'Note') : T.s + (d.n > 1 ? ' ×' + d.n : '')) }).addTo(lyDraw); m.on('click', pick); m.on('dragend', () => { const p = m.getLatLng(); d.pts[0] = [p.lat, p.lng]; store(); }); if (T) m.bindTooltip(esc(T.nom + (d.txt ? ' — ' + d.txt : ''))); }
+    if (on && (d.k === 'ligne' || d.k === 'zone')) d.pts.forEach((p, i) => { const m = L.marker(p, { draggable: true, icon: ico('#000') }).addTo(lyDraw); m.on('dragend', () => { const q = m.getLatLng(); d.pts[i] = [q.lat, q.lng]; store(); re(); }); });
+  }
+  if (drawing && drawing.pts.length) { (drawing.k === 'zone' && drawing.pts.length > 2 ? L.polygon : L.polyline)(drawing.pts, { color: '#000', weight: 2, dashArray: '4 4', fillOpacity: .1 }).addTo(lyDraw); drawing.pts.forEach(p => L.circleMarker(p, { radius: 4, color: '#000', fillColor: '#fff', fillOpacity: 1 }).addTo(lyDraw)); }
+}
+function drawEnd(cancel) { const g = drawing; drawing = null; map.doubleClickZoom.enable(); $('#map').style.cursor = ''; if (g && !cancel && g.pts.length >= (g.k === 'zone' ? 3 : 2)) { const d = { id: did++, k: g.k, t: g.t, pts: g.pts }; DRAW.push(d); selD = d.id; store(); } drawDraw(); panel(true); }
+function drawStart(k, t) { if (drawing && drawing.k === k && drawing.t === t) { drawEnd(); return; } if (drawing) drawEnd(); drawing = { k, t, pts: [] }; selD = null; placing = null; map.doubleClickZoom.disable(); $('#map').style.cursor = 'crosshair'; drawDraw(); panel(true); }
+function drawClick(ll) {
+  const g = drawing, p = [ll.lat, ll.lng];
+  if (g.k === 'point') { DRAW.push({ id: did++, k: 'point', t: g.t, pts: [p], n: 1 }); store(); drawDraw(); panel(true); return; }
+  if (g.k === 'note') { const x = prompt('Texte de la note :'); if (x) { DRAW.push({ id: did++, k: 'note', pts: [p], txt: x.slice(0, 80) }); store(); } drawDraw(); panel(true); return; }
+  g.pts.push(p); drawDraw(); panel(true);
+}
+map.on('dblclick', () => { if (drawing && (drawing.k === 'ligne' || drawing.k === 'zone')) { drawing.pts.pop(); drawEnd(); } });
+document.addEventListener('keydown', e => { if (!drawing) return; if (e.key === 'Escape') drawEnd(true); else if (e.key === 'Enter') drawEnd(); });
+function planRows() {
+  const px = ST.prix || {}, rows = [];
+  for (const t in LT) { if (t === 'mesure') continue; const l = DRAW.filter(x => x.k === 'ligne' && x.t === t); if (!l.length) continue; const len = l.reduce((a, x) => a + dLen(x.pts), 0), n = l.reduce((a, x) => a + dUnits(x), 0); rows.push({ cat: 'Tracés', key: 'L:' + t, nom: LT[t].nom, c: LT[t].c, q: n || l.length, un: n ? LT[t].un : 'tracé(s)', dim: fmt(len) + ' m', cost: (px['L:' + t] || 0) * (n || 0) }); }
+  for (const t in ZT) { const l = DRAW.filter(x => x.k === 'zone' && x.t === t); if (!l.length) continue; const ar = l.reduce((a, x) => a + dArea(x.pts), 0), c = l.reduce((a, x) => a + dCap(x), 0); rows.push({ cat: 'Zones', key: 'Z:' + t, nom: ZT[t].nom, c: ZT[t].c, q: l.length, un: 'zone(s)', dim: fmt(ar) + ' m²', capa: c ? fmt(c) + ' ' + (ZT[t].un || 'personnes') : '', cost: 0, fixed: true }); }
+  for (const t in PT) { const l = DRAW.filter(x => x.k === 'point' && x.t === t); if (!l.length) continue; const n = l.reduce((a, x) => a + (x.n || 1), 0); rows.push({ cat: PT[t].gr, key: 'P:' + t, nom: PT[t].nom, c: PT[t].bg, q: n, un: PT[t].staff ? 'personne(s)' : 'unité(s)', dim: l.length + ' emplacement(s)', cost: (px['P:' + t] || 0) * n }); }
+  for (const t in TYPES) { const l = OBJ.filter(o => o.t === t); if (!l.length) continue; const c = l.reduce((a, o) => a + cap(o), 0); rows.push({ cat: 'Éléments implantés', key: 'O:' + t, nom: TYPES[t].nom, c: TYPES[t].c, q: l.length, un: 'unité(s)', dim: fmt(l.reduce((a, o) => a + o.L * o.W, 0)) + ' m²', capa: c ? fmt(c) + ' ' + (TYPES[t].unit || '') : '', cost: (TYPES[t].prix || 0) * l.length, fixed: true }); }
+  return rows;
+}
+const planCap = () => DRAW.reduce((a, x) => a + (x.k === 'zone' && !ZT[x.t].un ? dCap(x) : 0), 0) + OBJ.reduce((a, o) => a + (TYPES[o.t] && TYPES[o.t].unit === 'places' ? cap(o) : 0), 0);
+function planStaff() {
+  const o = []; for (const t in PT) if (PT[t].staff) { const n = DRAW.filter(x => x.k === 'point' && x.t === t).reduce((a, x) => a + (x.n || 1), 0); if (n) o.push([PT[t].nom + ' (postes placés sur le plan)', n]); }
+  if (A && A.Q) { if (A.Q.sig) o.push(['Signaleurs aux carrefours (analyse du parcours)', A.Q.sig]); if (A.Q.benRav) o.push(['Ravitaillements (analyse)', A.Q.benRav]); if (A.Q.benSec) o.push(['Postes de secours (analyse)', A.Q.benSec]); if (A.Q.base) o.push(['Départ, arrivée, inscriptions', A.Q.base]); }
+  return o;
+}
+function planTab() {
+  const d = DRAW.find(x => x.id === selD), g = drawing, px = ST.prix || {}, rows = planRows(), capT = planCap(), staff = planStaff(), tot = rows.reduce((a, r) => a + r.cost, 0);
+  const btn = (k, t, T) => `<button data-da="start" data-k="${k}" data-t="${t}" class="${g && g.k === k && g.t === t ? 'on' : ''}" style="margin:0 4px 4px 0;border-left:6px solid ${T.c || T.bg || '#999'}">${T.nom}</button>`;
+  const grp = [...new Set(Object.values(PT).map(T => T.gr))];
+  return `<p class="note">Dessinez le plan complet du site sur la carte : clôtures et barrières au mètre près, zones avec leur capacité, postes du personnel, signalisation, notes. Les quantités, les effectifs et les coûts se calculent tout seuls.</p>
+  ${g ? `<p style="background:#fff7b0;color:#111;padding:8px;border-radius:6px"><b>${g.k === 'ligne' ? 'Tracé en cours : ' + LT[g.t].nom : g.k === 'zone' ? 'Zone en cours : ' + ZT[g.t].nom : g.k === 'point' ? PT[g.t].nom : 'Note'}</b><br>${g.k === 'ligne' || g.k === 'zone' ? 'Cliquez sur la carte pour poser chaque point. Double-clic ou Entrée pour terminer, Échap pour annuler.' + (g.pts.length > 1 ? ' Longueur : ' + fmt(dLen(g.pts), 1) + ' m.' : '') : 'Cliquez sur la carte à chaque emplacement voulu, puis sur « Terminer ».'}<br><button data-da="end" class="go">Terminer</button> ${g.k === 'ligne' || g.k === 'zone' ? '<button data-da="undo">Retirer le dernier point</button> <button data-da="cancel">Annuler</button>' : ''}</p>` : ''}
+  ${d ? `<h2>${d.k === 'ligne' ? LT[d.t].nom : d.k === 'zone' ? ZT[d.t].nom : d.k === 'point' ? PT[d.t].nom : 'Note'}</h2>
+  ${d.k === 'ligne' ? `<p>Longueur : <b>${fmt(dLen(d.pts), 1)} m</b>${dUnits(d) ? ' — <b>' + fmt(dUnits(d)) + ' ' + LT[d.t].un + '</b> (une tous les ' + LT[d.t].u + ' m)' : ''}</p><label class="p">Type<select data-df="t">${Object.entries(LT).map(([k, T]) => `<option value="${k}"${k === d.t ? ' selected' : ''}>${T.nom}</option>`).join('')}</select></label>` : ''}
+  ${d.k === 'zone' ? `<p>Surface : <b>${fmt(dArea(d.pts))} m²</b>${dCap(d) ? ' — capacité <b>' + fmt(dCap(d)) + ' ' + (ZT[d.t].un || 'personnes') + '</b> (' + ZT[d.t].d + ' par m²)' : ''}</p><label class="p">Type<select data-df="t">${Object.entries(ZT).map(([k, T]) => `<option value="${k}"${k === d.t ? ' selected' : ''}>${T.nom}</option>`).join('')}</select></label><label class="p">Nom affiché<input type="text" data-df="txt" value="${esc(d.txt || '')}"></label>` : ''}
+  ${d.k === 'point' ? `<label class="p">Nombre à cet emplacement<input type="number" min="1" data-df="n" value="${d.n || 1}"></label><label class="p">Consigne ou précision<input type="text" data-df="txt" value="${esc(d.txt || '')}"></label>` : ''}
+  ${d.k === 'note' ? `<label class="p">Texte<input type="text" data-df="txt" value="${esc(d.txt || '')}"></label>` : ''}
+  <p>${d.k === 'ligne' || d.k === 'zone' ? '<span class="note">Glissez les points noirs pour ajuster la forme.</span> <button data-da="popv">Retirer le dernier point</button> ' : '<span class="note">Glissez l\'étiquette pour déplacer.</span> '}<button data-da="dup">Dupliquer</button> <button data-da="del">Supprimer</button> <button data-da="unsel">Désélectionner</button></p>` : ''}
+  <h2>Fond de carte</h2><p><button data-da="base" data-k="plan" class="${ST.base === 'ortho' ? '' : 'on'}">Plan</button> <button data-da="base" data-k="ortho" class="${ST.base === 'ortho' ? 'on' : ''}">Photo aérienne</button></p>
+  <p class="note">Photo aérienne de l'IGN, France uniquement. Pour un bâtiment ou un terrain privé, importez votre propre plan :</p>
+  <p><button data-da="bgimp">Importer un plan (image)</button>${BG ? ` <button data-da="bgfit">Recaler sur la vue actuelle</button> <button data-da="bgdel">Retirer</button>` : ''}</p>
+  ${BG ? `<label class="p">Opacité du plan importé<input type="range" min="0.1" max="1" step="0.1" data-bgop="1" value="${BG.op == null ? .6 : BG.op}"></label><p class="note">Le plan importé remplit la vue affichée au moment de l'import. Cadrez la carte sur l'emprise voulue puis cliquez « Recaler ».${BG.big ? ' <b>Image trop lourde pour être enregistrée avec le projet : elle disparaîtra à la fermeture.</b>' : ''}</p>` : ''}
+  <h2>Tracer</h2><p>${Object.entries(LT).map(([k, T]) => btn('ligne', k, T)).join('')}</p>
+  <h2>Délimiter une zone</h2><p>${Object.entries(ZT).map(([k, T]) => btn('zone', k, T)).join('')}</p>
+  <h2>Placer</h2>${grp.map(c => `<p class="note" style="margin:6px 0 2px">${c}</p><p>${Object.entries(PT).filter(x => x[1].gr === c).map(([k, T]) => btn('point', k, T)).join('')}</p>`).join('')}<p><button data-da="start" data-k="note" data-t="" class="${g && g.k === 'note' ? 'on' : ''}" style="border-left:6px solid #fde047">Note sur le plan</button></p>
+  <h2>Calques</h2><p>${Object.entries(LYN).map(([k, n]) => `<label style="display:inline-block;margin:0 12px 4px 0"><input type="checkbox" data-ly="${k}"${LYV[k] ? ' checked' : ''}> ${n}</label>`).join('')}</p>
+  <h2>Capacité d'accueil</h2><p>${capT ? `Zones de public et gradins : <b>${fmt(capT)} personnes</b>. Public attendu : ${fmt(HY.spect)}. ${capT < HY.spect ? '<span class="late">Il manque ' + fmt(HY.spect - capT) + ' places.</span>' : 'La capacité suffit.'}` : '<span class="note">Délimitez des zones de public pour connaître la capacité du site.</span>'}</p>
+  <p class="note">Densités retenues : 2 personnes par m² debout, 1 assise. Ce sont des hypothèses de dimensionnement, pas l'effectif autorisé, qui relève de la commission de sécurité.</p>
+  <h2>Effectifs</h2><table>${staff.map(([n, q]) => `<tr><td>${n}</td><td class="n">${fmt(q)}</td></tr>`).join('') || '<tr><td class="note">Placez des postes sur le plan ou lancez l\'analyse du parcours.</td></tr>'}${staff.length ? `<tr><th>Total</th><th class="n">${fmt(staff.reduce((a, s) => a + s[1], 0))}</th></tr>` : ''}</table>
+  <h2>Inventaire du site</h2><table><tr><th>Élément</th><th class="n">Quantité</th><th class="n">Mesure</th><th>Capacité</th><th class="n">Prix unitaire (€)</th><th class="n">Coût</th></tr>${rows.map(r => `<tr><td><span class="dot" style="background:${r.c}"></span>${r.nom}</td><td class="n">${fmt(r.q)} ${r.un}</td><td class="n">${r.dim}</td><td>${r.capa || ''}</td><td class="n">${r.fixed ? (r.cost ? fmt(r.cost / r.q) : '—') : `<input type="number" step="any" style="width:70px" data-lp="${r.key}" value="${px[r.key] || ''}">`}</td><td class="n">${r.cost ? fmt(r.cost) + ' €' : '—'}</td></tr>`).join('') || '<tr><td class="note">Rien n\'est encore dessiné.</td></tr>'}${tot ? `<tr><th>Total</th><th></th><th></th><th></th><th></th><th class="n">${fmt(tot)} €</th></tr>` : ''}</table>
+  <p><button data-da="csv">Exporter l'inventaire (tableur)</button> <button data-da="clear">Effacer tous les dessins</button></p>
+  <p class="note">Pour partager le plan : onglet « Projets », « Exporter », puis envoyez le fichier ; votre collègue l'importe au même endroit. Il n'y a pas de travail simultané à plusieurs sur le même plan.</p>`;
+}
+TABS['Plan du site'] = () => planTab();
+function drawAct(a, k, t) {
+  const d = DRAW.find(x => x.id === selD);
+  if (a === 'start') return drawStart(k, t);
+  if (a === 'end') return drawEnd();
+  if (a === 'cancel') return drawEnd(true);
+  if (a === 'undo') { if (drawing) drawing.pts.pop(); drawDraw(); panel(true); return; }
+  if (a === 'base') { setBase(k); panel(true); return; }
+  if (a === 'bgimp') { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = () => { const f = i.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { const b = map.getBounds(); BG = { url: r.result, b: [[b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]], op: .6, big: r.result.length > 1500000 }; LYV.fond = true; drawBg(); store(); panel(true); }; r.readAsDataURL(f); }; i.click(); return; }
+  if (a === 'bgfit') { if (BG) { const b = map.getBounds(); BG.b = [[b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]]; drawBg(); store(); } return; }
+  if (a === 'bgdel') { BG = null; drawBg(); store(); panel(true); return; }
+  if (a === 'csv') { const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"', L2 = [['Catégorie', 'Élément', 'Quantité', 'Unité', 'Mesure', 'Capacité', 'Coût (€)']].concat(planRows().map(r => [r.cat, r.nom, r.q, r.un, r.dim, r.capa || '', r.cost || ''])).concat(planStaff().map(s => ['Effectifs', s[0], s[1], 'personne(s)', '', '', ''])); if (A && A.Q) L2.push(['Parcours', 'Barrières aux carrefours', A.Q.bar, 'unité(s)', '', '', ''], ['Parcours', 'Rubalise', A.Q.rub, 'm', '', '', '']); const b = new Blob(['﻿' + L2.map(r => r.map(q).join(';')).join('\r\n')], { type: 'text/csv' }), l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = 'inventaire-' + ((ST.projects[ST.cur] || {}).name || 'site').replace(/[^\w\-]+/g, '_') + '.csv'; l.click(); return; }
+  if (a === 'clear') { if (!DRAW.length || !confirm('Effacer tous les tracés, zones, postes et notes ?')) return; DRAW = []; selD = null; }
+  else if (a === 'unsel') selD = null;
+  else if (!d) return;
+  else if (a === 'del') { DRAW = DRAW.filter(x => x !== d); selD = null; }
+  else if (a === 'popv') { if (d.pts.length > (d.k === 'zone' ? 3 : 2)) d.pts.pop(); }
+  else if (a === 'dup') { const o = 8 / 110540, c = JSON.parse(JSON.stringify(d)); c.id = did++; c.pts = c.pts.map(p => [p[0] - o, p[1] + o]); DRAW.push(c); selD = c.id; }
+  store(); drawDraw(); panel(true);
+}
+// ───────── Avant, pendant, après : besoins, jour J, bilan ─────────
+const nowM = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const hh = t => { t = ((Math.round(t) % 1440) + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
+const startM = () => { const m = /^(\d+):(\d+)/.exec(HY.start); return m ? +m[1] * 60 + +m[2] : 540; };
+// résumé de la dernière analyse, gardé avec le projet pour servir le jour J sans réseau
+function mkSum() { if (A && A.Q && !A.site) SUMM = { Q: { ...A.Q }, len: A.len, nrav: A.RAV.length, nsec: A.SEC.length, winner: A.winner, lastIn: A.lastIn, posts: A.J.filter(j => j.sig).map(j => ({ nom: jn(j), km: +(j.i * A.DS / 1000).toFixed(1), sig: j.sig, t0: j.t0, t1: j.t1 })) }; else if (A && A.site) SUMM = { Q: { ...A.Q }, len: 0, nrav: 0, nsec: 1, posts: [], site: true }; return SUMM; }
+const benTotal = () => { const s = mkSum(), q = s ? s.Q : null, plan = DRAW.filter(x => x.k === 'point' && PT[x.t].staff).reduce((a, x) => a + (x.n || 1), 0); return (q ? (q.sig || 0) + (q.benRav || 0) + (q.base || HY.base) : HY.base) + plan; };
+function ris() {
+  const P = +HY.spect || 0, P1 = P <= 100000 ? P : 100000 + (P - 100000) / 2, i = (+HY.risP2 || .3) + (+HY.risE1 || .25) + (+HY.risE2 || .25), r = i * P1 / 1000;
+  let nom, n;
+  if (r <= .25) { nom = 'Pas de dispositif imposé par la grille : à l\'appréciation de l\'autorité de police'; n = 0; }
+  else if (r <= 1.125) { nom = 'Point d\'alerte et de premiers secours'; n = 2; }
+  else { n = Math.ceil(r); if (n % 2) n++; n = Math.max(4, n); nom = r <= 12 ? 'Dispositif de petite envergure' : r <= 36 ? 'Dispositif de moyenne envergure' : 'Dispositif de grande envergure'; }
+  return { r, nom, n };
+}
+function needRows() {
+  const s = mkSum(), q = s ? s.Q : null, P = +HY.parts || 0, S = +HY.spect || 0, R = k => +HY[k] || 0, ben = benTotal(), rows = [], add = (cat, key, nom, n, un, why) => { if (n > 0) rows.push({ cat, key: 'N:' + key, nom, q: Math.ceil(n), un, why }); };
+  const nrav = s ? s.nrav : 0, planBar = DRAW.filter(x => x.k === 'ligne' && x.t === 'barriere').reduce((a, x) => a + dUnits(x), 0), km = s ? s.len / 1000 : 0, rs = ris();
+  if (!(SPORTS[HY.sport] || {}).site) {
+    add('Participants', 'dossard', 'Dossards', P * (1 + R('nMarge') / 100), 'unités', `${fmt(P)} participants + ${R('nMarge')} % de marge`);
+    add('Participants', 'epingle', 'Épingles à dossard', P * 4 * (1 + R('nMarge') / 100), 'unités', '4 par dossard');
+    add('Participants', 'puce', 'Puces de chronométrage', P * (1 + R('nMarge') / 100), 'unités', 'une par dossard');
+    add('Participants', 'medaille', 'Médailles ou lots d\'arrivée', P * R('nLot'), 'unités', `${R('nLot')} par participant`);
+    add('Ravitaillement', 'eau', 'Eau', P * (nrav ? nrav : 1) * R('nEau'), 'litres', `${fmt(R('nEau'), 2)} L par participant et par point (${nrav || 1} point(s))`);
+    add('Ravitaillement', 'gobelet', 'Gobelets', P * (nrav ? nrav : 1) * R('nGob'), 'unités', `${fmt(R('nGob'), 1)} par participant et par point`);
+    add('Ravitaillement', 'fruit', 'Portions solides (fruits, sucré, salé)', P * (nrav ? nrav : 1) * R('nFruit'), 'portions', `${fmt(R('nFruit'), 1)} par participant et par point`);
+    add('Ravitaillement', 'table', 'Tables de ravitaillement', (nrav || 1) * Math.max(2, Math.ceil(P / 150)), 'tables', '1 pour 150 participants, 2 au minimum par point');
+  }
+  if (q) {
+    add('Sécurité du parcours', 'signaleur', 'Signaleurs', q.sig, 'personnes', 'calculé carrefour par carrefour');
+    add('Sécurité du parcours', 'k10', 'Panneaux K10 (piquet mobile)', q.sig, 'unités', 'un par signaleur');
+    add('Sécurité du parcours', 'barriere', 'Barrières', (q.bar || 0) + planBar, 'unités', `${fmt(q.bar || 0)} aux carrefours + ${fmt(planBar)} tracées sur le plan`);
+    add('Sécurité du parcours', 'rubalise', 'Rubalise', (q.rub || 0) / 100, 'rouleaux de 100 m', `${fmt(q.rub || 0)} m calculés`);
+    add('Sécurité du parcours', 'fleche', 'Flèches et panneaux de balisage', q.fleche, 'unités', 'virages, carrefours et bornes kilométriques');
+  } else add('Sécurité du parcours', 'barriere', 'Barrières', planBar, 'unités', 'tracées sur le plan');
+  add('Secours', 'secouriste', 'Secouristes pour le public', rs.n, 'personnes', `grille nationale : indice ${fmt(rs.r, 2)}, ${rs.nom.toLowerCase()}`);
+  add('Secours', 'poste', 'Postes de secours', s ? s.nsec : 1, 'postes', s && !s.site ? `un tous les ${HY.secours} km, plus départ et arrivée` : 'un sur le site');
+  add('Public et site', 'wc', 'Toilettes', (P + S) / (R('wcRatio') || 100), 'cabines', `1 pour ${R('wcRatio') || 100} personnes (${fmt(P + S)} attendues)`);
+  add('Public et site', 'wcpmr', 'Toilettes accessibles PMR', Math.max(1, (P + S) / (R('wcRatio') || 100) / 10), 'cabines', '1 pour 10 cabines, 1 au minimum');
+  add('Public et site', 'poubelle', 'Points de collecte des déchets', (P + S) / (R('nPoub') || 100), 'points', `1 pour ${R('nPoub') || 100} personnes`);
+  add('Équipe', 'benevole', 'Bénévoles', ben, 'personnes', 'signaleurs, ravitaillements, départ et arrivée, postes du plan');
+  add('Équipe', 'gilet', 'Gilets haute visibilité', ben, 'unités', 'un par bénévole');
+  add('Équipe', 'repas', 'Repas ou collations des bénévoles', ben + rs.n, 'unités', 'bénévoles et secouristes');
+  add('Équipe', 'radio', 'Radios ou téléphones de liaison', 3 + Math.ceil((q ? q.sig : 0) / (R('nRadio') || 5)), 'unités', `PC, secours, arrivée, puis 1 pour ${R('nRadio') || 5} signaleurs`);
+  for (const r of planRows()) if (r.key !== 'L:barriere') rows.push({ cat: 'Plan du site', key: r.key, nom: r.nom, q: r.q, un: r.un, why: r.dim + (r.capa ? ', ' + r.capa : ''), fixedCost: r.fixed ? r.cost : null });
+  const px = ST.prix || {}; rows.forEach(r => r.cost = r.fixedCost != null ? r.fixedCost : (px[r.key] || 0) * r.q);
+  return rows;
+}
+const NR = [['nMarge', 'Marge sur dossards et puces (%)'], ['nLot', 'Médailles ou lots par participant'], ['nEau', 'Eau par participant et par point (L)'], ['nGob', 'Gobelets par participant et par point'], ['nFruit', 'Portions solides par participant et par point'], ['wcRatio', 'Une toilette pour combien de personnes'], ['nPoub', 'Un point déchets pour combien de personnes'], ['nRadio', 'Une radio pour combien de signaleurs'], ['perJ', 'Signaleurs par carrefour']];
+const RIS = { risP2: ['Comportement du public', [[.25, 'Public assis (spectacle, réunion)'], [.3, 'Public debout statique (cérémonie, exposition)'], [.35, 'Public debout dynamique (course, fête de rue, concert)'], [.4, 'Public dynamique à risque (féria, sport mécanique)']]], risE1: ['Site et accès', [[.25, 'Structures permanentes, voies publiques'], [.3, 'Gradins, tribunes, chapiteaux'], [.35, 'Espaces naturels, moins de 2 hectares'], [.4, 'Espaces naturels étendus, accès difficile']]], risE2: ['Délai d\'arrivée des secours publics', [[.25, '10 minutes au plus'], [.3, '10 à 20 minutes'], [.35, '20 à 30 minutes'], [.4, 'Plus de 30 minutes']]] };
+function needTab() {
+  const rows = needRows(), px = ST.prix || {}, tot = rows.reduce((a, r) => a + r.cost, 0), cats = [...new Set(rows.map(r => r.cat))], rs = ris(), P = +HY.parts || 0;
+  return `<p class="note">La liste complète de ce qu'il faut réunir avant l'événement. Chaque quantité affiche sa règle de calcul ; les règles se changent en bas de page.</p>
+  ${!mkSum() ? '<p class="late">Le parcours n\'a pas encore été analysé : signaleurs, barrières et balisage manquent dans cette liste. Tracez le parcours puis cliquez « Analyser ».</p>' : ''}
+  <table><tr><th>Besoin</th><th class="n">Quantité</th><th>Calcul</th><th class="n">Prix unitaire (€)</th><th class="n">Coût</th></tr>
+  ${cats.map(c => `<tr><th colspan="5">${c}</th></tr>` + rows.filter(r => r.cat === c).map(r => `<tr><td>${r.nom}</td><td class="n"><b>${fmt(r.q)}</b> ${r.un}</td><td class="note">${r.why}</td><td class="n">${r.fixedCost != null ? (r.cost ? fmt(r.cost / r.q) : '—') : `<input type="number" step="any" style="width:70px" data-lp="${r.key}" value="${px[r.key] || ''}">`}</td><td class="n">${r.cost ? fmt(r.cost) + ' €' : '—'}</td></tr>`).join('')).join('')}
+  ${tot ? `<tr><th>Budget matériel et équipe</th><th></th><th></th><th></th><th class="n">${fmt(tot)} €</th></tr>${P ? `<tr><td>Soit par participant</td><td></td><td></td><td></td><td class="n">${fmt(tot / P, 2)} €</td></tr>` : ''}` : ''}</table>
+  <p><button data-xa="needcsv">Exporter la liste (tableur)</button></p>
+  <h2>Secours pour le public</h2><p>Indice de risque : <b>${fmt(rs.r, 2)}</b> — ${rs.nom}${rs.n ? ', <b>' + rs.n + ' secouristes</b>' : ''}.</p>
+  ${Object.entries(RIS).map(([k, [t, o]]) => `<label class="p">${t}<select data-hy="${k}">${o.map(([v, n]) => `<option value="${v}"${(+HY[k] || o[0][0]) === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`).join('')}
+  <p class="note">Calcul selon la grille du référentiel national des dispositifs prévisionnels de secours, reprise ici de mémoire : faites-la confirmer par l'association de sécurité civile qui tiendra le poste. Elle couvre le public, pas les participants : les secours des coureurs relèvent des règles de la fédération.</p>
+  <h2>Règles de calcul</h2>${NR.map(([k, t]) => `<label class="p">${t}<input type="number" step="any" data-hy="${k}" value="${HY[k]}"></label>`).join('')}
+  <p class="note">Ces ratios sont des valeurs de départ usuelles, pas des normes. Remplacez-les par vos chiffres des éditions passées : c'est ce qui rend la liste juste.</p>`;
+}
+// ── Jour J ──
+function dayPlan() {
+  const s = mkSum(), T0 = startM(), o = [[-180, 'Arrivée de l\'équipe, ouverture du PC course'], [-150, 'Pose des barrières et du balisage'], [-120, 'Montage de l\'arche, des ravitaillements et des sanitaires'], [-90, 'Ouverture du retrait des dossards'], [-60, 'Briefing des signaleurs, remise des gilets et des consignes'], [-45, 'Poste de secours opérationnel'], [-(+HY.close || 30), 'Signaleurs en place, fermeture des routes'], [-10, 'Briefing des participants'], [0, 'Départ']];
+  if (s && s.winner) { o.push([s.winner, 'Arrivée estimée du premier'], [s.lastIn, 'Arrivée estimée du dernier'], [s.lastIn + (+HY.reopen || 15), 'Réouverture des routes, levée des signaleurs'], [s.lastIn + 30, 'Remise des prix'], [s.lastIn + 60, 'Début du démontage et du nettoyage']); }
+  else { const d = (+HY.duree || 6) * 60; o.push([d, 'Fin de l\'événement'], [d + 30, 'Début du démontage et du nettoyage']); }
+  const l = o.map(([m, t], k) => ({ id: 'd' + k, m: T0 + m, t })).concat((LV.extra || []).map(x => ({ id: x.id, m: x.m, t: x.t, user: true })));
+  return l.sort((a, b) => a.m - b.m);
+}
+function dayPosts() {
+  const s = mkSum(), o = (s ? s.posts : []).map((p, k) => ({ id: 'j' + k, nom: p.nom, det: `km ${fmt(p.km, 1)} — ${p.sig} signaleur(s) — fermé de ${hh(p.t0)} à ${hh(p.t1)}`, n: p.sig }));
+  DRAW.filter(x => x.k === 'point' && PT[x.t].staff).forEach(x => o.push({ id: 'p' + x.id, nom: PT[x.t].nom, det: (x.txt ? x.txt + ' — ' : '') + (x.n || 1) + ' personne(s)', n: x.n || 1 }));
+  return o;
+}
+const LOGT = ['Médical', 'Sécurité', 'Circulation', 'Logistique', 'Météo', 'Participant', 'Autre'], PST = ['À pourvoir', 'En place', 'Levé'], PSC = ['#6b7280', '#16a34a', '#2563eb'];
+function dayTab() {
+  const dt = new Date(), today = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'), live = !HY.date || HY.date === today;
+  const steps = dayPlan(), posts = dayPosts(), now = nowM(), T0 = startM(), log = LV.log || [], open = log.filter(x => !x.clos).length, inPlace = posts.filter(p => (LV.post || {})[p.id] === 1).length;
+  return `${live ? '' : `<p class="late">L'événement est daté du ${new Date(HY.date + 'T00:00').toLocaleDateString('fr-FR', { dateStyle: 'full' })}. Le suivi des retards s'activera ce jour-là ; d'ici là, cette page sert de répétition.</p>`}${HY.date ? '' : '<p class="note">Aucune date n\'est saisie dans l\'onglet « Épreuve » : le suivi considère que l\'événement a lieu aujourd\'hui.</p>'}<p style="font-size:15px">Il est <b>${hh(now)}</b>. ${!live ? 'Départ prévu à <b>' + hh(T0) + '</b>.' : now < T0 ? 'Départ dans <b>' + Math.floor((T0 - now) / 60) + ' h ' + String((T0 - now) % 60).padStart(2, '0') + '</b>.' : 'Course lancée depuis <b>' + Math.floor((now - T0) / 60) + ' h ' + String((now - T0) % 60).padStart(2, '0') + '</b>.'} <button data-xa="refresh">Actualiser</button></p>
+  <p>Postes en place : <b>${inPlace} sur ${posts.length}</b>. Incidents ouverts : <b class="${open ? 'late' : ''}">${open}</b>.</p>
+  <h2>Déroulé de la journée</h2><table><tr><th></th><th>Prévu</th><th>Étape</th><th>Fait à</th></tr>${steps.map(x => { const d = (LV.step || {})[x.id], late = live && d == null && now > x.m + 5; return `<tr><td><input type="checkbox" data-xstep="${x.id}"${d != null ? ' checked' : ''}></td><td class="${late ? 'late' : ''}">${hh(x.m)}</td><td>${esc(x.t)}${x.user ? ` <button data-xa="stepdel" data-id="${x.id}">×</button>` : ''}</td><td>${d != null ? hh(d) + (d - x.m > 5 ? ' <span class="late">+' + (d - x.m) + ' min</span>' : '') : late ? '<span class="late">en retard</span>' : ''}</td></tr>`; }).join('')}</table>
+  <p><input type="time" id="xStepH" value="${hh(now)}"> <input type="text" id="xStepT" placeholder="Étape à ajouter" style="width:55%"> <button data-xa="stepadd">Ajouter</button></p>
+  <h2>Postes</h2>${posts.length ? `<table>${posts.map(p => { const v = (LV.post || {})[p.id] || 0; return `<tr><td><b>${esc(p.nom)}</b><br><span class="note">${esc(p.det)}</span></td><td><button data-xa="post" data-id="${p.id}" style="border-left:6px solid ${PSC[v]}">${PST[v]}</button></td></tr>`; }).join('')}</table><p class="note">Cliquez sur l'état d'un poste pour le faire passer de « À pourvoir » à « En place » puis « Levé ».</p>` : '<p class="note">Aucun poste : lancez l\'analyse du parcours ou placez du personnel dans « Plan du site ».</p>'}
+  <h2>Main courante</h2><p><select id="xLogT">${LOGT.map(t => `<option>${t}</option>`).join('')}</select> <input type="text" id="xLogL" placeholder="Lieu ou poste" style="width:30%"> <label><input type="checkbox" id="xLogG"> grave</label></p>
+  <p><input type="text" id="xLogX" placeholder="Ce qui se passe, ce qui est décidé" style="width:75%"> <button data-xa="log" class="go">Consigner</button></p>
+  <table>${log.slice().reverse().map(x => `<tr><td>${hh(x.m)}</td><td><b class="${x.g ? 'late' : ''}">${esc(x.ty)}</b>${x.l ? ' — ' + esc(x.l) : ''}<br>${esc(x.x)}${x.clos ? `<br><span class="note">Clos à ${hh(x.clos)}</span>` : ''}</td><td>${x.clos ? '' : `<button data-xa="logclose" data-id="${x.id}">Clore</button>`}</td></tr>`).join('') || '<tr><td class="note">Rien n\'est encore consigné.</td></tr>'}</table>
+  <p><button data-xa="logcsv">Exporter la main courante</button></p>
+  <p class="note">Tout est enregistré sur cet appareil seulement : la main courante n'est pas partagée entre plusieurs postes. Le jour J, un seul appareil doit la tenir, au PC course.</p>`;
+}
+// ── Bilan ──
+const AFT = ['Routes rouvertes et signalisation retirée', 'Barrières et matériel loué rendus', 'Site nettoyé, déchets évacués', 'Résultats publiés', 'Bénévoles remerciés', 'Compte rendu envoyé à la mairie et à la préfecture', 'Bilan envoyé aux partenaires', 'Factures réglées, comptes arrêtés', 'Déclaration à l\'assurance si incident', 'Date de la prochaine édition fixée'];
+const RF = [['inscrits', 'Inscrits'], ['partants', 'Partants'], ['arrivants', 'Arrivants classés'], ['public', 'Spectateurs estimés'], ['benev', 'Bénévoles présents']], MF = [['rInscr', 'Recettes d\'inscription (€)'], ['rPart', 'Partenaires (€)'], ['rSub', 'Subventions (€)'], ['rDiv', 'Buvette et autres recettes (€)'], ['dReel', 'Dépenses réelles (€)']];
+function afterTab() {
+  const r = LV.real || {}, log = LV.log || [], prev = needRows().reduce((a, x) => a + x.cost, 0), v = k => +r[k] || 0, rec = v('rInscr') + v('rPart') + v('rSub') + v('rDiv'), dep = v('dReel'), steps = dayPlan(), done = steps.filter(x => (LV.step || {})[x.id] != null), lateS = done.filter(x => LV.step[x.id] - x.m > 5), by = LOGT.map(t => [t, log.filter(x => x.ty === t).length]).filter(x => x[1]), ben = benTotal();
+  const pct = (a, b) => b ? fmt(100 * a / b) + ' %' : '—';
+  return `<p class="note">À remplir après l'événement. Le bilan compare ce qui était prévu à ce qui s'est passé, et sert de point de départ à l'édition suivante.</p>
+  <h2>Fréquentation</h2>${RF.map(([k, t]) => `<label class="p">${t}<input type="number" data-lv="real.${k}" value="${r[k] == null ? '' : r[k]}"></label>`).join('')}
+  <table><tr><th></th><th class="n">Prévu</th><th class="n">Réel</th><th class="n">Écart</th></tr>
+  <tr><td>Participants</td><td class="n">${fmt(HY.parts)}</td><td class="n">${v('partants') ? fmt(v('partants')) : '—'}</td><td class="n">${v('partants') ? pct(v('partants') - HY.parts, HY.parts) : '—'}</td></tr>
+  <tr><td>Spectateurs</td><td class="n">${fmt(HY.spect)}</td><td class="n">${v('public') ? fmt(v('public')) : '—'}</td><td class="n">${v('public') ? pct(v('public') - HY.spect, HY.spect) : '—'}</td></tr>
+  <tr><td>Bénévoles</td><td class="n">${fmt(ben)}</td><td class="n">${v('benev') ? fmt(v('benev')) : '—'}</td><td class="n">${v('benev') ? pct(v('benev') - ben, ben) : '—'}</td></tr></table>
+  <p>${v('inscrits') && v('partants') ? 'Inscrits présents au départ : <b>' + pct(v('partants'), v('inscrits')) + '</b>. ' : ''}${v('partants') && v('arrivants') ? 'Abandons : <b>' + fmt(v('partants') - v('arrivants')) + '</b> (' + pct(v('partants') - v('arrivants'), v('partants')) + ').' : ''}</p>
+  <h2>Déroulement</h2><p>Étapes cochées : <b>${done.length} sur ${steps.length}</b>${lateS.length ? ', dont <span class="late">' + lateS.length + ' en retard de plus de 5 minutes</span> : ' + lateS.map(x => esc(x.t) + ' (+' + (LV.step[x.id] - x.m) + ' min)').join(' ; ') : ''}.</p>
+  <p>Incidents consignés : <b>${log.length}</b>${log.length ? ' — ' + by.map(x => x[0] + ' ' + x[1]).join(', ') + '. Graves : ' + log.filter(x => x.g).length + '. Non clos : ' + log.filter(x => !x.clos).length + '.' : '.'}</p>
+  <h2>Comptes</h2>${MF.map(([k, t]) => `<label class="p">${t}<input type="number" step="any" data-lv="real.${k}" value="${r[k] == null ? '' : r[k]}"></label>`).join('')}
+  <table><tr><td>Budget matériel et équipe prévu</td><td class="n">${prev ? fmt(prev) + ' €' : '—'}</td></tr><tr><td>Dépenses réelles</td><td class="n">${dep ? fmt(dep) + ' €' : '—'}</td></tr><tr><td>Recettes</td><td class="n">${rec ? fmt(rec) + ' €' : '—'}</td></tr>
+  <tr><th>Résultat</th><th class="n ${rec - dep < 0 ? 'late' : ''}">${rec || dep ? fmt(rec - dep) + ' €' : '—'}</th></tr>${dep && v('partants') ? `<tr><td>Coût par partant</td><td class="n">${fmt(dep / v('partants'), 2)} €</td></tr>` : ''}</table>
+  <h2>Clôture</h2><table>${AFT.map((t, k) => `<tr><td><input type="checkbox" data-xaft="${k}"${(LV.aft || {})[k] ? ' checked' : ''}></td><td>${t}</td></tr>`).join('')}</table>
+  <h2>À retenir pour la prochaine fois</h2><textarea data-lv="notes" rows="6" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;padding:6px">${esc(LV.notes || '')}</textarea>
+  <p><button data-xa="next" class="go">Préparer l'édition suivante</button></p>
+  <p class="note">Crée une copie du projet avec le parcours, le plan et vos réglages, remet à zéro le jour J et le bilan, et garde vos notes en tête de la nouvelle édition. Pensez à reporter vos chiffres réels dans les règles de calcul de l'onglet « Besoins ».</p>`;
+}
+TABS['Besoins'] = () => needTab(); TABS['Jour J'] = () => dayTab(); TABS['Bilan'] = () => afterTab();
+const csvOut = (name, L2) => { const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"', b = new Blob(['﻿' + L2.map(r => r.map(q).join(';')).join('\r\n')], { type: 'text/csv' }), l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = name + '-' + ((ST.projects[ST.cur] || {}).name || 'epreuve').replace(/[^\w\-]+/g, '_') + '.csv'; l.click(); };
+function cycleAct(a, id) {
+  if (a === 'refresh') { panel(true); return; }
+  if (a === 'needcsv') { csvOut('besoins', [['Famille', 'Besoin', 'Quantité', 'Unité', 'Calcul', 'Coût (€)']].concat(needRows().map(r => [r.cat, r.nom, r.q, r.un, r.why, r.cost || '']))); return; }
+  if (a === 'logcsv') { csvOut('main-courante', [['Heure', 'Type', 'Grave', 'Lieu', 'Fait', 'Clos à']].concat((LV.log || []).map(x => [hh(x.m), x.ty, x.g ? 'oui' : '', x.l, x.x, x.clos ? hh(x.clos) : '']))); return; }
+  if (a === 'post') { LV.post = LV.post || {}; LV.post[id] = ((LV.post[id] || 0) + 1) % 3; }
+  else if (a === 'log') { const x = $('#xLogX').value.trim(); if (!x) return; LV.log = LV.log || []; LV.log.push({ id: 'l' + Date.now().toString(36), m: nowM(), ty: $('#xLogT').value, l: $('#xLogL').value.trim().slice(0, 60), x: x.slice(0, 300), g: $('#xLogG').checked }); }
+  else if (a === 'logclose') { const x = (LV.log || []).find(x => x.id === id); if (x) x.clos = nowM() || 1; }
+  else if (a === 'stepadd') { const t = $('#xStepT').value.trim(), m = /^(\d+):(\d+)/.exec($('#xStepH').value); if (!t || !m) return; LV.extra = LV.extra || []; LV.extra.push({ id: 'u' + Date.now().toString(36), m: +m[1] * 60 + +m[2], t: t.slice(0, 120) }); }
+  else if (a === 'stepdel') { LV.extra = (LV.extra || []).filter(x => x.id !== id); if (LV.step) delete LV.step[id]; }
+  else if (a === 'next') { store(); const k = 'p' + Date.now().toString(36), c = JSON.parse(JSON.stringify(ST.projects[ST.cur])); c.name = (c.name || 'Épreuve') + ' — édition suivante'; c.LV = { notes: LV.notes ? 'Enseignements de l\'édition précédente :\n' + LV.notes : '' }; c.done = {}; if (c.HY) c.HY.date = ''; ST.projects[k] = c; loadProject(k); tab = 'Projets'; store(); panel(); return; }
+  store(); panel(true);
+}
+function libSave() { ST.types = JSON.parse(JSON.stringify(TYPES)); store(); }
+function loadProject(id) {
+  ST.cur = id; const p = ST.projects[id] || {};
+  WP = p.WP || []; LEGS = p.LEGS || []; for (const k in HY) delete HY[k]; Object.assign(HY, HY0, p.HY || {}); if (!SPORTS[HY.sport]) HY.sport = 'run';
+  for (const k in COST) COST[k] = 0; Object.assign(COST, p.COST || {}); snap = p.snap !== false; DONE = p.done || {};
+  OBJ = (p.OBJ || []).filter(o => TYPES[o.t]).map(o => ({ ...o })); nid = OBJ.reduce((a, o) => Math.max(a, o.id), 0) + 1; selO = null; placing = null; A = null; GL = [];
+  DRAW = (p.DRAW || []).filter(d => d.k === 'note' || (d.k === 'ligne' ? LT : d.k === 'zone' ? ZT : PT)[d.t]).map(d => ({ ...d, pts: d.pts.map(q => q.slice()) })); did = DRAW.reduce((a, d) => Math.max(a, d.id), 0) + 1; selD = null; drawing = null; BG = p.BG || null; LV = JSON.parse(JSON.stringify(p.LV || {})); SUMM = p.SUMM || null;
+  lyRes.clearLayers(); $('#prof').innerHTML = ''; $('#bPr').disabled = true; $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; $('#bSnap').classList.toggle('on', snap); $('#pname').textContent = p.name || 'Sans nom';
+  drawRoute(); drawObj(); drawBg(); applyLayers(); panel(); const pts = WP.length > 1 ? line() : WP; if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(.15)); else if (pts.length) map.setView(pts[0], 16);
+}
+function projAct(a, id) {
+  const uid = p => p + Date.now().toString(36);
+  if (a === 'new') { store(); const k = uid('p'); ST.projects[k] = { name: 'Nouvelle épreuve' }; loadProject(k); tab = 'Épreuve'; store(); panel(); }
+  else if (a === 'open') { store(); loadProject(id); store(); }
+  else if (a === 'dup') { store(); const k = uid('p'); ST.projects[k] = JSON.parse(JSON.stringify(ST.projects[id])); ST.projects[k].name += ' (copie)'; loadProject(k); store(); }
+  else if (a === 'pdel') { if (Object.keys(ST.projects).length < 2) { alert('Il faut garder au moins un projet.'); return; } if (!confirm('Supprimer définitivement « ' + (ST.projects[id].name || 'Sans nom') + ' » ?')) return; if (id !== ST.cur) store(); delete ST.projects[id]; if (id === ST.cur) loadProject(Object.keys(ST.projects)[0]); store(); panel(); }
+  else if (a === 'export') { store(); const b = new Blob([JSON.stringify({ format: 'organisateur-1', project: ST.projects[ST.cur], profiles: ST.profiles, types: ST.types }, null, 1)], { type: 'application/json' }), l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = (ST.projects[ST.cur].name || 'epreuve').replace(/[^\w\-]+/g, '_') + '.json'; l.click(); }
+  else if (a === 'import') $('#impFile').click();
+  else if (a === 'tadd') { ST.tasks = tasks().map(x => ({ ...x })); ST.tasks.push({ id: uid('u'), j: -10, t: 'Nouvelle tâche' }); store(); panel(true); }
+  else if (a === 'tdel') { ST.tasks = tasks().filter(x => x.id !== id).map(x => ({ ...x })); store(); panel(true); }
+  else if (a === 'treset') { if (confirm('Revenir à la liste type ? Vos tâches ajoutées seront perdues.')) { ST.tasks = null; store(); panel(true); } }
+  else if (a === 'pfnew') { const k = uid('u'), src = SPORTS[pfKey && SPORTS[pfKey] ? pfKey : HY.sport]; SPORTS[k] = { ...src, nom: src.nom + ' (mon profil)' }; ST.profiles[k] = SPORTS[k]; pfKey = k; $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; store(); panel(true); }
+  else if (a === 'pfdel') { const k = pfKey; if (!k || SPORTS0[k]) return; if (Object.values(ST.projects).some(p => p !== ST.projects[ST.cur] && (p.HY || {}).sport === k) || HY.sport === k) { alert('Ce profil est utilisé par une épreuve.'); return; } delete SPORTS[k]; delete ST.profiles[k]; pfKey = null; $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; store(); panel(true); }
+  else if (a === 'pfreset') { const k = pfKey && SPORTS[pfKey] ? pfKey : HY.sport; SPORTS[k] = JSON.parse(JSON.stringify(SPORTS0[k])); SPORTS[k].recul = SPORTS0[k].recul; delete ST.profiles[k]; $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; store(); panel(true); }
+  else if (a === 'pfuse') { const k = pfKey && SPORTS[pfKey] ? pfKey : HY.sport; HY.sport = k; Object.assign(HY, pick(SPORTS[k])); snap = SPORTS[k].snap; $('#sport').value = k; $('#bSnap').classList.toggle('on', snap); A = null; lyRes.clearLayers(); drawRoute(); store(); tab = 'Épreuve'; panel(); }
+  else if (a === 'tyadd') { TYPES[uid('c')] = { nom: 'Nouvel élément', L: 4, W: 3, c: '#14b8a6', s: 'N', pub: true }; libSave(); panel(true); }
+  else if (a === 'tydel') { if (OBJ.some(o => o.t === id) && !confirm('Cet élément est placé sur le plan. Le supprimer aussi du plan ?')) return; OBJ = OBJ.filter(o => o.t !== id); delete TYPES[id]; libSave(); checkObj(); drawObj(); panel(true); }
+  else if (a === 'tyreset') { if (!confirm('Revenir au catalogue d\'origine ? Vos éléments créés seront retirés.')) return; for (const k in TYPES) delete TYPES[k]; Object.assign(TYPES, JSON.parse(JSON.stringify(TYPES0))); OBJ = OBJ.filter(o => TYPES[o.t]); ST.types = null; store(); checkObj(); drawObj(); panel(true); }
+}
+$('#body').addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'pName') { ST.projects[ST.cur].name = t.value || 'Sans nom'; $('#pname').textContent = ST.projects[ST.cur].name; store(); return; }
+  if (t.id === 'pfSel') { pfKey = t.value; panel(true); return; }
+  if (t.id === 'impFile') { const f = t.files[0]; if (!f) return; f.text().then(x => { try { const d = JSON.parse(x); if (!d.project) throw 0; store(); for (const k in d.profiles || {}) if (!SPORTS[k]) { SPORTS[k] = d.profiles[k]; ST.profiles[k] = d.profiles[k]; } for (const k in d.types || {}) if (!TYPES[k]) TYPES[k] = d.types[k]; if (d.types) ST.types = JSON.parse(JSON.stringify(TYPES)); const k = 'p' + Date.now().toString(36); ST.projects[k] = d.project; loadProject(k); store(); } catch (err) { alert('Ce fichier n\'est pas un projet exporté par cet outil.'); } }); t.value = ''; return; }
+  if (t.dataset.xstep) { LV.step = LV.step || {}; if (t.checked) LV.step[t.dataset.xstep] = nowM(); else delete LV.step[t.dataset.xstep]; store(); panel(true); return; }
+  if (t.dataset.xaft) { LV.aft = LV.aft || {}; LV.aft[t.dataset.xaft] = t.checked; store(); return; }
+  if (t.dataset.lv) { const k = t.dataset.lv; if (k === 'notes') LV.notes = t.value.slice(0, 4000); else { LV.real = LV.real || {}; const v = parseFloat(t.value); if (isFinite(v)) LV.real[k.slice(5)] = v; else delete LV.real[k.slice(5)]; } store(); if (k !== 'notes') panel(true); return; }
+  if (t.dataset.ly) { LYV[t.dataset.ly] = t.checked; ST.layers = { ...LYV }; applyLayers(); saveST(); return; }
+  if (t.dataset.bgop) { if (BG) { BG.op = parseFloat(t.value) || .6; drawBg(); store(); } return; }
+  if (t.dataset.lp) { ST.prix = ST.prix || {}; ST.prix[t.dataset.lp] = parseFloat(t.value) || 0; saveST(); panel(true); return; }
+  if (t.dataset.df) { const x = DRAW.find(x => x.id === selD); if (x) { const k = t.dataset.df; x[k] = k === 'n' ? Math.max(1, Math.round(parseFloat(t.value) || 1)) : k === 'txt' ? t.value.slice(0, 80) : t.value; store(); drawDraw(); panel(true); } return; }
+  if (t.dataset.done) { if (t.checked) DONE[t.dataset.done] = true; else delete DONE[t.dataset.done]; store(); panel(true); return; }
+  if (t.dataset.tk) { ST.tasks = tasks().map(x => ({ ...x })); const x = ST.tasks.find(x => x.id === t.dataset.tk); if (x) x[t.dataset.f] = t.dataset.f === 'j' ? (parseFloat(t.value) || 0) : t.value; store(); if (t.dataset.f === 'j') panel(true); return; }
+  if (t.dataset.pf) { const k = pfKey && SPORTS[pfKey] ? pfKey : HY.sport, f = t.dataset.pf; SPORTS[k][f] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; ST.profiles[k] = { ...SPORTS[k] }; if (f === 'nom') { $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; } store(); return; }
+  if (t.dataset.ty) { const T = TYPES[t.dataset.ty], f = t.dataset.f; if (!T) return; T[f] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; libSave(); checkObj(); drawObj(); return; }
+  if (t.dataset.hy) { HY[t.dataset.hy] = t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; store(); if (tab === 'Implantation') { checkObj(); drawObj(); panel(true); } else if (tab === 'Besoins' || tab === 'Jour J' || tab === 'Bilan') panel(true); }
+  if (t.dataset.ob) { const o = OBJ.find(o => o.id === selO), v = parseFloat(t.value); if (o && v > 0) { o[t.dataset.ob] = v; checkObj(); store(); drawObj(); panel(true); } }
+  if (t.dataset.cost) { COST[t.dataset.cost] = parseFloat(t.value) || 0; store(); panel(true); }
+  if (t.id === 'pTop') { HY.pTop = parseFloat(t.value) || 0; store(); panel(true); }
+});
+$('#body').addEventListener('click', e => {
+  const d = e.target.dataset;
+  if (d.pa) { projAct(d.pa, d.id); return; }
+  if (d.oa) { siteAct(d.oa); return; }
+  if (d.da) { drawAct(d.da, d.k, d.t); return; }
+  if (d.xa) { cycleAct(d.xa, d.id); return; }
+  if (d.add) { placing = placing === d.add ? null : d.add; panel(true); return; }
+  const r = e.target.closest('tr.go'); if (!r || !A) return;
+  if (r.dataset.obGo) { const o = OBJ.find(o => o.id === +r.dataset.obGo); if (o) { selO = o.id; map.setView([o.lat, o.lng], Math.max(map.getZoom(), 18)); drawObj(); panel(true); } return; }
+  map.setView(A.LL[+r.dataset.go], Math.max(map.getZoom(), 16));
+});
+const ico = (c, t) => L.divIcon({ className: '', html: t ? `<span class="lbl" style="background:${c}">${t}</span>` : `<div class="mk" style="background:${c}"></div>`, iconSize: t ? [0, 0] : [14, 14], iconAnchor: t ? [8, 8] : [7, 7] });
+function drawRes() {
+  lyRes.clearLayers(); if (!A) return;
+  for (const z of A.FZ) { const n = Math.round(z.len / 2 / A.DS); L.polyline(A.LL.slice(Math.max(0, z.i - n), z.i + n + 1), { color: '#ff3b2f', weight: 12, opacity: .55 }).addTo(lyRes); }
+  for (const j of A.J) for (const u of j.ups || []) L.circleMarker(A.inv(u.p), { radius: 4, color: '#ffb020', weight: 2, fillOpacity: 0 }).bindTooltip(`Fermeture en amont${u.nom ? ', ' + u.nom : ''} — à ${u.d} m du parcours`).addTo(lyRes);
+  for (const j of A.J) L.marker(A.LL[j.i], { icon: ico(j.sig ? '#ffb020' : '#e6e6e6') }).bindTooltip(`${jn(j)} — ${j.sig} signaleur(s), ${j.bar} barrière(s)`).addTo(lyRes);
+  for (const s of A.SEC) L.marker(A.LL[s.i], { icon: ico('#ff6b6b', '+') }).bindTooltip(s.nom).addTo(lyRes);
+  for (const s of A.RAV) L.marker(A.LL[s.i], { icon: ico('#7ee0ff', 'R') }).bindTooltip(s.nom).addTo(lyRes);
+  for (const b of A.B) L.marker(A.LL[b.i], { icon: ico('#4aa8ff', 'P' + b.n) }).bindTooltip(`Panneau ${b.n} — indice ${b.idx}`).addTo(lyRes);
+  for (let k = 1; k * 1000 < A.len; k++) L.marker(A.LL[Math.round(k * 1000 / A.DS)], { icon: ico('#fff', k + ' km') }).addTo(lyRes);
+}
+function profSVG(w = 1200, h = 110, dark = true) {
+  if (!A || !A.Z) return ''; const z0 = Math.min(...A.Z), z1 = Math.max(...A.Z), X = i => 44 + (w - 60) * i / (A.N - 1), Y = z => h - 18 - (h - 36) * (z - z0) / Math.max(1, z1 - z0), fg = dark ? '#93a1ad' : '#444';
+  let d = `M${X(0)},${h - 18}`; for (let i = 0; i < A.N; i++) d += `L${X(i).toFixed(1)},${Y(A.Z[i]).toFixed(1)}`; d += `L${X(A.N - 1)},${h - 18}Z`;
+  let s = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="11"><path d="${d}" fill="${dark ? '#24313a' : '#ddd'}"/>`;
+  for (const j of A.J) if (j.sig) s += `<rect x="${X(j.i) - .7}" y="${h - 14}" width="1.4" height="8" fill="#ffb020"/>`;
+  for (const b of A.B) s += `<rect x="${X(b.i) - 2}" y="${h - 16}" width="4" height="4" fill="#4aa8ff"/>`;
+  const st = Math.max(1, Math.round(A.len / 1000 / 10)); for (let k = 0; k * 1000 < A.len; k += st) s += `<text x="${X(k * 1000 / A.DS)}" y="11" fill="${fg}" text-anchor="middle">${k} km</text>`;
+  return s + `<text x="2" y="${h - 20}" fill="${fg}">${fmt(z0)} m</text><text x="2" y="24" fill="${fg}">${fmt(z1)} m</text></svg>`;
+}
+$('#bRun').onclick = async () => {
+  busy = true; $('#bRun').disabled = true; const st = t => $('#bRun').textContent = t;
+  try { A = await analyse(st); mkSum(); store(); drawRes(); checkObj(); drawObj(); if (A.site) map.setView(A.LL[0], 18); else map.fitBounds(L.latLngBounds(A.LL).pad(.08)); $('#prof').innerHTML = profSVG(); tab = 'Synthèse'; $('#bPr').disabled = false; }
+  catch (e) { alert(e.message || 'L\'analyse a échoué.'); }
+  busy = false; st('Analyser'); $('#bRun').disabled = !ready(); panel();
+};
+$('#bPr').onclick = () => {
+  const keep = tab, sec = t => { tab = t; return TABS[t](); };
+  $('#print').innerHTML = `<h1>Dossier d'organisation — ${SPORTS[HY.sport].nom}</h1><p>${HY.date ? new Date(HY.date + 'T00:00').toLocaleDateString('fr-FR', { dateStyle: 'full' }) + ', ' : ''}départ à ${hm(A.T0)}, ${fmt(HY.parts)} participants et ${fmt(HY.spect)} spectateurs attendus.</p>${sec('Synthèse')}<h2>Profil</h2>${profSVG(1200, 160, false)}<h2>Carrefours, signaleurs et fermetures</h2>${sec('Carrefours')}<h2>Secours, ravitaillements et public</h2>${sec('Secours et public')}<h2>Panneaux publicitaires</h2>${sec('Panneaux')}${OBJ.length ? '<h2>Implantation du site</h2>' + siteSVG() + sec('Implantation').replace(/<button[^>]*>.*?<\/button>/g, '').replace(/<h2>Ajouter<\/h2>|<h2>Réglages<\/h2>[\s\S]*$/g, '') : ''}${sec('Organisation')}`;
+  tab = keep; print();
+};
+$('#sport').onchange = e => { HY.sport = e.target.value; Object.assign(HY, pick(SPORTS[HY.sport])); snap = SPORTS[HY.sport].snap; $('#bSnap').classList.toggle('on', snap); if (SPORTS[HY.sport].site && WP.length > 1) { WP = [WP[0]]; LEGS = []; } A = null; lyRes.clearLayers(); drawRoute(); store(); panel(); };
+setBase(ST.base || 'plan');
+loadProject(ST.cur);
+</script>
+</body>
+</html>
