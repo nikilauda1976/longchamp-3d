@@ -104,7 +104,7 @@ const SPORTS = {
   site:  { nom: 'Événement sur site, sans parcours (tournoi, village, salon)', site: true, snap: false, vFast: 1, vSlow: 1, ravito: 0, secours: 0, signal: 'route', motor: false, climb: 0, parts: 300, spect: 1000, delai: 60, corner: false },
   auto:  { nom: 'Sport mécanique sur route fermée (côte, spéciale)', snap: true, vFast: 110, vSlow: 70, ravito: 0, secours: 3, signal: 'route', motor: true, climb: .3, parts: 120, spect: 4000, delai: 60, corner: true }
 };
-const HY = { sport: 'run', date: '', start: '09:00', tours: 1, parts: 800, spect: 1500, close: 30, reopen: 15, nBoards: 12, perRavito: 4, perSecours: 2, base: 12, perJ: 2, nMarge: 5, nLot: 1, nEau: .25, nGob: 1.5, nFruit: .5, nPoub: 100, nRadio: 5, risP2: .35, risE1: .25, risE2: .25 };
+const HY = { sport: 'run', date: '', start: '09:00', tours: 1, parts: 800, spect: 1500, close: 30, reopen: 15, nBoards: 12, perRavito: 4, perSecours: 2, base: 12, perJ: 2, nMarge: 5, nLot: 1, nEau: .25, nGob: 1.5, nFruit: .5, nPoub: 100, nRadio: 5, risP2: .35, risE1: .25, risE2: .25, tarif: 0, lieu: '', orga: '', orgaTel: '' };
 const COST = { signaleur: 0, barriere: 0, rubalise: 0, fleche: 0, ravito: 0, secours: 0, panneau: 0 };
 Object.entries({ run: 2, trail: 2, velo: 4, rando: 2, auto: 20, site: 0 }).forEach(([k, v]) => SPORTS[k].recul = v);
 HY.nStands = 8; HY.wcRatio = 100; HY.duree = 6;
@@ -155,7 +155,7 @@ let ST = { cur: 'p1', projects: {}, profiles: {}, types: null, tasks: null }, DO
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.projects) ST = Object.assign(ST, s); else { const o = JSON.parse(localStorage.getItem('organisateur-v1')); if (o && o.WP) ST.projects.p1 = Object.assign({ name: 'Mon épreuve' }, o); } } catch (e) { }
 if (!ST.projects[ST.cur]) { const k = Object.keys(ST.projects)[0]; if (k) ST.cur = k; else { ST.cur = 'p1'; ST.projects.p1 = { name: 'Mon épreuve' }; } }
 for (const k in ST.profiles) SPORTS[k] = Object.assign({}, SPORTS[k] || {}, ST.profiles[k]);
-function snapshot() { return { name: (ST.projects[ST.cur] || {}).name || 'Sans nom', WP, LEGS, HY: { ...HY }, COST: { ...COST }, snap, done: DONE, OBJ: OBJ.map(o => ({ id: o.id, t: o.t, lat: o.lat, lng: o.lng, L: o.L, W: o.W, ang: o.ang })), DRAW: DRAW.map(d => ({ id: d.id, k: d.k, t: d.t, pts: d.pts, txt: d.txt, n: d.n })), BG: BG && !BG.big ? BG : null, LV, SUMM }; }
+function snapshot() { return { name: (ST.projects[ST.cur] || {}).name || 'Sans nom', WP, LEGS, HY: { ...HY }, COST: { ...COST }, snap, done: DONE, OBJ: OBJ.map(o => ({ id: o.id, t: o.t, lat: o.lat, lng: o.lng, L: o.L, W: o.W, ang: o.ang })), DRAW: DRAW.map(d => ({ id: d.id, k: d.k, t: d.t, pts: d.pts, txt: d.txt, n: d.n })), BG: BG && !BG.big ? BG : null, LV, SUMM, XT }; }
 function store() { ST.projects[ST.cur] = snapshot(); try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { } }
 const ready = () => (SPORTS[HY.sport] || {}).site ? WP.length >= 1 : line().length >= 2;
 
@@ -488,7 +488,7 @@ Object.assign(TYPES, {
 TYPES.gradin.capM2 = 2.5; TYPES.gradin.unit = 'places'; TYPES.wc.capU = 4; TYPES.wc.unit = 'cabines'; TYPES.parking.capM2 = .04; TYPES.parking.unit = 'voitures'; TYPES.stand.val = true;
 const TYPES0 = JSON.parse(JSON.stringify(TYPES));
 if (ST.types) { for (const k in TYPES) delete TYPES[k]; Object.assign(TYPES, ST.types); for (const k in TYPES0) if (!TYPES[k]) TYPES[k] = JSON.parse(JSON.stringify(TYPES0[k])); else if (!TYPES[k].cat) TYPES[k].cat = TYPES0[k].cat; }
-let OBJ = [], selO = null, placing = null, nid = 1, GL = [], DRAW = [], selD = null, drawing = null, did = 1, BG = null, LV = {}, SUMM = null;
+let OBJ = [], selO = null, placing = null, nid = 1, GL = [], DRAW = [], selD = null, drawing = null, did = 1, BG = null, LV = {}, SUMM = null, XT = {};
 const cap = o => { const T = TYPES[o.t]; return T.capM2 ? Math.floor(o.L * o.W * T.capM2) : (T.capU || 0); };
 function oCorners(o) {
   const c = Math.cos(o.ang), s = Math.sin(o.ang), kx = 111320 * Math.cos(o.lat * Math.PI / 180), out = [];
@@ -601,8 +601,8 @@ function siteAct(a) {
   checkObj(); store(); drawObj(); panel(true);
 }
 
-let tab = 'Épreuve';
-const PHASES = [['Avant : concevoir', ['Projets', 'Épreuve', 'Synthèse', 'Carrefours', 'Secours et public', 'Panneaux', 'Implantation', 'Plan du site']], ['Avant : préparer', ['Besoins', 'Organisation', 'Réglages']], ['Pendant', ['Jour J']], ['Après', ['Bilan']]];
+let tab = 'Accueil';
+const PHASES = [['Mon événement', ['Accueil', 'Projets']], ['Avant : concevoir', ['Épreuve', 'Synthèse', 'Carrefours', 'Secours et public', 'Panneaux', 'Implantation', 'Plan du site']], ['Avant : préparer', ['Besoins', 'Budget', 'Équipe', 'Documents', 'Organisation', 'Réglages']], ['Pendant', ['Jour J']], ['Après', ['Bilan']]];
 function panel(keep) { const sc = $('#body').scrollTop; $('#tabs').innerHTML = PHASES.map(([n, l]) => `<span class="ph">${n}</span>` + l.map(t => `<button class="${t === tab ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')).join(''); $('#body').innerHTML = TABS[tab](); $('#body').scrollTop = keep ? sc : 0; }
 $('#tabs').onclick = e => { if (e.target.dataset.tab) { tab = e.target.dataset.tab; panel(); } };
 // ───────── Plan du site : tracés, zones, postes, signalisation, notes ─────────
@@ -793,6 +793,8 @@ function needRows() {
   add('Équipe', 'repas', 'Repas ou collations des bénévoles', ben + rs.n, 'unités', 'bénévoles et secouristes');
   add('Équipe', 'radio', 'Radios ou téléphones de liaison', 3 + Math.ceil((q ? q.sig : 0) / (R('nRadio') || 5)), 'unités', `PC, secours, arrivée, puis 1 pour ${R('nRadio') || 5} signaleurs`);
   for (const r of planRows()) if (r.key !== 'L:barriere') rows.push({ cat: 'Plan du site', key: r.key, nom: r.nom, q: r.q, un: r.un, why: r.dim + (r.capa ? ', ' + r.capa : ''), fixedCost: r.fixed ? r.cost : null });
+  const X = xt(); for (const n of X.needX) { const m = n.base === 'part' ? P : n.base === 'spect' ? S : n.base === 'ben' ? ben : 1; rows.push({ cat: 'Mes ajouts', key: 'X:' + n.id, nom: n.nom, q: Math.ceil(n.k * m), un: n.un, why: n.base === 'fixe' ? 'quantité fixée par vous' : fmt(n.k, 2) + ' par ' + ({ part: 'participant', spect: 'spectateur', ben: 'bénévole' })[n.base] }); }
+  for (let i = rows.length - 1; i >= 0; i--) if (X.needOff[rows[i].key]) rows.splice(i, 1);
   const px = ST.prix || {}; rows.forEach(r => r.cost = r.fixedCost != null ? r.fixedCost : (px[r.key] || 0) * r.q);
   return rows;
 }
@@ -803,9 +805,12 @@ function needTab() {
   return `<p class="note">La liste complète de ce qu'il faut réunir avant l'événement. Chaque quantité affiche sa règle de calcul ; les règles se changent en bas de page.</p>
   ${!mkSum() ? '<p class="late">Le parcours n\'a pas encore été analysé : signaleurs, barrières et balisage manquent dans cette liste. Tracez le parcours puis cliquez « Analyser ».</p>' : ''}
   <table><tr><th>Besoin</th><th class="n">Quantité</th><th>Calcul</th><th class="n">Prix unitaire (€)</th><th class="n">Coût</th></tr>
-  ${cats.map(c => `<tr><th colspan="5">${c}</th></tr>` + rows.filter(r => r.cat === c).map(r => `<tr><td>${r.nom}</td><td class="n"><b>${fmt(r.q)}</b> ${r.un}</td><td class="note">${r.why}</td><td class="n">${r.fixedCost != null ? (r.cost ? fmt(r.cost / r.q) : '—') : `<input type="number" step="any" style="width:70px" data-lp="${r.key}" value="${px[r.key] || ''}">`}</td><td class="n">${r.cost ? fmt(r.cost) + ' €' : '—'}</td></tr>`).join('')).join('')}
+  ${cats.map(c => `<tr><th colspan="5">${c}</th></tr>` + rows.filter(r => r.cat === c).map(r => `<tr><td>${esc(r.nom)} <button data-ya="needoff" data-id="${r.key}" title="Retirer de la liste" style="padding:0 5px">×</button></td><td class="n"><b>${fmt(r.q)}</b> ${r.un}</td><td class="note">${r.why}</td><td class="n">${r.fixedCost != null ? (r.cost ? fmt(r.cost / r.q) : '—') : `<input type="number" step="any" style="width:70px" data-lp="${r.key}" value="${px[r.key] || ''}">`}</td><td class="n">${r.cost ? fmt(r.cost) + ' €' : '—'}</td></tr>`).join('')).join('')}
   ${tot ? `<tr><th>Budget matériel et équipe</th><th></th><th></th><th></th><th class="n">${fmt(tot)} €</th></tr>${P ? `<tr><td>Soit par participant</td><td></td><td></td><td></td><td class="n">${fmt(tot / P, 2)} €</td></tr>` : ''}` : ''}</table>
   <p><button data-xa="needcsv">Exporter la liste (tableur)</button></p>
+  ${Object.keys(xt().needOff).length ? `<p class="note">${Object.keys(xt().needOff).length} ligne(s) retirée(s) de la liste. <button data-ya="needon">Tout réafficher</button></p>` : ''}
+  <h2>Ajouter un besoin</h2><p><input type="text" id="yNeedN" placeholder="Quoi (ex. tee-shirts)" style="width:36%"> <input type="number" step="any" id="yNeedQ" placeholder="Combien" style="width:80px"> <select id="yNeedB"><option value="fixe">au total</option><option value="part">par participant</option><option value="spect">par spectateur</option><option value="ben">par bénévole</option></select> <input type="text" id="yNeedU" placeholder="unité" style="width:70px"> <button data-ya="needadd">Ajouter</button></p>
+  <p class="note">Le « × » à côté d'une ligne la retire de votre liste. Vos ajouts suivent le nombre de participants, de spectateurs ou de bénévoles.</p>
   <h2>Secours pour le public</h2><p>Indice de risque : <b>${fmt(rs.r, 2)}</b> — ${rs.nom}${rs.n ? ', <b>' + rs.n + ' secouristes</b>' : ''}.</p>
   ${Object.entries(RIS).map(([k, [t, o]]) => `<label class="p">${t}<select data-hy="${k}">${o.map(([v, n]) => `<option value="${v}"${(+HY[k] || o[0][0]) === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`).join('')}
   <p class="note">Calcul selon la grille du référentiel national des dispositifs prévisionnels de secours, reprise ici de mémoire : faites-la confirmer par l'association de sécurité civile qui tiendra le poste. Elle couvre le public, pas les participants : les secours des coureurs relèvent des règles de la fédération.</p>
@@ -877,19 +882,162 @@ function cycleAct(a, id) {
   else if (a === 'next') { store(); const k = 'p' + Date.now().toString(36), c = JSON.parse(JSON.stringify(ST.projects[ST.cur])); c.name = (c.name || 'Épreuve') + ' — édition suivante'; c.LV = { notes: LV.notes ? 'Enseignements de l\'édition précédente :\n' + LV.notes : '' }; c.done = {}; if (c.HY) c.HY.date = ''; ST.projects[k] = c; loadProject(k); tab = 'Projets'; store(); panel(); return; }
   store(); panel(true);
 }
+// ───────── Accueil, budget, équipe, documents ─────────
+const PTY = ['Bénévole', 'Signaleur', 'Secouriste', 'Prestataire', 'Partenaire', 'Autorité', 'Autre'];
+const DEP0 = ['Chronométrage et inscriptions en ligne', 'Assurance responsabilité civile', 'Convention de secours', 'Sonorisation et animation', 'Communication (affiches, site, réseaux)', 'Location du site, redevances', 'Récompenses', 'Frais divers et imprévus'];
+const xt = () => { XT.people = XT.people || []; XT.bud = XT.bud || { rec: [{ id: 'r1', t: 'Subventions', v: 0 }, { id: 'r2', t: 'Buvette et ventes', v: 0 }], dep: DEP0.map((t, k) => ({ id: 'd' + k, t, v: 0 })) }; XT.needX = XT.needX || []; XT.needOff = XT.needOff || {}; XT.docs = XT.docs || {}; return XT; };
+const uid2 = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+const dateFr = () => HY.date ? new Date(HY.date + 'T00:00').toLocaleDateString('fr-FR', { dateStyle: 'full' }) : 'date à fixer';
+const daysTo = () => HY.date ? Math.round((new Date(HY.date + 'T00:00') - new Date(new Date().toDateString())) / 864e5) : null;
+const pName = () => (ST.projects[ST.cur] || {}).name || 'Mon événement';
+const isSite = () => !!(SPORTS[HY.sport] || {}).site;
+function budget() {
+  const x = xt(), P = +HY.parts || 0, ins = P * (+HY.tarif || 0), sum = (l, f) => l.reduce((a, p) => a + (+f(p) || 0), 0);
+  const part = sum(x.people.filter(p => p.type === 'Partenaire'), p => p.montant), prest = sum(x.people.filter(p => p.type === 'Prestataire'), p => p.montant), need = sum(needRows(), r => r.cost), recX = sum(x.bud.rec, l => l.v), depX = sum(x.bud.dep, l => l.v), rec = ins + part + recX, dep = need + prest + depX;
+  return { ins, part, prest, need, recX, depX, rec, dep, solde: rec - dep, seuil: +HY.tarif > 0 ? Math.max(0, Math.ceil((dep - part - recX) / HY.tarif)) : null, tarifEq: P ? Math.max(0, (dep - part - recX) / P) : null };
+}
+// ── Accueil et assistant ──
+let W = {}, geo = [];
+async function geoSearch() {
+  const q = (W.lieu || '').trim(); if (q.length < 3) { alert('Saisissez une adresse ou une commune.'); return; }
+  try { const j = await (await fetch('https://data.geopf.fr/geocodage/search?limit=5&q=' + encodeURIComponent(q))).json(); geo = (j.features || []).map(f => ({ l: f.properties.label, c: f.properties.city || f.properties.label, p: [f.geometry.coordinates[1], f.geometry.coordinates[0]] })); } catch (e) { geo = []; }
+  if (!geo.length) alert('Lieu introuvable. Essayez une adresse ou une commune en France ; sinon créez l\'événement puis déplacez la carte à la main.');
+  W.gi = geo.length ? 0 : null; panel(true);
+}
+function wizard() {
+  const f = (k, t, ty, ph) => `<label class="p">${t}<input type="${ty}" data-w="${k}" value="${esc(W[k] == null ? '' : W[k])}"${ph ? ` placeholder="${ph}"` : ''}></label>`;
+  return `${f('nom', 'Nom de l\'événement', 'text', 'Les 10 km de…')}
+  <label class="p">Type<select data-w="sport">${Object.entries(SPORTS).map(([k, s]) => `<option value="${k}"${(W.sport || 'run') === k ? ' selected' : ''}>${s.nom}</option>`).join('')}</select></label>
+  ${f('date', 'Date', 'date')}${f('start', 'Heure de début', 'time')}${f('parts', 'Participants attendus', 'number')}${f('spect', 'Spectateurs attendus', 'number')}${f('tarif', 'Tarif d\'inscription (€), 0 si gratuit', 'number')}
+  ${f('lieu', 'Lieu : adresse ou commune', 'text', 'Place de la mairie, Ville')}
+  <p><button data-ya="geo">Chercher le lieu</button></p>
+  ${geo.map((g, k) => `<p style="margin:2px 0"><button data-ya="geopick" data-id="${k}" class="${W.gi === k ? 'on' : ''}">${esc(g.l)}</button></p>`).join('')}
+  <p><button data-ya="create" class="go">Créer l'événement</button></p>
+  <p class="note">Seuls le nom et le type sont nécessaires ; tout le reste se change ensuite. La recherche de lieu couvre la France.</p>`;
+}
+function homeSteps() {
+  const x = xt(), b = budget(), ben = benTotal(), team = x.people.filter(p => /Bénévole|Signaleur/.test(p.type)), conf = team.filter(p => p.ok).length, tk = tasks(), dn = tk.filter(t => DONE[t.id]).length, site = isSite();
+  return [
+    [site ? 'Placer le site sur la carte' : 'Tracer le parcours', ready(), 'Épreuve', site ? 'Un clic sur la carte à l\'endroit de l\'événement.' : 'Cliquez les points de passage sur la carte, ou importez un fichier GPX.'],
+    ['Lancer l\'analyse', !!mkSum(), 'Épreuve', 'Bouton « Analyser » en haut : signaleurs, fermetures, secours, bâtiments.'],
+    ['Dessiner le plan du site', DRAW.length + OBJ.length > 0, 'Plan du site', DRAW.length + OBJ.length ? (DRAW.length + OBJ.length) + ' élément(s) placé(s).' : 'Barrières, zones, postes, stands.'],
+    ['Chiffrer les besoins', needRows().some(r => r.cost > 0), 'Besoins', 'Saisissez vos prix unitaires : le budget se remplit seul.'],
+    ['Équilibrer le budget', b.rec > 0 && b.solde >= 0, 'Budget', b.rec || b.dep ? 'Recettes ' + fmt(b.rec) + ' €, dépenses ' + fmt(b.dep) + ' €.' : 'Tarif, partenaires, subventions, dépenses.'],
+    ['Réunir l\'équipe', ben > 0 && conf >= ben, 'Équipe', conf + ' confirmé(s) sur ' + ben + ' nécessaires.'],
+    ['Faire les démarches', tk.length > 0 && dn === tk.length, 'Organisation', dn + ' sur ' + tk.length + ' faites.'],
+    ['Préparer les courriers', Object.keys(x.docs).length > 0, 'Documents', 'Mairie, riverains, bénévoles, signaleurs.'],
+    ['Tenir le jour J', Object.keys(LV.step || {}).length > 0, 'Jour J', 'Déroulé, postes, main courante.'],
+    ['Faire le bilan', Object.keys(LV.real || {}).length > 0, 'Bilan', 'Fréquentation, comptes, enseignements.']
+  ];
+}
+function homeTab() {
+  const empty = !ready() && !DRAW.length && !OBJ.length && !xt().people.length;
+  if (empty && !HY.date && pName().match(/^(Mon épreuve|Nouvelle épreuve|Sans nom)$/)) return `<h2>Vous avez une idée d'événement ?</h2><p class="note">Répondez à ces quelques questions : l'outil prépare le reste et vous guide étape par étape.</p>${wizard()}`;
+  const st = homeSteps(), nx = st.find(s => !s[1]), d = daysTo(), nd = st.filter(s => s[1]).length;
+  return `<h2>${esc(pName())}</h2><p>${SPORTS[HY.sport].nom}<br>${dateFr()}${HY.start ? ' à ' + HY.start.replace(':', ' h ') : ''}${HY.lieu ? '<br>' + esc(HY.lieu) : ''}</p>
+  <p>${d == null ? '<span class="late">Aucune date fixée.</span>' : d > 0 ? 'Dans <b>' + d + ' jour(s)</b>.' : d === 0 ? '<b>C\'est aujourd\'hui.</b>' : 'Passé depuis ' + (-d) + ' jour(s).'} Avancement : <b>${nd} étape(s) sur ${st.length}</b>.</p>
+  ${nx ? `<p style="background:#fff7b0;color:#111;padding:8px;border-radius:6px"><b>À faire maintenant : ${nx[0].toLowerCase()}.</b><br>${nx[3]}<br><button data-ya="go" data-id="${nx[2]}" class="go">Y aller</button></p>` : '<p><b>Tout est fait.</b></p>'}
+  <table>${st.map(s => `<tr><td style="width:22px;font-size:16px">${s[1] ? '✓' : '○'}</td><td><b>${s[0]}</b><br><span class="note">${s[3]}</span></td><td><button data-ya="go" data-id="${s[2]}">Ouvrir</button></td></tr>`).join('')}</table>
+  <h2>En bref</h2><label class="p">Date<input type="date" data-hy="date" value="${HY.date || ''}"></label><label class="p">Heure de début<input type="time" data-hy="start" value="${HY.start || ''}"></label><label class="p">Lieu<input type="text" data-hy="lieu" value="${esc(HY.lieu || '')}"></label><label class="p">Participants attendus<input type="number" data-hy="parts" value="${HY.parts}"></label><label class="p">Spectateurs attendus<input type="number" data-hy="spect" value="${HY.spect}"></label>
+  <h2>Créer un autre événement</h2>${wizard()}`;
+}
+// ── Budget ──
+function budgetTab() {
+  const x = xt(), b = budget(), P = +HY.parts || 0;
+  const lines = (k) => x.bud[k].map(l => `<tr><td><input type="text" data-bl="${k}:${l.id}:t" value="${esc(l.t)}"></td><td class="n"><input type="number" step="any" style="width:90px" data-bl="${k}:${l.id}:v" value="${l.v || ''}"></td><td><button data-ya="bldel" data-id="${k}:${l.id}">×</button></td></tr>`).join('');
+  return `<p class="note">Le budget se remplit en partie tout seul : les dépenses de matériel viennent de l'onglet « Besoins », les partenaires et prestataires de l'onglet « Équipe ».</p>
+  <label class="p">Tarif d'inscription (€)<input type="number" step="any" data-hy="tarif" value="${HY.tarif || ''}"></label><label class="p">Participants attendus<input type="number" data-hy="parts" value="${HY.parts}"></label>
+  <h2>Recettes</h2><table><tr><td>Inscriptions (${fmt(P)} × ${fmt(+HY.tarif || 0, 2)} €)</td><td class="n">${fmt(b.ins)} €</td><td></td></tr><tr><td>Partenaires (onglet Équipe)</td><td class="n">${fmt(b.part)} €</td><td></td></tr>${lines('rec')}<tr><th>Total des recettes</th><th class="n">${fmt(b.rec)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="rec">Ajouter une recette</button></p>
+  <h2>Dépenses</h2><table><tr><td>Matériel et équipe (onglet Besoins)</td><td class="n">${fmt(b.need)} €</td><td></td></tr><tr><td>Prestataires (onglet Équipe)</td><td class="n">${fmt(b.prest)} €</td><td></td></tr>${lines('dep')}<tr><th>Total des dépenses</th><th class="n">${fmt(b.dep)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="dep">Ajouter une dépense</button></p>
+  <h2>Résultat</h2><p style="font-size:16px">${b.rec || b.dep ? `<b class="${b.solde < 0 ? 'late' : ''}">${b.solde < 0 ? 'Déficit de ' + fmt(-b.solde) : 'Excédent de ' + fmt(b.solde)} €</b>` : '<span class="note">Saisissez un tarif et vos dépenses.</span>'}</p>
+  ${b.seuil != null && b.dep ? `<p>À dépenses égales, il faut <b>${fmt(b.seuil)} inscrits</b> pour équilibrer${P ? ' (' + fmt(P) + ' attendus)' : ''}.</p>` : ''}${b.tarifEq != null && b.dep ? `<p>Avec ${fmt(P)} participants, le tarif d'équilibre est de <b>${fmt(b.tarifEq, 2)} €</b>.</p>` : ''}${P && b.dep ? `<p>Coût par participant : <b>${fmt(b.dep / P, 2)} €</b>.</p>` : ''}
+  <p class="note">Le seuil suppose des dépenses fixes : en réalité dossards, médailles et ravitaillement augmentent avec le nombre d'inscrits.</p>
+  <p><button data-ya="budcsv">Exporter le budget (tableur)</button></p>`;
+}
+// ── Équipe ──
+function teamTab() {
+  const x = xt(), posts = dayPosts(), ben = benTotal(), team = x.people.filter(p => /Bénévole|Signaleur/.test(p.type)), opts = ['Non affecté', 'Départ et arrivée', 'Inscriptions et dossards', 'Ravitaillement', 'Buvette', 'Montage et démontage'].concat(posts.map(p => p.nom));
+  const row = p => { const staff = /Bénévole|Signaleur|Secouriste/.test(p.type), money = /Prestataire|Partenaire/.test(p.type), i = (f, ty, w, ph) => `<input type="${ty}" data-pe="${p.id}:${f}" value="${esc(p[f] == null ? '' : p[f])}" style="width:${w}" placeholder="${ph}">`;
+    return `<tr><td>${i('nom', 'text', '100%', 'Nom')}<br>${i('tel', 'text', '48%', 'Téléphone')} ${i('mail', 'text', '48%', 'Courriel')}</td><td>${staff ? `<select data-pe="${p.id}:post" style="max-width:130px">${opts.map(o => `<option${(p.post || 'Non affecté') === o ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>` : money ? i('montant', 'number', '80px', '€') + '<br>' + i('role', 'text', '120px', p.type === 'Partenaire' ? 'Contrepartie' : 'Prestation') : i('role', 'text', '120px', 'Fonction')}${p.type === 'Signaleur' ? `<br><label class="note"><input type="checkbox" data-pe="${p.id}:permis"${p.permis ? ' checked' : ''}> majeur, permis</label>` : ''}</td><td><label class="note"><input type="checkbox" data-pe="${p.id}:ok"${p.ok ? ' checked' : ''}> ${money ? 'signé' : 'confirmé'}</label><br><button data-ya="pedel" data-id="${p.id}">×</button></td></tr>`; };
+  const cov = posts.map(p => [p.nom, p.n, team.filter(q => q.post === p.nom).length]);
+  return `<p>Besoin : <b>${fmt(ben)} bénévoles et signaleurs</b>. Inscrits : <b>${team.length}</b>, dont <b>${team.filter(p => p.ok).length} confirmés</b>.${team.length < ben ? ` <span class="late">Il en manque ${ben - team.length}.</span>` : ''}</p>
+  <h2>Ajouter</h2><p><input type="text" id="yNom" placeholder="Nom" style="width:38%"> <input type="text" id="yTel" placeholder="Téléphone" style="width:24%"> <select id="yType">${PTY.map(t => `<option>${t}</option>`).join('')}</select> <button data-ya="peadd" class="go">Ajouter</button></p>
+  <p class="note">Ou collez une liste, une personne par ligne : nom ; téléphone ; courriel.</p><textarea id="yBulk" rows="3" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;padding:6px" placeholder="Camille Martin ; 06 00 00 00 00 ; camille@exemple.fr"></textarea><p><button data-ya="pebulk">Ajouter la liste comme bénévoles</button></p>
+  ${PTY.map(t => { const l = x.people.filter(p => p.type === t); return l.length ? `<h2>${t}s (${l.length})</h2><table>${l.map(row).join('')}</table>` : ''; }).join('')}
+  ${cov.length ? `<h2>Postes à pourvoir</h2><table><tr><th>Poste</th><th class="n">Besoin</th><th class="n">Affectés</th></tr>${cov.map(c => `<tr><td>${esc(c[0])}</td><td class="n">${c[1]}</td><td class="n ${c[2] < c[1] ? 'late' : ''}">${c[2]}</td></tr>`).join('')}</table>` : '<p class="note">Lancez l\'analyse du parcours pour obtenir la liste des postes à pourvoir.</p>'}
+  <p><button data-ya="pecsv">Exporter les contacts (tableur)</button></p>
+  <p class="note">Les signaleurs doivent être majeurs et titulaires du permis de conduire ; leur liste est demandée par l'autorité qui prend l'arrêté. Ces coordonnées restent sur votre appareil : pensez à prévenir les personnes que vous les conservez pour l'organisation.</p>`;
+}
+// ── Documents ──
+const DOCS = { mairie: 'Courrier à la mairie', riverains: 'Information aux riverains', benevoles: 'Convocation des bénévoles', consignes: 'Consignes du signaleur', liste: 'Liste des signaleurs', partenaire: 'Proposition de partenariat', merci: 'Remerciements' };
+let docK = 'mairie';
+function docGen(k) {
+  const s = mkSum(), nom = pName(), d = dateFr(), h = (HY.start || '').replace(':', ' h '), lieu = HY.lieu || '[commune]', orga = HY.orga || '[nom de l\'association organisatrice]', tel = HY.orgaTel || '[téléphone]', P = fmt(HY.parts), S = fmt(HY.spect), kmT = s && s.len ? fmt(s.len / 1000, 1) + ' km' : '[distance]', x = xt();
+  const rues = {}; if (s) for (const p of s.posts) for (const n of p.nom.split(', ')) { const r = rues[n] || (rues[n] = [1e9, -1e9]); r[0] = Math.min(r[0], p.t0); r[1] = Math.max(r[1], p.t1); }
+  const lr = Object.entries(rues).filter(e => !/^(rue|route|voie de desserte|grande route|chemin|sentier)$|^(Début|Fin) du parcours/.test(e[0])).slice(0, 40).map(([n, r]) => `- ${n} : de ${hh(r[0])} à ${hh(r[1])}`).join('\n') || '- [voies concernées et horaires : lancez l\'analyse du parcours]';
+  const ferm = s && s.posts.length ? `de ${hh(Math.min(...s.posts.map(p => p.t0)))} à ${hh(Math.max(...s.posts.map(p => p.t1)))}` : '[horaires]', sign = s && s.Q ? s.Q.sig : '[nombre]';
+  if (k === 'mairie') return `${orga}\n${tel}\n\nÀ l'attention de Madame ou Monsieur le Maire de ${lieu}\n\nObjet : organisation de « ${nom} », le ${d}\n\nMadame, Monsieur le Maire,\n\nNotre association organise « ${nom} » (${SPORTS[HY.sport].nom.toLowerCase()}) le ${d}${h ? ', départ à ' + h : ''}, à ${lieu}.\n\nNous attendons ${P} participants et environ ${S} spectateurs.${s && s.len ? ' Le parcours mesure ' + kmT + '.' : ''}\n\nPour la sécurité de tous, nous sollicitons :\n- un arrêté de circulation et de stationnement sur les voies ci-dessous, ${ferm} ;\n- le prêt de barrières${s && s.Q ? ' (' + fmt(s.Q.bar) + ' environ)' : ''} ;\n- l'autorisation d'occuper le domaine public pour le départ, l'arrivée et le village.\n\nVoies concernées et horaires de fermeture :\n${lr}\n\nNous prévoyons ${sign} signaleurs, dont la liste vous sera transmise, ainsi qu'un dispositif de secours.\n\nVous trouverez en pièces jointes le plan du parcours, l'attestation d'assurance et le règlement de l'épreuve.\n\nNous restons à votre disposition pour une réunion de préparation et vous prions d'agréer, Madame, Monsieur le Maire, l'expression de nos salutations distinguées.\n\n${orga}`;
+  if (k === 'riverains') return `INFORMATION AUX RIVERAINS\n\n« ${nom} » — ${d}\n\nMadame, Monsieur,\n\n${orga} organise « ${nom} » le ${d} à ${lieu}.\n\nLa circulation et le stationnement seront interdits ${ferm} sur les voies suivantes :\n${lr}\n\nSi vous devez utiliser votre véhicule ce jour-là, merci de le stationner en dehors du parcours la veille au soir. Les signaleurs présents aux carrefours vous indiqueront quand traverser en sécurité. L'accès des secours reste garanti à tout moment.\n\nNous vous remercions de votre compréhension et vous invitons à venir encourager les participants.\n\nRenseignements : ${tel}\n\n${orga}`;
+  if (k === 'benevoles') return `Bonjour,\n\nMerci d'avoir accepté d'aider à l'organisation de « ${nom} », le ${d} à ${lieu}.\n\nRendez-vous : ${hh(startM() - 60)} au PC course, pour le briefing et la remise des gilets.\nDépart de l'épreuve : ${h || '[heure]'}.\nFin estimée de votre mission : ${s && s.lastIn ? hh(startM() + s.lastIn + (+HY.reopen || 15)) : '[heure]'}.\n\nVotre poste : [poste]\n\nÀ prévoir : une tenue adaptée à la météo, de l'eau, votre téléphone chargé. Une collation vous sera remise.\n\nEn cas d'empêchement, prévenez-nous dès que possible au ${tel}.\n\nÀ très bientôt,\n${orga}`;
+  if (k === 'consignes') return `CONSIGNES DU SIGNALEUR — « ${nom} », ${d}\n\nVotre rôle : signaler l'épreuve aux autres usagers de la route et leur indiquer la priorité de passage des participants.\n\nAvant\n- Soyez à votre poste à l'heure indiquée, avant le passage du premier participant.\n- Portez le gilet haute visibilité et tenez votre panneau K10.\n- Ayez sur vous une copie de l'arrêté et le numéro du PC course : ${tel}.\n\nPendant\n- Placez-vous face à la circulation, là où les conducteurs vous voient de loin.\n- Annoncez calmement la course et demandez aux conducteurs de patienter.\n- Vous n'avez aucun pouvoir de contrainte : si un conducteur refuse d'attendre, ne vous mettez pas en danger, relevez l'immatriculation et prévenez le PC course.\n- Laissez toujours passer les véhicules de secours.\n- Restez à votre poste jusqu'au passage du véhicule de fin de course.\n\nEn cas d'accident\n- Protégez la zone, alertez le PC course (${tel}) ou le 15, le 18 ou le 112.\n- Ne déplacez pas un blessé, restez auprès de lui.\n\nAprès\n- Rendez votre gilet et votre panneau, signalez tout incident.\n\nMerci pour votre engagement.\n${orga}`;
+  if (k === 'liste') { const l = x.people.filter(p => p.type === 'Signaleur'); return `LISTE DES SIGNALEURS — « ${nom} », ${d}, ${lieu}\nOrganisateur : ${orga} — ${tel}\n\nLes personnes ci-dessous sont majeures et titulaires du permis de conduire.\n\n${l.length ? l.map((p, i) => `${i + 1}. ${p.nom || '[nom]'} — ${p.post && p.post !== 'Non affecté' ? p.post : '[poste]'}${p.permis ? '' : ' — PERMIS À VÉRIFIER'}`).join('\n') : '[Aucun signaleur saisi : ajoutez-les dans l\'onglet « Équipe » avec le type « Signaleur ».]'}\n\nNombre de signaleurs prévus : ${sign}. Saisis : ${l.length}.`; }
+  if (k === 'partenaire') return `${orga}\n${tel}\n\nObjet : devenez partenaire de « ${nom} »\n\nMadame, Monsieur,\n\n« ${nom} » aura lieu le ${d} à ${lieu}. Nous y attendons ${P} participants et environ ${S} spectateurs.\n\nNous vous proposons d'associer votre entreprise à l'événement :\n- votre logo sur les dossards, l'arche et les supports de communication ;\n- des panneaux aux emplacements les plus vus du parcours ;\n- un stand dans le village d'arrivée ;\n- des invitations pour vos collaborateurs et vos clients.\n\nNous serions heureux de vous présenter le parcours et les emplacements disponibles lors d'un rendez-vous.\n\nDans l'attente de votre retour, nous vous prions d'agréer, Madame, Monsieur, nos salutations distinguées.\n\n${orga}`;
+  return `Bonjour,\n\n« ${nom} » s'est déroulé le ${d} à ${lieu}${(LV.real || {}).partants ? ', avec ' + fmt(LV.real.partants) + ' participants au départ' : ''}.\n\nRien n'aurait été possible sans vous. Au nom de toute l'équipe, merci pour votre temps et votre énergie.\n\nNous vous donnons rendez-vous pour la prochaine édition.\n\n${orga}`;
+}
+function docsTab() {
+  const x = xt(), cur = x.docs[docK] != null ? x.docs[docK] : docGen(docK);
+  return `<p class="note">Des courriers prêts à envoyer, remplis avec les données de votre événement. Corrigez le texte librement : vos modifications sont gardées.</p>
+  <label class="p">Organisateur<input type="text" data-hy="orga" value="${esc(HY.orga || '')}" placeholder="Nom de l'association"></label><label class="p">Téléphone de contact<input type="text" data-hy="orgaTel" value="${esc(HY.orgaTel || '')}"></label><label class="p">Lieu<input type="text" data-hy="lieu" value="${esc(HY.lieu || '')}" placeholder="Commune"></label>
+  <p>${Object.entries(DOCS).map(([k, t]) => `<button data-ya="doc" data-id="${k}" class="${k === docK ? 'on' : ''}" style="margin:0 4px 4px 0">${t}${x.docs[k] != null ? ' ✎' : ''}</button>`).join('')}</p>
+  <textarea id="yDoc" data-doc="${docK}" rows="22" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;padding:8px;font:13px/1.45 sans-serif">${esc(cur)}</textarea>
+  <p><button data-ya="doccopy" class="go">Copier</button> <button data-ya="docprint">Imprimer</button> ${x.docs[docK] != null ? '<button data-ya="docreset">Revenir au texte automatique</button>' : ''}</p>
+  <p class="note">Ce sont des modèles, pas des formulaires officiels : la déclaration elle-même se fait avec le formulaire Cerfa demandé par votre mairie ou votre préfecture. Les passages entre crochets sont à compléter.</p>`;
+}
+TABS['Accueil'] = () => homeTab(); TABS['Budget'] = () => budgetTab(); TABS['Équipe'] = () => teamTab(); TABS['Documents'] = () => docsTab();
+function orgAct(a, id) {
+  const x = xt();
+  if (a === 'go') { tab = id; panel(); return; }
+  if (a === 'geo') { geoSearch(); return; }
+  if (a === 'geopick') { W.gi = +id; if (geo[W.gi]) map.setView(geo[W.gi].p, 15); panel(true); return; }
+  if (a === 'create') {
+    if (!(W.nom || '').trim()) { alert('Donnez un nom à l\'événement.'); return; }
+    if (ready() || DRAW.length || OBJ.length || x.people.length || HY.date) projAct('new');
+    const k = SPORTS[W.sport] ? W.sport : 'run', g = geo[W.gi];
+    ST.projects[ST.cur].name = W.nom.trim().slice(0, 80); $('#pname').textContent = ST.projects[ST.cur].name;
+    HY.sport = k; Object.assign(HY, pick(SPORTS[k])); snap = SPORTS[k].snap; $('#sport').value = k; $('#bSnap').classList.toggle('on', snap);
+    if (W.date) HY.date = W.date; if (W.start) HY.start = W.start; if (+W.parts > 0) HY.parts = +W.parts; if (+W.spect > 0) HY.spect = +W.spect; if (+W.tarif >= 0 && W.tarif !== '' && W.tarif != null) HY.tarif = +W.tarif;
+    if (g) { HY.lieu = g.c; map.setView(g.p, 16); if (SPORTS[k].site) { WP = [g.p]; LEGS = []; drawRoute(); } }
+    W = {}; geo = []; store(); tab = 'Accueil'; $('#bRun').disabled = !ready(); panel(); return;
+  }
+  if (a === 'bladd') x.bud[id].push({ id: uid2('b'), t: id === 'rec' ? 'Nouvelle recette' : 'Nouvelle dépense', v: 0 });
+  else if (a === 'bldel') { const [k, i] = id.split(':'); x.bud[k] = x.bud[k].filter(l => l.id !== i); }
+  else if (a === 'budcsv') { const b = budget(); csvOut('budget', [['Sens', 'Poste', 'Montant (€)'], ['Recette', 'Inscriptions', b.ins], ['Recette', 'Partenaires', b.part]].concat(x.bud.rec.map(l => ['Recette', l.t, l.v || 0]), [['Dépense', 'Matériel et équipe', b.need], ['Dépense', 'Prestataires', b.prest]], x.bud.dep.map(l => ['Dépense', l.t, l.v || 0]), [['', 'Total recettes', b.rec], ['', 'Total dépenses', b.dep], ['', 'Résultat', b.solde]])); return; }
+  else if (a === 'peadd') { const n = $('#yNom').value.trim(); if (!n) return; x.people.push({ id: uid2('h'), nom: n.slice(0, 80), tel: $('#yTel').value.trim().slice(0, 30), type: $('#yType').value }); }
+  else if (a === 'pebulk') { const l = $('#yBulk').value.split('\n').map(r => r.split(/[;\t]/).map(c => c.trim())).filter(r => r[0]); if (!l.length) return; for (const r of l.slice(0, 500)) x.people.push({ id: uid2('h'), nom: r[0].slice(0, 80), tel: (r[1] || '').slice(0, 30), mail: (r[2] || '').slice(0, 80), type: 'Bénévole' }); }
+  else if (a === 'pedel') x.people = x.people.filter(p => p.id !== id);
+  else if (a === 'pecsv') { csvOut('contacts', [['Type', 'Nom', 'Téléphone', 'Courriel', 'Poste ou rôle', 'Montant (€)', 'Confirmé']].concat(x.people.map(p => [p.type, p.nom, p.tel || '', p.mail || '', p.post || p.role || '', p.montant || '', p.ok ? 'oui' : '']))); return; }
+  else if (a === 'doc') { docK = id; panel(); return; }
+  else if (a === 'doccopy') { const t = $('#yDoc').value; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => alert('Texte copié.'), () => { $('#yDoc').select(); document.execCommand('copy'); }); return; }
+  else if (a === 'docprint') { $('#print').innerHTML = `<pre style="white-space:pre-wrap;font:11.5pt/1.5 serif;margin:0">${esc($('#yDoc').value)}</pre>`; print(); return; }
+  else if (a === 'docreset') delete x.docs[docK];
+  else if (a === 'needoff') { if (id.startsWith('X:')) x.needX = x.needX.filter(n => 'X:' + n.id !== id); else x.needOff[id] = true; }
+  else if (a === 'needon') x.needOff = {};
+  else if (a === 'needadd') { const n = $('#yNeedN').value.trim(), q = parseFloat($('#yNeedQ').value); if (!n || !(q > 0)) { alert('Indiquez un nom et une quantité.'); return; } x.needX.push({ id: uid2('n'), nom: n.slice(0, 80), k: q, base: $('#yNeedB').value, un: $('#yNeedU').value.trim().slice(0, 20) || 'unités' }); }
+  store(); panel(true);
+}
 function libSave() { ST.types = JSON.parse(JSON.stringify(TYPES)); store(); }
 function loadProject(id) {
   ST.cur = id; const p = ST.projects[id] || {};
   WP = p.WP || []; LEGS = p.LEGS || []; for (const k in HY) delete HY[k]; Object.assign(HY, HY0, p.HY || {}); if (!SPORTS[HY.sport]) HY.sport = 'run';
   for (const k in COST) COST[k] = 0; Object.assign(COST, p.COST || {}); snap = p.snap !== false; DONE = p.done || {};
   OBJ = (p.OBJ || []).filter(o => TYPES[o.t]).map(o => ({ ...o })); nid = OBJ.reduce((a, o) => Math.max(a, o.id), 0) + 1; selO = null; placing = null; A = null; GL = [];
-  DRAW = (p.DRAW || []).filter(d => d.k === 'note' || (d.k === 'ligne' ? LT : d.k === 'zone' ? ZT : PT)[d.t]).map(d => ({ ...d, pts: d.pts.map(q => q.slice()) })); did = DRAW.reduce((a, d) => Math.max(a, d.id), 0) + 1; selD = null; drawing = null; BG = p.BG || null; LV = JSON.parse(JSON.stringify(p.LV || {})); SUMM = p.SUMM || null;
+  DRAW = (p.DRAW || []).filter(d => d.k === 'note' || (d.k === 'ligne' ? LT : d.k === 'zone' ? ZT : PT)[d.t]).map(d => ({ ...d, pts: d.pts.map(q => q.slice()) })); did = DRAW.reduce((a, d) => Math.max(a, d.id), 0) + 1; selD = null; drawing = null; BG = p.BG || null; LV = JSON.parse(JSON.stringify(p.LV || {})); SUMM = p.SUMM || null; XT = JSON.parse(JSON.stringify(p.XT || {}));
   lyRes.clearLayers(); $('#prof').innerHTML = ''; $('#bPr').disabled = true; $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; $('#bSnap').classList.toggle('on', snap); $('#pname').textContent = p.name || 'Sans nom';
   drawRoute(); drawObj(); drawBg(); applyLayers(); panel(); const pts = WP.length > 1 ? line() : WP; if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(.15)); else if (pts.length) map.setView(pts[0], 16);
 }
 function projAct(a, id) {
   const uid = p => p + Date.now().toString(36);
-  if (a === 'new') { store(); const k = uid('p'); ST.projects[k] = { name: 'Nouvelle épreuve' }; loadProject(k); tab = 'Épreuve'; store(); panel(); }
+  if (a === 'new') { store(); const k = uid('p'); ST.projects[k] = { name: 'Nouvelle épreuve' }; loadProject(k); tab = 'Accueil'; store(); panel(); }
   else if (a === 'open') { store(); loadProject(id); store(); }
   else if (a === 'dup') { store(); const k = uid('p'); ST.projects[k] = JSON.parse(JSON.stringify(ST.projects[id])); ST.projects[k].name += ' (copie)'; loadProject(k); store(); }
   else if (a === 'pdel') { if (Object.keys(ST.projects).length < 2) { alert('Il faut garder au moins un projet.'); return; } if (!confirm('Supprimer définitivement « ' + (ST.projects[id].name || 'Sans nom') + ' » ?')) return; if (id !== ST.cur) store(); delete ST.projects[id]; if (id === ST.cur) loadProject(Object.keys(ST.projects)[0]); store(); panel(); }
@@ -911,6 +1059,10 @@ $('#body').addEventListener('change', e => {
   if (t.id === 'pName') { ST.projects[ST.cur].name = t.value || 'Sans nom'; $('#pname').textContent = ST.projects[ST.cur].name; store(); return; }
   if (t.id === 'pfSel') { pfKey = t.value; panel(true); return; }
   if (t.id === 'impFile') { const f = t.files[0]; if (!f) return; f.text().then(x => { try { const d = JSON.parse(x); if (!d.project) throw 0; store(); for (const k in d.profiles || {}) if (!SPORTS[k]) { SPORTS[k] = d.profiles[k]; ST.profiles[k] = d.profiles[k]; } for (const k in d.types || {}) if (!TYPES[k]) TYPES[k] = d.types[k]; if (d.types) ST.types = JSON.parse(JSON.stringify(TYPES)); const k = 'p' + Date.now().toString(36); ST.projects[k] = d.project; loadProject(k); store(); } catch (err) { alert('Ce fichier n\'est pas un projet exporté par cet outil.'); } }); t.value = ''; return; }
+  if (t.dataset.w) { W[t.dataset.w] = t.value; return; }
+  if (t.dataset.doc) { xt().docs[t.dataset.doc] = t.value.slice(0, 20000); store(); return; }
+  if (t.dataset.bl) { const [k, i, fl] = t.dataset.bl.split(':'), l = xt().bud[k].find(l => l.id === i); if (l) { l[fl] = fl === 'v' ? (parseFloat(t.value) || 0) : t.value.slice(0, 80); store(); if (fl === 'v') panel(true); } return; }
+  if (t.dataset.pe) { const [i, fl] = t.dataset.pe.split(':'), p = xt().people.find(p => p.id === i); if (p) { p[fl] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : t.value.slice(0, 120); store(); if (t.type !== 'text') panel(true); } return; }
   if (t.dataset.xstep) { LV.step = LV.step || {}; if (t.checked) LV.step[t.dataset.xstep] = nowM(); else delete LV.step[t.dataset.xstep]; store(); panel(true); return; }
   if (t.dataset.xaft) { LV.aft = LV.aft || {}; LV.aft[t.dataset.xaft] = t.checked; store(); return; }
   if (t.dataset.lv) { const k = t.dataset.lv; if (k === 'notes') LV.notes = t.value.slice(0, 4000); else { LV.real = LV.real || {}; const v = parseFloat(t.value); if (isFinite(v)) LV.real[k.slice(5)] = v; else delete LV.real[k.slice(5)]; } store(); if (k !== 'notes') panel(true); return; }
@@ -922,7 +1074,7 @@ $('#body').addEventListener('change', e => {
   if (t.dataset.tk) { ST.tasks = tasks().map(x => ({ ...x })); const x = ST.tasks.find(x => x.id === t.dataset.tk); if (x) x[t.dataset.f] = t.dataset.f === 'j' ? (parseFloat(t.value) || 0) : t.value; store(); if (t.dataset.f === 'j') panel(true); return; }
   if (t.dataset.pf) { const k = pfKey && SPORTS[pfKey] ? pfKey : HY.sport, f = t.dataset.pf; SPORTS[k][f] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; ST.profiles[k] = { ...SPORTS[k] }; if (f === 'nom') { $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; } store(); return; }
   if (t.dataset.ty) { const T = TYPES[t.dataset.ty], f = t.dataset.f; if (!T) return; T[f] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; libSave(); checkObj(); drawObj(); return; }
-  if (t.dataset.hy) { HY[t.dataset.hy] = t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; store(); if (tab === 'Implantation') { checkObj(); drawObj(); panel(true); } else if (tab === 'Besoins' || tab === 'Jour J' || tab === 'Bilan') panel(true); }
+  if (t.dataset.hy) { HY[t.dataset.hy] = t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; store(); if (tab === 'Implantation') { checkObj(); drawObj(); panel(true); } else if (/^(Besoins|Jour J|Bilan|Accueil|Budget|Documents)$/.test(tab)) panel(true); }
   if (t.dataset.ob) { const o = OBJ.find(o => o.id === selO), v = parseFloat(t.value); if (o && v > 0) { o[t.dataset.ob] = v; checkObj(); store(); drawObj(); panel(true); } }
   if (t.dataset.cost) { COST[t.dataset.cost] = parseFloat(t.value) || 0; store(); panel(true); }
   if (t.id === 'pTop') { HY.pTop = parseFloat(t.value) || 0; store(); panel(true); }
@@ -933,6 +1085,7 @@ $('#body').addEventListener('click', e => {
   if (d.oa) { siteAct(d.oa); return; }
   if (d.da) { drawAct(d.da, d.k, d.t); return; }
   if (d.xa) { cycleAct(d.xa, d.id); return; }
+  if (d.ya) { orgAct(d.ya, d.id); return; }
   if (d.add) { placing = placing === d.add ? null : d.add; panel(true); return; }
   const r = e.target.closest('tr.go'); if (!r || !A) return;
   if (r.dataset.obGo) { const o = OBJ.find(o => o.id === +r.dataset.obGo); if (o) { selO = o.id; map.setView([o.lat, o.lng], Math.max(map.getZoom(), 18)); drawObj(); panel(true); } return; }
