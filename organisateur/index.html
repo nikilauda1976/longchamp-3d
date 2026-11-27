@@ -5,52 +5,153 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Organisateur d'épreuve — tous sports</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Instrument+Serif&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231b1a17'/%3E%3Cpath d='M8 22c5-1 3-11 8-12s4 8 8 6' fill='none' stroke='%23e9b08f' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
-:root{--bg:#0f1418;--pn:#171e24;--ln:#2a343d;--tx:#e8edf1;--mu:#93a1ad;--ac:#4aa8ff}
+:root{--bg:#f4f2ec;--sf:#fffefb;--soft:#ebe7dd;--ln:#e0dbcf;--tx:#1b1a17;--mu:#787368;--ac:#a94a25;--ac-s:#f6e4d9;--ok:#3f6b4f;--r:9px;--ease:cubic-bezier(.2,.7,.2,1)}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-#app{display:grid;grid-template-columns:430px 1fr;grid-template-rows:auto 1fr 110px;height:100%}
-header{grid-column:1/3;display:flex;gap:10px;align-items:center;padding:8px 14px;background:#0b0f12;border-bottom:1px solid var(--ln);flex-wrap:wrap}
-header h1{font-size:16px;margin:0;font-weight:650}
-.tag{background:#5a2a12;color:#ffc9a3;border-radius:4px;padding:2px 8px;font-size:12px}
-.sp{flex:1}
-button,select,input{font:inherit}
-button{background:#22303b;color:var(--tx);border:1px solid var(--ln);border-radius:6px;padding:6px 10px;cursor:pointer}
-button:hover{background:#2c3e4c}
-button.on,button.go{background:var(--ac);color:#04121f;border-color:var(--ac)}
-button:disabled{opacity:.5;cursor:default}
-#side{grid-row:2/4;background:var(--pn);border-right:1px solid var(--ln);display:flex;flex-direction:column;min-height:0}
-#tabs{display:flex;flex-wrap:wrap;gap:4px;padding:8px;border-bottom:1px solid var(--ln)}
-#tabs button{padding:4px 8px;font-size:13px}
-#body{overflow:auto;padding:10px 12px;flex:1}
-#map{min-height:0;background:#ddd}
-#prof{background:#0b0f12;border-top:1px solid var(--ln)}
-#prof svg{width:100%;height:100%;display:block}
-h2{font-size:15px;margin:14px 0 6px}
-h2:first-child{margin-top:0}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.5 Geist,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+#app{display:grid;grid-template-columns:216px minmax(380px,500px) 1fr;height:100dvh}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:7px 12px;cursor:pointer;transition:background .16s var(--ease),border-color .16s var(--ease),transform .12s var(--ease),box-shadow .16s var(--ease)}
+button:hover{background:var(--soft)}
+button:active{transform:scale(.975)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button.go{background:var(--tx);color:var(--sf);border-color:var(--tx);font-weight:500}
+button.go:hover{background:#35332d}
+button.on{background:var(--ac-s);border-color:var(--ac);color:var(--ac);font-weight:500}
+button.link{background:none;border-color:transparent;color:var(--mu)}
+button:disabled{opacity:.45;cursor:default;transform:none}
+/* navigation */
+#nav{background:var(--bg);border-right:1px solid var(--ln);display:flex;flex-direction:column;min-height:0;padding:14px 10px 10px}
+.brand{font:400 21px/1 "Instrument Serif",Georgia,serif;letter-spacing:-.01em;padding:2px 8px 12px;display:flex;align-items:baseline;gap:8px}
+.brand span{font:500 10.5px Geist,sans-serif;color:var(--mu);letter-spacing:.02em}
+.search{display:flex;justify-content:space-between;align-items:center;width:100%;color:var(--mu);text-align:left;margin-bottom:10px;font-size:13px}
+kbd{font:500 10.5px Geist,sans-serif;background:var(--soft);border-radius:4px;padding:1px 5px;color:var(--mu)}
+#tabs{display:flex;flex-direction:column;gap:1px;overflow:auto;flex:1;min-height:0;padding-bottom:8px}
+.ph{font-size:11.5px;color:var(--mu);padding:12px 8px 4px;letter-spacing:.01em}
+#tabs button{border:0;background:none;text-align:left;padding:5px 8px;border-radius:6px;font-size:13.5px;color:#4b4840;position:relative}
+#tabs button:hover{background:var(--soft)}
+#tabs button.on{background:var(--sf);color:var(--tx);font-weight:500;box-shadow:0 1px 2px rgba(60,50,30,.08),0 0 0 1px var(--ln)}
+#tabs button.on::before{content:"";position:absolute;left:-4px;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--ac)}
+.navfoot{border-top:1px solid var(--ln);padding:10px 4px 0;display:grid;gap:6px}
+.navfoot b{font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.navfoot select{width:100%;background:var(--sf);border:1px solid var(--ln);border-radius:7px;padding:5px 6px;font-size:12.5px}
+/* panneau */
+#side{background:var(--sf);border-right:1px solid var(--ln);display:flex;flex-direction:column;min-height:0}
+#crumb{padding:16px 22px 0;font-size:12.5px;color:var(--mu)}
+#body{overflow:auto;padding:8px 22px 40px;flex:1;scroll-behavior:smooth}
+#body.in>*{animation:rise .34s var(--ease) both}
+#body.in>*:nth-child(2){animation-delay:.03s}#body.in>*:nth-child(3){animation-delay:.06s}#body.in>*:nth-child(4){animation-delay:.09s}#body.in>*:nth-child(5){animation-delay:.12s}#body.in>*:nth-child(n+6){animation-delay:.15s}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+h2{font:600 15.5px/1.3 Geist,sans-serif;letter-spacing:-.01em;margin:28px 0 8px}
+h2:first-child{margin-top:6px}
+p{margin:8px 0;text-wrap:pretty}
 table{border-collapse:collapse;width:100%;font-size:13px}
-td,th{padding:4px 6px;border-bottom:1px solid var(--ln);text-align:left;vertical-align:top}
-th{color:var(--mu);font-weight:500}
+td,th{padding:7px 6px;border-bottom:1px solid var(--ln);text-align:left;vertical-align:top}
+th{color:var(--mu);font-weight:500;font-size:12px}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-tr.go{cursor:pointer}
-tr.go:hover{background:#1f2a33}
-.kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.kpi div{background:#1c252d;border-radius:8px;padding:8px 10px}
-.kpi b{display:block;font-size:19px}
+tr.go{cursor:pointer;transition:background .14s}
+tr.go:hover{background:var(--bg)}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.kpi div{background:var(--bg);border-radius:var(--r);padding:11px 12px}
+.kpi b{display:block;font:500 22px/1.15 Geist,sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .kpi span{color:var(--mu);font-size:12px}
 .note{color:var(--mu);font-size:12.5px}
-.warn{background:#3a2a10;border:1px solid #6b4b14;border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0}
-label.p{display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;margin:6px 0;font-size:13px}
-label.p input,label.p select,td input{width:100%;background:#0b0f12;color:var(--tx);border:1px solid var(--ln);border-radius:5px;padding:4px 6px}
+.warn{background:#fbf1dc;border:1px solid #ecd9a8;border-radius:var(--r);padding:9px 11px;font-size:13px;margin:10px 0}
+label.p{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center;margin:7px 0;font-size:13.5px}
+input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{background:var(--sf);border:1px solid var(--ln);border-radius:7px;padding:6px 8px;transition:border-color .16s,box-shadow .16s}
+input:hover,select:hover,textarea:hover{border-color:#cbc4b4}
+label.p input,label.p select{width:100%}
+#body textarea{background:var(--sf)!important;color:var(--tx)!important;border:1px solid var(--ln)!important;border-radius:8px!important}
 td input{width:80px;text-align:right}
-.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
-.late{color:#ff8a5c}
+td input[type=text]{text-align:left}
+input[type=checkbox]{accent-color:var(--ac);width:15px;height:15px;vertical-align:-2px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:7px}
+.late{color:#b3401f}
+.tag{font-size:11px;color:var(--mu)}
+/* accueil */
+.hero{padding:10px 0 4px}
+.hero h1{font:400 35px/1.04 "Instrument Serif",Georgia,serif;letter-spacing:-.015em;margin:4px 0 8px;text-wrap:balance}
+.eyebrow{font-size:12.5px;color:var(--ac);margin:0}
+.props{color:var(--mu);margin:0}
+.prog{height:5px;background:var(--soft);border-radius:3px;overflow:hidden;margin:16px 0 4px}
+.prog i{display:block;height:100%;background:var(--ok);border-radius:3px;transition:width .6s var(--ease)}
+button.next{display:block;width:100%;text-align:left;background:var(--tx);color:var(--sf);border-color:var(--tx);padding:14px 16px;border-radius:12px;margin:14px 0}
+button.next:hover{background:#35332d;box-shadow:0 6px 18px rgba(50,40,20,.18)}
+button.next span{font-size:12px;opacity:.65;display:block}
+button.next b{font:400 22px/1.15 "Instrument Serif",Georgia,serif;display:block;margin:2px 0}
+button.next em{font-style:normal;font-size:12.5px;opacity:.75}
+.steps{display:grid;gap:2px;margin-top:6px}
+.steps button{display:flex;gap:11px;align-items:flex-start;text-align:left;border:0;background:none;padding:9px 8px;border-radius:8px;width:100%}
+.steps button:hover{background:var(--bg)}
+.steps i{flex:none;width:18px;height:18px;border-radius:50%;border:1.5px solid #c9c2b2;margin-top:1px;transition:background .25s,border-color .25s}
+.steps .done i{background:var(--ok);border-color:var(--ok);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M5 9.4l2.6 2.6L13 6.6' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.steps b{font-weight:500;display:block}
+.steps .done b{color:var(--mu);font-weight:400}
+.steps em{font-style:normal;font-size:12.5px;color:var(--mu)}
+/* questions une par une */
+.wz{padding:8px 0 0}
+.wzbar{display:flex;gap:5px;margin:4px 0 22px}
+.wzbar i{flex:1;height:4px;border-radius:2px;background:var(--soft);transition:background .4s var(--ease)}
+.wzbar i.on{background:var(--ac)}
+.wzstep{font-size:12.5px;color:var(--mu);margin:0}
+.q{font:400 31px/1.08 "Instrument Serif",Georgia,serif;letter-spacing:-.015em;margin:4px 0 6px;text-wrap:balance}
+.fld{display:block;margin:16px 0 0}
+.fld span{display:block;font-size:12.5px;color:var(--mu);margin-bottom:5px}
+.fld input{width:100%;font-size:17px;padding:11px 12px;border-radius:10px}
+.choices{display:grid;gap:7px;margin-top:16px}
+.choices button{text-align:left;padding:12px 14px;border-radius:10px;font-size:14.5px}
+.choices button:hover{border-color:var(--tx);transform:translateX(2px)}
+.wznav{display:flex;gap:8px;align-items:center;margin-top:22px}
+.wznav .go{padding:10px 18px;font-size:15px}
+/* carte */
+#stage{display:grid;grid-template-rows:1fr auto;min-height:0;min-width:0}
+#mapw{position:relative;min-height:0}
+#map{position:absolute;inset:0;background:#e8e4da}
+#tools{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:1100;display:flex;gap:4px;background:rgba(255,254,251,.94);backdrop-filter:blur(8px);border:1px solid var(--ln);border-radius:13px;padding:5px;box-shadow:0 8px 28px rgba(60,50,30,.16);white-space:nowrap}
+#tools button{border-color:transparent;background:none;font-size:13px;padding:6px 10px}
+#tools button:hover{background:var(--soft)}
+#tools button.on{background:var(--ac-s);color:var(--ac)}
+#tools button.go{background:var(--tx);color:var(--sf)}
+#prof{background:var(--sf);border-top:1px solid var(--ln);height:104px}
+#prof:empty{display:none}
+#prof svg{width:100%;height:100%;display:block}
+.leaflet-container{font:inherit}
 .mk{border-radius:50%;border:2px solid #111;width:14px;height:14px}
-.lbl{background:#fff;border:1.5px solid #111;border-radius:9px;padding:0 5px;font:bold 11px sans-serif;color:#111;white-space:nowrap}
+.lbl{background:#fff;border:1.5px solid #111;border-radius:9px;padding:0 5px;font:600 11px Geist,sans-serif;color:#111;white-space:nowrap}
+.tipm{background:rgba(255,255,255,.9);border:0;box-shadow:none;font:600 11px Geist,sans-serif;color:#111;padding:1px 4px;text-align:center}
+.tipm::before{display:none}
+/* messages et recherche */
+#toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-24px);background:var(--tx);color:var(--sf);padding:10px 16px;border-radius:10px;font-size:13.5px;opacity:0;pointer-events:none;transition:opacity .25s,transform .35s var(--ease);z-index:3000;max-width:min(520px,90vw);box-shadow:0 10px 30px rgba(40,30,10,.28)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#pal{position:fixed;inset:0;background:rgba(40,36,28,.32);z-index:2500;display:grid;place-items:start center;padding-top:14vh;animation:fade .16s}
+#pal[hidden]{display:none}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.palbox{width:min(560px,92vw);background:var(--sf);border-radius:14px;box-shadow:0 24px 70px rgba(40,30,10,.35);overflow:hidden;animation:rise .22s var(--ease)}
+#palq{width:100%;border:0;border-bottom:1px solid var(--ln);border-radius:0;padding:15px 18px;font-size:16px;background:none}
+#palq:focus-visible{outline:0}
+#pall{max-height:46vh;overflow:auto;padding:6px}
+#pall button{display:flex;justify-content:space-between;gap:12px;width:100%;border:0;background:none;text-align:left;padding:9px 12px;border-radius:8px}
+#pall button.on{background:var(--bg)}
+#pall button span{color:var(--mu);font-size:12px}
+#pall p{padding:10px 12px;margin:0}
 #print{display:none}
+@media (max-width:900px){
+  #app{grid-template-columns:1fr;grid-template-rows:auto auto 62dvh;height:auto}
+  #nav{border-right:0;border-bottom:1px solid var(--ln)}
+  #tabs{flex-direction:row;flex-wrap:nowrap;overflow-x:auto}
+  .ph{display:none}
+  #tabs button{white-space:nowrap}
+  #side{border-right:0}
+  #tools{max-width:94vw;overflow-x:auto}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media print{
   html,body{background:#fff;color:#000;height:auto}
-  #app{display:none}
+  #app,#toast,#pal{display:none!important}
   #print{display:block;padding:0 6mm;font-size:10.5pt}
   #print h1{font-size:18pt;margin:0 0 4pt}
   #print h2{font-size:13pt;margin:14pt 0 4pt;break-after:avoid}
@@ -64,33 +165,41 @@ td input{width:80px;text-align:right}
   #print input{border:0;background:none;color:#000}
   .late{color:#b00}
 }
-.tipm{background:rgba(255,255,255,.88);border:0;box-shadow:none;font:600 11px sans-serif;color:#111;padding:1px 4px;text-align:center}
-.tipm::before{display:none}
-.ph{flex-basis:100%;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin-top:2px}
 </style>
 </head>
 <body>
 <div id="app">
-  <header>
-    <h1>Organisateur d'épreuve</h1><b id="pname" style="color:#ffd23f"></b><span class="tag">Prototype</span>
-    <select id="sport"></select>
-    <span class="sp"></span>
-    <button id="bSnap" class="on" title="Le tracé suit les routes entre deux clics">Suivre les routes</button>
-    <button id="bUndo">Annuler le dernier point</button>
-    <button id="bClear">Effacer</button>
-    <label><input type="file" id="gpx" accept=".gpx" hidden><button id="bGpx" type="button">Importer un GPX</button></label>
-    <button id="bRun" class="go" disabled>Analyser</button>
-    <button id="bPr" disabled>Imprimer</button>
-  </header>
-  <div id="side"><div id="tabs"></div><div id="body"></div></div>
-  <div id="map"></div>
-  <div id="prof"></div>
+  <aside id="nav">
+    <div class="brand">Organisateur <span>prototype</span></div>
+    <button id="kbtn" class="search" type="button">Rechercher <kbd>⌘K</kbd></button>
+    <nav id="tabs"></nav>
+    <div class="navfoot"><b id="pname"></b><select id="sport" aria-label="Type d'événement"></select></div>
+  </aside>
+  <section id="side"><div id="crumb"></div><div id="body"></div></section>
+  <div id="stage">
+    <div id="mapw"><div id="map"></div>
+      <div id="tools">
+        <button id="bSnap" class="on" title="Le tracé suit les routes entre deux clics">Suivre les routes</button>
+        <button id="bUndo" title="Retire le dernier point du tracé">Annuler le point</button>
+        <button id="bClear" title="Efface tout le tracé">Effacer</button>
+        <label><input type="file" id="gpx" accept=".gpx" hidden><button id="bGpx" type="button">Importer un GPX</button></label>
+        <button id="bPr" disabled>Imprimer</button>
+        <button id="bRun" class="go" disabled>Analyser</button>
+      </div>
+    </div>
+    <div id="prof"></div>
+  </div>
 </div>
+<div id="toast" role="status"></div>
+<div id="pal" hidden><div class="palbox"><input id="palq" type="text" placeholder="Chercher une page, une action, une personne…" autocomplete="off"><div id="pall"></div></div></div>
 <div id="print"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 'use strict';
 const $ = s => document.querySelector(s);
+let toastT = 0;
+const toast = m => { const e = $('#toast'); e.textContent = m; e.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => e.classList.remove('show'), Math.min(7000, 2200 + String(m).length * 35)); };
+window.alert = toast;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fmt = (v, d = 0) => (+v).toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
 const hm = t => { t = ((t % 1440) + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ' h ' + String(Math.round(t % 60)).padStart(2, '0'); };
@@ -392,8 +501,8 @@ const TABS = {
     ${pfFlags.map(([f, t]) => `<label class="p">${t}<input type="checkbox" data-pf="${f}" ${s[f] ? 'checked' : ''} style="width:auto;justify-self:start"></label>`).join('')}
     <p><button data-pa="pfnew">+ Nouveau profil (copie de celui-ci)</button> ${SPORTS0[k] ? '<button data-pa="pfreset">Valeurs d\'origine</button>' : '<button data-pa="pfdel">Supprimer ce profil</button>'} <button data-pa="pfuse">Utiliser pour l'épreuve ouverte</button></p>
     <h2>Catalogue des éléments à placer</h2><p class="note">Longueur × largeur en mètres. Capacité : par élément (ex. 4 cabines) ou par m² (ex. 2,5 places). « Public » : le recul par rapport au parcours est contrôlé. « Valeur » : l'indice de fréquentation est calculé.</p>
-    ${Object.entries(TYPES).map(([q, T]) => `<div style="border:1px solid var(--ln);border-left:6px solid ${T.c};border-radius:6px;padding:6px 8px;margin:6px 0"><input type="text" data-ty="${q}" data-f="nom" value="${T.nom.replace(/"/g, '&quot;')}" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;padding:3px 6px">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px;font-size:12px">${[['L', 'Long.'], ['W', 'Larg.'], ['capU', 'Cap./élém.'], ['capM2', 'Cap./m²'], ['prix', 'Prix €'], ['s', 'Code'], ['unit', 'Unité']].map(([f, t]) => `<label>${t}<input type="${f === 's' || f === 'unit' ? 'text' : 'number'}" step="any" data-ty="${q}" data-f="${f}" value="${T[f] ?? ''}" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;padding:2px 4px"></label>`).join('')}<label>Couleur<input type="color" data-ty="${q}" data-f="c" value="${T.c}" style="width:100%;height:24px;padding:0;border:0;background:none"></label></div>
+    ${Object.entries(TYPES).map(([q, T]) => `<div style="border:1px solid var(--ln);border-left:6px solid ${T.c};border-radius:6px;padding:6px 8px;margin:6px 0"><input type="text" data-ty="${q}" data-f="nom" value="${T.nom.replace(/"/g, '&quot;')}" style="width:100%;background:var(--sf);color:inherit;border:1px solid var(--ln);border-radius:5px;padding:3px 6px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px;font-size:12px">${[['L', 'Long.'], ['W', 'Larg.'], ['capU', 'Cap./élém.'], ['capM2', 'Cap./m²'], ['prix', 'Prix €'], ['s', 'Code'], ['unit', 'Unité']].map(([f, t]) => `<label>${t}<input type="${f === 's' || f === 'unit' ? 'text' : 'number'}" step="any" data-ty="${q}" data-f="${f}" value="${T[f] ?? ''}" style="width:100%;background:var(--sf);color:inherit;border:1px solid var(--ln);border-radius:5px;padding:2px 4px"></label>`).join('')}<label>Couleur<input type="color" data-ty="${q}" data-f="c" value="${T.c}" style="width:100%;height:24px;padding:0;border:0;background:none"></label></div>
       <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" data-ty="${q}" data-f="pub" ${T.pub ? 'checked' : ''}> Public</label> &nbsp; <label><input type="checkbox" data-ty="${q}" data-f="val" ${T.val ? 'checked' : ''}> Valeur</label> &nbsp; <button data-pa="tydel" data-id="${q}" style="padding:1px 8px;float:right">Supprimer</button></div></div>`).join('')}
     <p><button data-pa="tyadd">+ Nouvel élément</button> <button data-pa="tyreset">Catalogue d'origine</button></p>`; },
   'Épreuve': () => {
@@ -438,7 +547,7 @@ const TABS = {
     const R = retro(), q = A && A.Q;
     return `${HY.date ? '' : '<div class="warn">Saisissez la date de l\'épreuve dans l\'onglet « Épreuve » pour obtenir les échéances datées.</div>'}
     <h2>Rétroplanning</h2><p class="note">${R.filter(x => x.done).length} tâche(s) faite(s) sur ${R.length}. Cochez, modifiez le texte ou le nombre de jours, ajoutez vos propres tâches : la liste est la vôtre et sert à toutes vos épreuves.</p>
-    <table>${R.map(x => `<tr><td><input type="checkbox" style="width:auto" data-done="${x.id}" ${x.done ? 'checked' : ''}></td><td style="white-space:nowrap">${x.dt ? x.dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}<br>${x.legal ? '<span class="note">J' + x.j + '</span>' : `<input type="number" data-tk="${x.id}" data-f="j" value="${x.j}" style="width:58px" title="Jours avant (négatif) ou après l'épreuve">`}</td><td class="${x.late ? 'late' : ''}">${x.legal ? x.t + '<br><span class="note">délai légal relevé sur des fiches de préfecture, à confirmer auprès de la vôtre ; réglable dans le profil</span>' : `<textarea data-tk="${x.id}" data-f="t" rows="2" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;font:inherit;padding:3px 5px">${x.t.replace(/</g, '&lt;')}</textarea>`}${x.late ? '<b>échéance dépassée</b>' : ''}</td><td>${x.legal ? '' : `<button data-pa="tdel" data-id="${x.id}" title="Supprimer">✕</button>`}</td></tr>`).join('')}</table>
+    <table>${R.map(x => `<tr><td><input type="checkbox" style="width:auto" data-done="${x.id}" ${x.done ? 'checked' : ''}></td><td style="white-space:nowrap">${x.dt ? x.dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}<br>${x.legal ? '<span class="note">J' + x.j + '</span>' : `<input type="number" data-tk="${x.id}" data-f="j" value="${x.j}" style="width:58px" title="Jours avant (négatif) ou après l'épreuve">`}</td><td class="${x.late ? 'late' : ''}">${x.legal ? x.t + '<br><span class="note">délai légal relevé sur des fiches de préfecture, à confirmer auprès de la vôtre ; réglable dans le profil</span>' : `<textarea data-tk="${x.id}" data-f="t" rows="2" style="width:100%;background:var(--sf);color:inherit;border:1px solid var(--ln);border-radius:5px;font:inherit;padding:3px 5px">${x.t.replace(/</g, '&lt;')}</textarea>`}${x.late ? '<b>échéance dépassée</b>' : ''}</td><td>${x.legal ? '' : `<button data-pa="tdel" data-id="${x.id}" title="Supprimer">✕</button>`}</td></tr>`).join('')}</table>
     <p><button data-pa="tadd">+ Ajouter une tâche</button> <button data-pa="treset">Rétablir la liste type</button></p>
     <p class="note">Hors délai de dépôt, ces échéances sont des usages courants, pas des obligations.</p>
     ${q ? `<h2>Équipe à réunir</h2><table><tr><td>Signaleurs aux carrefours</td><td class="n">${q.sig}</td></tr><tr><td>Bénévoles aux ravitaillements</td><td class="n">${q.benRav}</td></tr><tr><td>Départ, arrivée, inscriptions</td><td class="n">${q.base}</td></tr><tr><th>Bénévoles</th><th class="n">${q.ben}</th></tr><tr><td>Secouristes (${HY.perSecours} par poste, prestataire)</td><td class="n">${q.benSec}</td></tr></table>
@@ -603,7 +712,7 @@ function siteAct(a) {
 
 let tab = 'Accueil';
 const PHASES = [['Mon événement', ['Accueil', 'Projets']], ['Avant : concevoir', ['Épreuve', 'Synthèse', 'Carrefours', 'Secours et public', 'Panneaux', 'Implantation', 'Plan du site']], ['Avant : préparer', ['Besoins', 'Budget', 'Équipe', 'Documents', 'Organisation', 'Réglages']], ['Pendant', ['Jour J']], ['Après', ['Bilan']]];
-function panel(keep) { const sc = $('#body').scrollTop; $('#tabs').innerHTML = PHASES.map(([n, l]) => `<span class="ph">${n}</span>` + l.map(t => `<button class="${t === tab ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')).join(''); $('#body').innerHTML = TABS[tab](); $('#body').scrollTop = keep ? sc : 0; }
+function panel(keep) { const sc = $('#body').scrollTop; $('#tabs').innerHTML = PHASES.map(([n, l]) => `<span class="ph">${n}</span>` + l.map(t => `<button class="${t === tab ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')).join(''); $('#body').innerHTML = TABS[tab](); $('#body').scrollTop = keep ? sc : 0; $('#crumb').textContent = ((PHASES.find(p => p[1].includes(tab)) || [''])[0] + ' / ' + tab); if (!keep) { const b = $('#body'); b.classList.remove('in'); void b.offsetWidth; b.classList.add('in'); } }
 $('#tabs').onclick = e => { if (e.target.dataset.tab) { tab = e.target.dataset.tab; panel(); } };
 // ───────── Plan du site : tracés, zones, postes, signalisation, notes ─────────
 const LT = {
@@ -864,7 +973,7 @@ function afterTab() {
   <table><tr><td>Budget matériel et équipe prévu</td><td class="n">${prev ? fmt(prev) + ' €' : '—'}</td></tr><tr><td>Dépenses réelles</td><td class="n">${dep ? fmt(dep) + ' €' : '—'}</td></tr><tr><td>Recettes</td><td class="n">${rec ? fmt(rec) + ' €' : '—'}</td></tr>
   <tr><th>Résultat</th><th class="n ${rec - dep < 0 ? 'late' : ''}">${rec || dep ? fmt(rec - dep) + ' €' : '—'}</th></tr>${dep && v('partants') ? `<tr><td>Coût par partant</td><td class="n">${fmt(dep / v('partants'), 2)} €</td></tr>` : ''}</table>
   <h2>Clôture</h2><table>${AFT.map((t, k) => `<tr><td><input type="checkbox" data-xaft="${k}"${(LV.aft || {})[k] ? ' checked' : ''}></td><td>${t}</td></tr>`).join('')}</table>
-  <h2>À retenir pour la prochaine fois</h2><textarea data-lv="notes" rows="6" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;padding:6px">${esc(LV.notes || '')}</textarea>
+  <h2>À retenir pour la prochaine fois</h2><textarea data-lv="notes" rows="6" style="width:100%;background:var(--sf);color:inherit;border:1px solid var(--ln);border-radius:5px;padding:6px">${esc(LV.notes || '')}</textarea>
   <p><button data-xa="next" class="go">Préparer l'édition suivante</button></p>
   <p class="note">Crée une copie du projet avec le parcours, le plan et vos réglages, remet à zéro le jour J et le bilan, et garde vos notes en tête de la nouvelle édition. Pensez à reporter vos chiffres réels dans les règles de calcul de l'onglet « Besoins ».</p>`;
 }
@@ -904,24 +1013,26 @@ async function geoSearch() {
   if (!geo.length) alert('Lieu introuvable. Essayez une adresse ou une commune en France ; sinon créez l\'événement puis déplacez la carte à la main.');
   W.gi = geo.length ? 0 : null; panel(true);
 }
+const WZ = [['nom', 'Comment s\'appelle votre événement ?', 'Un nom provisoire suffit : il se change à tout moment.'], ['sport', 'De quel type d\'événement s\'agit-il ?', 'Le type règle les calculs : vitesses, secours, signaleurs.'], ['quand', 'Quand aura-t-il lieu ?', 'Si la date n\'est pas encore fixée, passez.'], ['combien', 'Combien de personnes attendez-vous ?', 'Une estimation suffit pour dimensionner le matériel et l\'équipe.'], ['ou', 'Où se déroule-t-il ?', 'Une adresse ou une commune, en France.']];
+const wSync = () => document.querySelectorAll('#body [data-w]').forEach(i => W[i.dataset.w] = i.value);
 function wizard() {
-  const f = (k, t, ty, ph) => `<label class="p">${t}<input type="${ty}" data-w="${k}" value="${esc(W[k] == null ? '' : W[k])}"${ph ? ` placeholder="${ph}"` : ''}></label>`;
-  return `${f('nom', 'Nom de l\'événement', 'text', 'Les 10 km de…')}
-  <label class="p">Type<select data-w="sport">${Object.entries(SPORTS).map(([k, s]) => `<option value="${k}"${(W.sport || 'run') === k ? ' selected' : ''}>${s.nom}</option>`).join('')}</select></label>
-  ${f('date', 'Date', 'date')}${f('start', 'Heure de début', 'time')}${f('parts', 'Participants attendus', 'number')}${f('spect', 'Spectateurs attendus', 'number')}${f('tarif', 'Tarif d\'inscription (€), 0 si gratuit', 'number')}
-  ${f('lieu', 'Lieu : adresse ou commune', 'text', 'Place de la mairie, Ville')}
-  <p><button data-ya="geo">Chercher le lieu</button></p>
-  ${geo.map((g, k) => `<p style="margin:2px 0"><button data-ya="geopick" data-id="${k}" class="${W.gi === k ? 'on' : ''}">${esc(g.l)}</button></p>`).join('')}
-  <p><button data-ya="create" class="go">Créer l'événement</button></p>
-  <p class="note">Seuls le nom et le type sont nécessaires ; tout le reste se change ensuite. La recherche de lieu couvre la France.</p>`;
+  const i = clamp(W.step || 0, 0, WZ.length - 1), [k, q, sub] = WZ[i], f = (k, t, ty, ph) => `<label class="fld"><span>${t}</span><input type="${ty}" data-w="${k}" value="${esc(W[k] == null ? '' : W[k])}"${ph ? ` placeholder="${ph}"` : ''}></label>`;
+  let c = '';
+  if (k === 'nom') c = f('nom', 'Nom de l\'événement', 'text', 'Les 10 km de…');
+  else if (k === 'sport') c = `<div class="choices">${Object.entries(SPORTS).map(([s, S]) => `<button data-ya="wtype" data-id="${s}" class="${W.sport === s ? 'on' : ''}">${S.nom}</button>`).join('')}</div>`;
+  else if (k === 'quand') c = f('date', 'Date', 'date') + f('start', 'Heure de début', 'time');
+  else if (k === 'combien') c = f('parts', 'Participants', 'number', '800') + f('spect', 'Spectateurs', 'number', '1500') + f('tarif', 'Tarif d\'inscription en euros, 0 si gratuit', 'number', '12');
+  else c = f('lieu', 'Adresse ou commune', 'text', 'Place de la mairie, Ville') + `<p><button data-ya="geo">Chercher ce lieu</button></p><div class="choices" style="margin-top:6px">${geo.map((g, n) => `<button data-ya="geopick" data-id="${n}" class="${W.gi === n ? 'on' : ''}">${esc(g.l)}</button>`).join('')}</div>`;
+  return `<div class="wz"><div class="wzbar">${WZ.map((_, j) => `<i class="${j <= i ? 'on' : ''}"></i>`).join('')}</div><p class="wzstep">Question ${i + 1} sur ${WZ.length}</p><h1 class="q">${q}</h1><p class="note">${sub}</p>${c}${W.err ? `<p class="late">${W.err}</p>` : ''}
+  <p class="wznav">${i ? '<button data-ya="wback">Retour</button>' : ''}${k === 'sport' ? '' : `<button data-ya="wnext" class="go">${i === WZ.length - 1 ? 'Créer l\'événement' : 'Continuer'}</button>`}${i > 1 && i < WZ.length - 1 ? '<button data-ya="wskip" class="link">Passer</button>' : ''}</p></div>`;
 }
 function homeSteps() {
   const x = xt(), b = budget(), ben = benTotal(), team = x.people.filter(p => /Bénévole|Signaleur/.test(p.type)), conf = team.filter(p => p.ok).length, tk = tasks(), dn = tk.filter(t => DONE[t.id]).length, site = isSite();
   return [
-    [site ? 'Placer le site sur la carte' : 'Tracer le parcours', ready(), 'Épreuve', site ? 'Un clic sur la carte à l\'endroit de l\'événement.' : 'Cliquez les points de passage sur la carte, ou importez un fichier GPX.'],
-    ['Lancer l\'analyse', !!mkSum(), 'Épreuve', 'Bouton « Analyser » en haut : signaleurs, fermetures, secours, bâtiments.'],
+    [site ? 'Placer le site sur la carte' : 'Tracer le parcours', ready(), 'Épreuve', site ? 'Un clic sur la carte, à l\'endroit de l\'événement.' : 'Cliquez les points de passage sur la carte, ou importez un fichier GPX.'],
+    ['Lancer l\'analyse', !!mkSum(), 'Épreuve', 'Bouton « Analyser » sous la carte : signaleurs, fermetures, secours.'],
     ['Dessiner le plan du site', DRAW.length + OBJ.length > 0, 'Plan du site', DRAW.length + OBJ.length ? (DRAW.length + OBJ.length) + ' élément(s) placé(s).' : 'Barrières, zones, postes, stands.'],
-    ['Chiffrer les besoins', needRows().some(r => r.cost > 0), 'Besoins', 'Saisissez vos prix unitaires : le budget se remplit seul.'],
+    ['Chiffrer les besoins', needRows().some(r => r.cost > 0), 'Besoins', 'Saisissez vos prix : le budget se remplit seul.'],
     ['Équilibrer le budget', b.rec > 0 && b.solde >= 0, 'Budget', b.rec || b.dep ? 'Recettes ' + fmt(b.rec) + ' €, dépenses ' + fmt(b.dep) + ' €.' : 'Tarif, partenaires, subventions, dépenses.'],
     ['Réunir l\'équipe', ben > 0 && conf >= ben, 'Équipe', conf + ' confirmé(s) sur ' + ben + ' nécessaires.'],
     ['Faire les démarches', tk.length > 0 && dn === tk.length, 'Organisation', dn + ' sur ' + tk.length + ' faites.'],
@@ -930,16 +1041,17 @@ function homeSteps() {
     ['Faire le bilan', Object.keys(LV.real || {}).length > 0, 'Bilan', 'Fréquentation, comptes, enseignements.']
   ];
 }
+const isBlank = () => !ready() && !DRAW.length && !OBJ.length && !xt().people.length && !HY.date && /^(Mon épreuve|Nouvelle épreuve|Sans nom)$/.test(pName());
 function homeTab() {
-  const empty = !ready() && !DRAW.length && !OBJ.length && !xt().people.length;
-  if (empty && !HY.date && pName().match(/^(Mon épreuve|Nouvelle épreuve|Sans nom)$/)) return `<h2>Vous avez une idée d'événement ?</h2><p class="note">Répondez à ces quelques questions : l'outil prépare le reste et vous guide étape par étape.</p>${wizard()}`;
-  const st = homeSteps(), nx = st.find(s => !s[1]), d = daysTo(), nd = st.filter(s => s[1]).length;
-  return `<h2>${esc(pName())}</h2><p>${SPORTS[HY.sport].nom}<br>${dateFr()}${HY.start ? ' à ' + HY.start.replace(':', ' h ') : ''}${HY.lieu ? '<br>' + esc(HY.lieu) : ''}</p>
-  <p>${d == null ? '<span class="late">Aucune date fixée.</span>' : d > 0 ? 'Dans <b>' + d + ' jour(s)</b>.' : d === 0 ? '<b>C\'est aujourd\'hui.</b>' : 'Passé depuis ' + (-d) + ' jour(s).'} Avancement : <b>${nd} étape(s) sur ${st.length}</b>.</p>
-  ${nx ? `<p style="background:#fff7b0;color:#111;padding:8px;border-radius:6px"><b>À faire maintenant : ${nx[0].toLowerCase()}.</b><br>${nx[3]}<br><button data-ya="go" data-id="${nx[2]}" class="go">Y aller</button></p>` : '<p><b>Tout est fait.</b></p>'}
-  <table>${st.map(s => `<tr><td style="width:22px;font-size:16px">${s[1] ? '✓' : '○'}</td><td><b>${s[0]}</b><br><span class="note">${s[3]}</span></td><td><button data-ya="go" data-id="${s[2]}">Ouvrir</button></td></tr>`).join('')}</table>
+  if (isBlank()) return `${(W.step || 0) === 0 ? '<div class="hero"><h1>De l\'idée au bilan, sans quitter la page.</h1><p class="props">Cinq questions, et l\'outil prépare le parcours, le matériel, l\'équipe, le budget et les courriers.</p></div>' : ''}${wizard()}`;
+  const st = homeSteps(), nx = st.find(s => !s[1]), d = daysTo(), nd = st.filter(s => s[1]).length, b = budget(), ben = benTotal(), conf = xt().people.filter(p => /Bénévole|Signaleur/.test(p.type) && p.ok).length, s = mkSum();
+  return `<div class="hero"><p class="eyebrow">${SPORTS[HY.sport].nom}</p><h1>${esc(pName())}</h1><p class="props">${dateFr()}${HY.start ? ' à ' + HY.start.replace(':', ' h ') : ''}${HY.lieu ? ' — ' + esc(HY.lieu) : ''}</p></div>
+  <div class="kpi"><div><b>${d == null ? '—' : d > 0 ? 'J-' + d : d === 0 ? 'Jour J' : 'J+' + (-d)}</b><span>${d == null ? 'date à fixer' : d > 0 ? 'avant l\'événement' : d === 0 ? 'c\'est aujourd\'hui' : 'après l\'événement'}</span></div><div><b>${conf} / ${fmt(ben)}</b><span>bénévoles confirmés</span></div><div><b class="${b.solde < 0 ? 'late' : ''}">${b.dep ? fmt(b.solde) + ' €' : '—'}</b><span>${b.dep ? 'résultat prévu' : 'budget à chiffrer'}</span></div><div><b>${s && s.Q && s.Q.sig != null ? fmt(s.Q.sig) : '—'}</b><span>signaleurs à prévoir</span></div></div>
+  <div class="prog"><i style="width:${Math.round(100 * nd / st.length)}%"></i></div><p class="note">${nd} étape(s) faite(s) sur ${st.length}</p>
+  ${nx ? `<button class="next" data-ya="go" data-id="${nx[2]}"><span>À faire maintenant</span><b>${nx[0]}</b><em>${nx[3]}</em></button>` : '<p><b>Toutes les étapes sont faites.</b></p>'}
+  <div class="steps">${st.map(s => `<button data-ya="go" data-id="${s[2]}" class="${s[1] ? 'done' : ''}"><i></i><span><b>${s[0]}</b><em>${s[3]}</em></span></button>`).join('')}</div>
   <h2>En bref</h2><label class="p">Date<input type="date" data-hy="date" value="${HY.date || ''}"></label><label class="p">Heure de début<input type="time" data-hy="start" value="${HY.start || ''}"></label><label class="p">Lieu<input type="text" data-hy="lieu" value="${esc(HY.lieu || '')}"></label><label class="p">Participants attendus<input type="number" data-hy="parts" value="${HY.parts}"></label><label class="p">Spectateurs attendus<input type="number" data-hy="spect" value="${HY.spect}"></label>
-  <h2>Créer un autre événement</h2>${wizard()}`;
+  <p style="margin-top:22px"><button data-ya="wnew">Nouvel événement</button></p>`;
 }
 // ── Budget ──
 function budgetTab() {
@@ -962,7 +1074,7 @@ function teamTab() {
   const cov = posts.map(p => [p.nom, p.n, team.filter(q => q.post === p.nom).length]);
   return `<p>Besoin : <b>${fmt(ben)} bénévoles et signaleurs</b>. Inscrits : <b>${team.length}</b>, dont <b>${team.filter(p => p.ok).length} confirmés</b>.${team.length < ben ? ` <span class="late">Il en manque ${ben - team.length}.</span>` : ''}</p>
   <h2>Ajouter</h2><p><input type="text" id="yNom" placeholder="Nom" style="width:38%"> <input type="text" id="yTel" placeholder="Téléphone" style="width:24%"> <select id="yType">${PTY.map(t => `<option>${t}</option>`).join('')}</select> <button data-ya="peadd" class="go">Ajouter</button></p>
-  <p class="note">Ou collez une liste, une personne par ligne : nom ; téléphone ; courriel.</p><textarea id="yBulk" rows="3" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;padding:6px" placeholder="Camille Martin ; 06 00 00 00 00 ; camille@exemple.fr"></textarea><p><button data-ya="pebulk">Ajouter la liste comme bénévoles</button></p>
+  <p class="note">Ou collez une liste, une personne par ligne : nom ; téléphone ; courriel.</p><textarea id="yBulk" rows="3" style="width:100%;background:var(--sf);color:inherit;border:1px solid var(--ln);border-radius:5px;padding:6px" placeholder="Camille Martin ; 06 00 00 00 00 ; camille@exemple.fr"></textarea><p><button data-ya="pebulk">Ajouter la liste comme bénévoles</button></p>
   ${PTY.map(t => { const l = x.people.filter(p => p.type === t); return l.length ? `<h2>${t}s (${l.length})</h2><table>${l.map(row).join('')}</table>` : ''; }).join('')}
   ${cov.length ? `<h2>Postes à pourvoir</h2><table><tr><th>Poste</th><th class="n">Besoin</th><th class="n">Affectés</th></tr>${cov.map(c => `<tr><td>${esc(c[0])}</td><td class="n">${c[1]}</td><td class="n ${c[2] < c[1] ? 'late' : ''}">${c[2]}</td></tr>`).join('')}</table>` : '<p class="note">Lancez l\'analyse du parcours pour obtenir la liste des postes à pourvoir.</p>'}
   <p><button data-ya="pecsv">Exporter les contacts (tableur)</button></p>
@@ -989,7 +1101,7 @@ function docsTab() {
   return `<p class="note">Des courriers prêts à envoyer, remplis avec les données de votre événement. Corrigez le texte librement : vos modifications sont gardées.</p>
   <label class="p">Organisateur<input type="text" data-hy="orga" value="${esc(HY.orga || '')}" placeholder="Nom de l'association"></label><label class="p">Téléphone de contact<input type="text" data-hy="orgaTel" value="${esc(HY.orgaTel || '')}"></label><label class="p">Lieu<input type="text" data-hy="lieu" value="${esc(HY.lieu || '')}" placeholder="Commune"></label>
   <p>${Object.entries(DOCS).map(([k, t]) => `<button data-ya="doc" data-id="${k}" class="${k === docK ? 'on' : ''}" style="margin:0 4px 4px 0">${t}${x.docs[k] != null ? ' ✎' : ''}</button>`).join('')}</p>
-  <textarea id="yDoc" data-doc="${docK}" rows="22" style="width:100%;background:#0b0f12;color:inherit;border:1px solid var(--ln);border-radius:5px;padding:8px;font:13px/1.45 sans-serif">${esc(cur)}</textarea>
+  <textarea id="yDoc" data-doc="${docK}" rows="22" style="width:100%;background:var(--sf);color:inherit;border:1px solid var(--ln);border-radius:5px;padding:8px;font:13px/1.45 sans-serif">${esc(cur)}</textarea>
   <p><button data-ya="doccopy" class="go">Copier</button> <button data-ya="docprint">Imprimer</button> ${x.docs[docK] != null ? '<button data-ya="docreset">Revenir au texte automatique</button>' : ''}</p>
   <p class="note">Ce sont des modèles, pas des formulaires officiels : la déclaration elle-même se fait avec le formulaire Cerfa demandé par votre mairie ou votre préfecture. Les passages entre crochets sont à compléter.</p>`;
 }
@@ -997,7 +1109,11 @@ TABS['Accueil'] = () => homeTab(); TABS['Budget'] = () => budgetTab(); TABS['Éq
 function orgAct(a, id) {
   const x = xt();
   if (a === 'go') { tab = id; panel(); return; }
-  if (a === 'geo') { geoSearch(); return; }
+  if (a === 'geo') { wSync(); geoSearch(); return; }
+  if (a === 'wnew') { store(); if (!isBlank()) projAct('new'); W = {}; geo = []; tab = 'Accueil'; panel(); return; }
+  if (a === 'wtype') { W.sport = id; W.step = (W.step || 0) + 1; W.err = ''; panel(); return; }
+  if (a === 'wback') { wSync(); W.step = Math.max(0, (W.step || 0) - 1); W.err = ''; panel(); return; }
+  if (a === 'wnext' || a === 'wskip') { wSync(); const i = W.step || 0; if (i === 0 && !(W.nom || '').trim()) { W.err = 'Donnez un nom à votre événement pour continuer.'; panel(true); return; } W.err = ''; if (i < WZ.length - 1) { W.step = i + 1; panel(); const el = $('#body .wz input'); if (el) el.focus(); return; } a = 'create'; }
   if (a === 'geopick') { W.gi = +id; if (geo[W.gi]) map.setView(geo[W.gi].p, 15); panel(true); return; }
   if (a === 'create') {
     if (!(W.nom || '').trim()) { alert('Donnez un nom à l\'événement.'); return; }
@@ -1006,8 +1122,8 @@ function orgAct(a, id) {
     ST.projects[ST.cur].name = W.nom.trim().slice(0, 80); $('#pname').textContent = ST.projects[ST.cur].name;
     HY.sport = k; Object.assign(HY, pick(SPORTS[k])); snap = SPORTS[k].snap; $('#sport').value = k; $('#bSnap').classList.toggle('on', snap);
     if (W.date) HY.date = W.date; if (W.start) HY.start = W.start; if (+W.parts > 0) HY.parts = +W.parts; if (+W.spect > 0) HY.spect = +W.spect; if (+W.tarif >= 0 && W.tarif !== '' && W.tarif != null) HY.tarif = +W.tarif;
-    if (g) { HY.lieu = g.c; map.setView(g.p, 16); if (SPORTS[k].site) { WP = [g.p]; LEGS = []; drawRoute(); } }
-    W = {}; geo = []; store(); tab = 'Accueil'; $('#bRun').disabled = !ready(); panel(); return;
+    if (g) { HY.lieu = g.c; HY.ll = g.p; map.setView(g.p, 16); if (SPORTS[k].site) { WP = [g.p]; LEGS = []; drawRoute(); } }
+    W = {}; geo = []; store(); tab = 'Accueil'; $('#bRun').disabled = !ready(); panel(); toast('Événement créé. Suivez l\'encadré « À faire maintenant ».'); return;
   }
   if (a === 'bladd') x.bud[id].push({ id: uid2('b'), t: id === 'rec' ? 'Nouvelle recette' : 'Nouvelle dépense', v: 0 });
   else if (a === 'bldel') { const [k, i] = id.split(':'); x.bud[k] = x.bud[k].filter(l => l.id !== i); }
@@ -1033,7 +1149,7 @@ function loadProject(id) {
   OBJ = (p.OBJ || []).filter(o => TYPES[o.t]).map(o => ({ ...o })); nid = OBJ.reduce((a, o) => Math.max(a, o.id), 0) + 1; selO = null; placing = null; A = null; GL = [];
   DRAW = (p.DRAW || []).filter(d => d.k === 'note' || (d.k === 'ligne' ? LT : d.k === 'zone' ? ZT : PT)[d.t]).map(d => ({ ...d, pts: d.pts.map(q => q.slice()) })); did = DRAW.reduce((a, d) => Math.max(a, d.id), 0) + 1; selD = null; drawing = null; BG = p.BG || null; LV = JSON.parse(JSON.stringify(p.LV || {})); SUMM = p.SUMM || null; XT = JSON.parse(JSON.stringify(p.XT || {}));
   lyRes.clearLayers(); $('#prof').innerHTML = ''; $('#bPr').disabled = true; $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; $('#bSnap').classList.toggle('on', snap); $('#pname').textContent = p.name || 'Sans nom';
-  drawRoute(); drawObj(); drawBg(); applyLayers(); panel(); const pts = WP.length > 1 ? line() : WP; if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(.15)); else if (pts.length) map.setView(pts[0], 16);
+  drawRoute(); drawObj(); drawBg(); applyLayers(); panel(); const pts = WP.length > 1 ? line() : WP; if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(.15)); else if (pts.length) map.setView(pts[0], 16); else if (HY.ll) map.setView(HY.ll, 15); else map.setView([46.6, 2.5], 6);
 }
 function projAct(a, id) {
   const uid = p => p + Date.now().toString(36);
@@ -1080,7 +1196,7 @@ $('#body').addEventListener('change', e => {
   if (t.id === 'pTop') { HY.pTop = parseFloat(t.value) || 0; store(); panel(true); }
 });
 $('#body').addEventListener('click', e => {
-  const d = e.target.dataset;
+  const d = (e.target.closest('[data-pa],[data-oa],[data-da],[data-xa],[data-ya],[data-add]') || e.target).dataset;
   if (d.pa) { projAct(d.pa, d.id); return; }
   if (d.oa) { siteAct(d.oa); return; }
   if (d.da) { drawAct(d.da, d.k, d.t); return; }
@@ -1113,7 +1229,7 @@ function profSVG(w = 1200, h = 110, dark = true) {
 }
 $('#bRun').onclick = async () => {
   busy = true; $('#bRun').disabled = true; const st = t => $('#bRun').textContent = t;
-  try { A = await analyse(st); mkSum(); store(); drawRes(); checkObj(); drawObj(); if (A.site) map.setView(A.LL[0], 18); else map.fitBounds(L.latLngBounds(A.LL).pad(.08)); $('#prof').innerHTML = profSVG(); tab = 'Synthèse'; $('#bPr').disabled = false; }
+  try { A = await analyse(st); mkSum(); store(); drawRes(); checkObj(); drawObj(); if (A.site) map.setView(A.LL[0], 18); else map.fitBounds(L.latLngBounds(A.LL).pad(.08)); $('#prof').innerHTML = profSVG(1200, 110, false); tab = 'Synthèse'; $('#bPr').disabled = false; }
   catch (e) { alert(e.message || 'L\'analyse a échoué.'); }
   busy = false; st('Analyser'); $('#bRun').disabled = !ready(); panel();
 };
@@ -1123,6 +1239,32 @@ $('#bPr').onclick = () => {
   tab = keep; print();
 };
 $('#sport').onchange = e => { HY.sport = e.target.value; Object.assign(HY, pick(SPORTS[HY.sport])); snap = SPORTS[HY.sport].snap; $('#bSnap').classList.toggle('on', snap); if (SPORTS[HY.sport].site && WP.length > 1) { WP = [WP[0]]; LEGS = []; } A = null; lyRes.clearLayers(); drawRoute(); store(); panel(); };
+// ───────── Recherche rapide, clavier, redimensionnement ─────────
+let palI = 0, palL = [];
+const nrm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function palItems(q) {
+  const it = [], go = t => () => { tab = t; panel(); };
+  PHASES.forEach(([g, l]) => l.forEach(t => it.push({ t, s: g, f: go(t) })));
+  it.push({ t: 'Nouvel événement', s: 'Action', f: () => orgAct('wnew') }, { t: 'Analyser le parcours', s: 'Action', f: () => $('#bRun').click() }, { t: 'Afficher la photo aérienne', s: 'Carte', f: () => setBase('ortho') }, { t: 'Afficher le plan', s: 'Carte', f: () => setBase('plan') }, { t: 'Exporter le projet', s: 'Action', f: () => projAct('export') }, { t: 'Imprimer le dossier', s: 'Action', f: () => $('#bPr').click() });
+  for (const k in ST.projects) if (k !== ST.cur) it.push({ t: ST.projects[k].name || 'Sans nom', s: 'Ouvrir ce projet', f: () => projAct('open', k) });
+  if (q) { for (const p of xt().people) it.push({ t: p.nom, s: p.type + (p.tel ? ' — ' + p.tel : ''), f: go('Équipe') }); for (const r of needRows()) it.push({ t: r.nom, s: fmt(r.q) + ' ' + r.un, f: go('Besoins') }); for (const k in DOCS) it.push({ t: DOCS[k], s: 'Courrier', f: () => { docK = k; tab = 'Documents'; panel(); } }); }
+  const w = nrm(q).split(/\s+/).filter(Boolean);
+  return it.filter(x => w.every(v => nrm(x.t + ' ' + x.s).includes(v))).slice(0, 10);
+}
+function palDraw() { palL = palItems($('#palq').value); palI = clamp(palI, 0, Math.max(0, palL.length - 1)); $('#pall').innerHTML = palL.map((x, k) => `<button data-pi="${k}" class="${k === palI ? 'on' : ''}"><b style="font-weight:500">${esc(x.t)}</b><span>${esc(x.s)}</span></button>`).join('') || '<p class="note">Rien ne correspond.</p>'; }
+function palOpen() { $('#pal').hidden = false; $('#palq').value = ''; palI = 0; palDraw(); $('#palq').focus(); }
+function palClose() { $('#pal').hidden = true; }
+function palRun(k) { const x = palL[k]; palClose(); if (x) x.f(); }
+$('#kbtn').onclick = palOpen;
+$('#palq').oninput = () => { palI = 0; palDraw(); };
+$('#pal').addEventListener('click', e => { const b = e.target.closest('[data-pi]'); if (b) palRun(+b.dataset.pi); else if (e.target.id === 'pal') palClose(); });
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#pal').hidden ? palOpen() : palClose(); return; }
+  if (!$('#pal').hidden) { if (e.key === 'Escape') palClose(); else if (e.key === 'ArrowDown') { e.preventDefault(); palI = Math.min(palL.length - 1, palI + 1); palDraw(); } else if (e.key === 'ArrowUp') { e.preventDefault(); palI = Math.max(0, palI - 1); palDraw(); } else if (e.key === 'Enter') { e.preventDefault(); palRun(palI); } return; }
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.closest('.wz')) { e.preventDefault(); orgAct(e.target.dataset.w === 'lieu' && !geo.length ? 'geo' : 'wnext'); }
+});
+if (!/Mac|iPhone|iPad/.test(navigator.platform)) $('#kbtn kbd').textContent = 'Ctrl K';
+new ResizeObserver(() => map.invalidateSize()).observe($('#mapw'));
 setBase(ST.base || 'plan');
 loadProject(ST.cur);
 </script>
