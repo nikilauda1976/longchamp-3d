@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#111110">
+<title>Mon poste</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f2ec;--sf:#fffefb;--ln:#e0dbcf;--tx:#1b1a17;--mu:#787368;--ac:#a94a25;--ok:#3f6b4f;--blue:#2f5d8a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 Geist,system-ui,sans-serif;padding:max(16px,env(safe-area-inset-top)) 16px 40px}
+main{max-width:520px;margin:0 auto}
+.ev{color:var(--mu);font-size:14px;margin:0}
+h1{font:400 34px/1.1 'Instrument Serif',serif;margin:6px 0 4px}
+.det{margin:0 0 14px;color:var(--tx)}
+#map{height:230px;border-radius:12px;border:1px solid var(--ln);margin:10px 0}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:14px;margin:12px 0}
+.state{font-size:15px;margin:0 0 10px}
+.state b{display:inline-block;padding:2px 10px;border-radius:99px;color:#fff}
+button,.btn{appearance:none;border:0;border-radius:10px;font:500 17px Geist,sans-serif;padding:15px;width:100%;margin:6px 0;cursor:pointer;display:block;text-align:center;text-decoration:none}
+button:active,.btn:active{transform:scale(.98)}
+.go{background:var(--ok);color:#fff}.up{background:var(--blue);color:#fff}.alt{background:#ebe7dd;color:var(--tx)}.warn{background:var(--ac);color:#fff}
+select,textarea,input[type=file]{width:100%;font:16px Geist,sans-serif;padding:10px;border:1px solid var(--ln);border-radius:8px;background:#fff;margin:6px 0}
+.note{color:var(--mu);font-size:13px}
+.err{color:var(--ac)}
+#toast{position:fixed;left:16px;right:16px;top:12px;background:var(--tx);color:#fff;padding:12px 14px;border-radius:10px;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center}
+#toast.on{opacity:1}
+.netl{display:none;background:#fff4e5;color:#92400e;border-radius:10px;padding:9px 12px;font-size:14px;margin:0 0 10px}
+</style>
+</head>
+<body>
+<main id="app"><p class="note">Chargement de votre poste…</p></main>
+<div id="toast"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+const API = 'https://kghejlrmklbsxsuwcqoy.supabase.co/functions/v1/orga-api';
+const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ST = ['Pas encore en place', 'En place', 'Poste levé'], SC = ['#787368', '#3f6b4f', '#2f5d8a'];
+let T = (/#t=(orga_ben_\w+)/.exec(location.hash) || [])[1] || localStorage.getItem('benevole-token'), D = null, map = null;
+if (T) { localStorage.setItem('benevole-token', T); if (location.hash) history.replaceState(null, '', location.pathname); }
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => { });
+const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 3400); };
+const call = async (method, body) => { const r = await fetch(API + '/v', { method, headers: { Authorization: 'Bearer ' + T, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok) { const e = new Error(j.error || 'Erreur'); e.http = r.status; throw e; } return j; };
+// File d'attente : sans réseau, chaque envoi est gardé et part dès que le réseau revient.
+const QK = 'benevole-queue', Q = () => JSON.parse(localStorage.getItem(QK) || '[]'), Qset = q => { try { localStorage.setItem(QK, JSON.stringify(q)); } catch (e) { toast('Mémoire du téléphone pleine : la photo n\'a pas pu être gardée.'); } };
+async function send(body) { body.at = new Date().toISOString(); try { await call('POST', body); return true; } catch (e) { if (e.http && e.http < 500) throw e; const q = Q(); q.push(body); Qset(q); netLine(); return false; } }
+async function flush() { const q = Q(); if (!q.length || !navigator.onLine) return; const rest = []; for (const b of q) { try { await call('POST', b); } catch (e) { if (!e.http || e.http >= 500) rest.push(b); } } Qset(rest); if (q.length !== rest.length) toast(`${q.length - rest.length} envoi(s) en attente sont partis.`); netLine(); }
+function netLine() { const n = Q().length, el = $('#net'); if (el) el.innerHTML = !navigator.onLine ? `<b>Hors ligne</b>${n ? ' — ' + n + ' envoi(s) gardé(s), ils partiront au retour du réseau' : ' — vous pouvez continuer, tout sera envoyé plus tard'}` : n ? `${n} envoi(s) en attente…` : ''; if (el) el.style.display = el.innerHTML ? 'block' : 'none'; }
+addEventListener('online', () => { flush(); netLine(); }); addEventListener('offline', netLine); setInterval(flush, 20000);
+const where = () => new Promise(res => { if (!navigator.geolocation) return res({}); navigator.geolocation.getCurrentPosition(p => res({ lat: p.coords.latitude, lng: p.coords.longitude }), () => res({}), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }); });
+function shrink(file) { return new Promise((res, rej) => { const img = new Image(), u = URL.createObjectURL(file); img.onload = () => { const k = Math.min(1, 1024 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u); let q = .72, d = c.toDataURL('image/jpeg', q); while (d.length > 380000 && q > .3) { q -= .1; d = c.toDataURL('image/jpeg', q); } res(d); }; img.onerror = rej; img.src = u; }); }
+function render() {
+  const p = D.poste || {}, dt = D.date ? new Date(D.date + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '', E = D.emplacements || [];
+  $('#app').innerHTML = `<p id="net" class="netl"></p><p class="ev">${esc(D.evenement)}${dt ? ' — ' + dt : ''}${D.heure ? ', départ ' + D.heure.replace(':', ' h ') : ''}</p>
+  <h1>${esc(p.nom || 'Votre poste')}</h1><p class="det">${esc(p.det || '')}</p>
+  ${p.lat ? `<div id="map"></div><a class="btn alt" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Itinéraire jusqu'au poste</a>` : ''}
+  <div class="card"><p class="state">État : <b style="background:${SC[D.etat || 0]}">${ST[D.etat || 0]}</b></p>
+  <button class="go" data-s="1">Je suis en place</button><button class="up" data-s="2">Poste levé, je pars</button></div>
+  <div class="card"><b>Consignes</b><p>${esc(p.consignes || '')}</p>${D.tel ? `<a class="btn warn" href="tel:${esc(D.tel.replace(/\s/g, ''))}">Appeler le PC course</a>` : ''}</div>
+  <div class="card"><b>Signaler un incident</b><select id="ty"><option>Médical</option><option>Sécurité</option><option>Circulation</option><option>Logistique</option><option>Participant</option><option>Autre</option></select>
+  <textarea id="nt" rows="3" placeholder="Ce qui se passe"></textarea><input id="ph" type="file" accept="image/*" capture="environment"><button class="warn" id="send">Envoyer au PC course</button><p class="note">Votre position est jointe si vous l'autorisez. En cas d'urgence vitale, appelez d'abord le 15 ou le 112.</p></div>
+  ${E.length ? `<div class="card"><b>Photographier un partenaire</b><p class="note">Si vous voyez près de votre poste un de ces emplacements, prenez-le en photo : c'est la preuve de sa visibilité.</p><select id="em">${E.map(e => `<option value="${esc(e.cle)}">${esc(e.nom)}${e.partenaire ? ' — ' + esc(e.partenaire) : ''}</option>`).join('')}</select><input id="pp" type="file" accept="image/*" capture="environment"><button class="alt" id="prf">Envoyer la photo</button></div>` : ''}
+  <p class="note">Cette page est votre lien personnel : ne la transmettez pas. Ouvrez-la une fois la veille, avec du réseau : elle fonctionnera ensuite même sans connexion.</p>`;
+  netLine();
+  if (p.lat) { map = L.map('map', { zoomControl: false, attributionControl: false }).setView([p.lat, p.lng], 16); L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { maxZoom: 19, maxNativeZoom: 18 }).addTo(map); L.circleMarker([p.lat, p.lng], { radius: 10, color: '#fff', weight: 3, fillColor: SC[D.etat || 0], fillOpacity: 1 }).addTo(map); }
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = async () => { b.disabled = true; try { const w = await where(), ok = await send({ kind: 'status', status: +b.dataset.s, ...w }); D.etat = +b.dataset.s; localStorage.setItem('benevole-data', JSON.stringify(D)); toast(ok ? 'C\'est noté, le PC course le voit.' : 'Sans réseau : c\'est gardé, ça partira tout seul.'); render(); } catch (e) { toast('Envoi refusé : ' + e.message); b.disabled = false; } });
+  $('#send').onclick = async () => { const b = $('#send'), note = $('#nt').value.trim(), f = $('#ph').files[0]; if (!note && !f) { toast('Décrivez l\'incident ou joignez une photo.'); return; } b.disabled = true; b.textContent = 'Envoi…'; try { const photo = f ? await shrink(f) : null, w = await where(), ok = await send({ kind: 'incident', type: $('#ty').value, note, photo, ...w }); toast(ok ? 'Incident envoyé au PC course.' : 'Sans réseau : l\'incident est gardé et partira tout seul. Si c\'est urgent, appelez.'); $('#nt').value = ''; $('#ph').value = ''; } catch (e) { toast('Envoi refusé : ' + e.message); } b.disabled = false; b.textContent = 'Envoyer au PC course'; };
+  if ($('#prf')) $('#prf').onclick = async () => { const f = $('#pp').files[0], b = $('#prf'); if (!f) { toast('Prenez d\'abord la photo.'); return; } b.disabled = true; try { const photo = await shrink(f), w = await where(), ok = await send({ kind: 'proof', type: $('#em').value, photo, ...w }); toast(ok ? 'Photo envoyée, merci.' : 'Sans réseau : la photo est gardée et partira toute seule.'); $('#pp').value = ''; } catch (e) { toast('Envoi refusé : ' + e.message); } b.disabled = false; };
+}
+(async () => {
+  if (!T) { $('#app').innerHTML = '<h1>Lien incomplet</h1><p>Ouvrez le lien reçu de l\'organisateur, en entier.</p>'; return; }
+  try { D = await call('GET'); localStorage.setItem('benevole-data', JSON.stringify(D)); render(); flush(); }
+  catch (e) {
+    const saved = localStorage.getItem('benevole-data');
+    if (!e.http && saved) { D = JSON.parse(saved); render(); toast('Hors ligne : voici votre poste, enregistré la dernière fois.'); return; }
+    $('#app').innerHTML = `<h1>Poste introuvable</h1><p class="err">${esc(e.message)}</p><p>Le lien a peut-être été remplacé par l'organisateur. Demandez-lui le nouveau.</p>`; if (e.http === 401) { localStorage.removeItem('benevole-token'); localStorage.removeItem('benevole-data'); }
+  }
+})();
+</script>
+</body>
+</html>

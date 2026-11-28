@@ -1,0 +1,15 @@
+{
+  "name": "Organisateur",
+  "short_name": "Organisateur",
+  "description": "Préparer, vendre et piloter un événement, même sans réseau le jour J.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f6f4",
+  "theme_color": "#111110",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

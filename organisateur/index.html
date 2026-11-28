@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#111110"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes">
 <title>Organisateur — vendre, piloter, réussir son événement</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -10,113 +11,177 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Instrument+Serif&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231b1a17'/%3E%3Cpath d='M8 22c5-1 3-11 8-12s4 8 8 6' fill='none' stroke='%23e9b08f' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
-:root{--bg:#f4f2ec;--sf:#fffefb;--soft:#ebe7dd;--ln:#e0dbcf;--tx:#1b1a17;--mu:#787368;--ac:#a94a25;--ac-s:#f6e4d9;--ok:#3f6b4f;--r:9px;--ease:cubic-bezier(.2,.7,.2,1)}
+:root{--bg:#f6f6f4;--sf:#fff;--soft:#f0f0ed;--card:#f6f6f3;--ln:#e8e8e4;--tx:#111110;--mu:#6e6e69;--ac:#6d4aff;--ac-s:#efeaff;--ok:#1f9d6b;--r:14px;--ease:cubic-bezier(.2,.8,.2,1);--spring:cubic-bezier(.34,1.56,.64,1);--g1:#ff4d8d;--g2:#a855f7;--g3:#3b5bfd}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.5 Geist,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
-#app{display:grid;grid-template-columns:216px minmax(380px,500px) minmax(0,1fr);height:100dvh}
+#app{display:grid;grid-template-columns:232px minmax(390px,520px) minmax(0,1fr);height:100dvh}
 #nav,#side,#stage{min-width:0}
 button,select,input,textarea{font:inherit;color:inherit}
-button{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:7px 12px;cursor:pointer;transition:background .16s var(--ease),border-color .16s var(--ease),transform .12s var(--ease),box-shadow .16s var(--ease)}
-button:hover{background:var(--soft)}
-button:active{transform:scale(.975)}
+button{background:var(--sf);border:1px solid var(--ln);border-radius:999px;padding:7px 14px;cursor:pointer;transition:background .18s var(--ease),border-color .18s var(--ease),transform .2s var(--spring),box-shadow .2s var(--ease),color .18s}
+button:hover{background:var(--soft);border-color:#d9d9d3}
+button:active{transform:scale(.96)}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
-button.go{background:var(--tx);color:var(--sf);border-color:var(--tx);font-weight:500}
-button.go:hover{background:#35332d}
-button.on{background:var(--ac-s);border-color:var(--ac);color:var(--ac);font-weight:500}
+button.go{background:var(--tx);color:#fff;border-color:var(--tx);font-weight:500;box-shadow:0 6px 16px -6px rgba(17,17,16,.45)}
+button.go:hover{background:#2b2b29;transform:translateY(-1px);box-shadow:0 10px 22px -8px rgba(17,17,16,.5)}
+button.on{background:var(--ac-s);border-color:transparent;color:var(--ac);font-weight:500}
 button.link{background:none;border-color:transparent;color:var(--mu)}
-button:disabled{opacity:.45;cursor:default;transform:none}
-/* navigation */
-#nav{background:var(--bg);border-right:1px solid var(--ln);display:flex;flex-direction:column;min-height:0;padding:14px 10px 10px}
-.brand{font:400 21px/1 "Instrument Serif",Georgia,serif;letter-spacing:-.01em;padding:2px 8px 12px;display:flex;align-items:baseline;gap:8px}
-.brand span{font:500 10.5px Geist,sans-serif;color:var(--mu);letter-spacing:.02em}
-.search{display:flex;justify-content:space-between;align-items:center;width:100%;color:var(--mu);text-align:left;margin-bottom:10px;font-size:13px}
-kbd{font:500 10.5px Geist,sans-serif;background:var(--soft);border-radius:4px;padding:1px 5px;color:var(--mu)}
-#tabs{display:flex;flex-direction:column;gap:1px;overflow:auto;flex:1;min-height:0;padding-bottom:8px}
-.ph{font-size:11.5px;color:var(--mu);padding:12px 8px 4px;letter-spacing:.01em}
-#tabs button{border:0;background:none;text-align:left;padding:5px 8px;border-radius:6px;font-size:13.5px;color:#4b4840;position:relative}
-#tabs button:hover{background:var(--soft)}
-#tabs button.on{background:var(--sf);color:var(--tx);font-weight:500;box-shadow:0 1px 2px rgba(60,50,30,.08),0 0 0 1px var(--ln)}
-#tabs button.on::before{content:"";position:absolute;left:-4px;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--ac)}
-.navfoot{border-top:1px solid var(--ln);padding:10px 4px 0;display:grid;gap:6px}
-.navfoot b{font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.navfoot select{width:100%;background:var(--sf);border:1px solid var(--ln);border-radius:7px;padding:5px 6px;font-size:12.5px}
+button:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none}
+a{color:var(--ac)}
+.grad{background:linear-gradient(92deg,var(--c1,var(--g1)),var(--c2,var(--g2)) 55%,var(--c3,var(--g3)));-webkit-background-clip:text;background-clip:text;color:transparent}
+/* navigation : six espaces */
+#nav{background:var(--bg);display:flex;flex-direction:column;min-height:0;padding:16px 12px 12px;position:relative}
+.brand{display:flex;align-items:center;gap:9px;font:600 17px/1 Geist,sans-serif;letter-spacing:-.02em;padding:2px 8px 16px}
+.brand svg{width:26px;height:26px;transition:transform .6s var(--spring)}
+.brand:hover svg{transform:rotate(72deg) scale(1.08)}
+.brand span{font:500 10px Geist,sans-serif;color:var(--mu);background:var(--soft);border-radius:99px;padding:3px 7px;letter-spacing:.02em}
+.search{display:flex;justify-content:space-between;align-items:center;width:100%;color:var(--mu);text-align:left;margin-bottom:14px;font-size:13px;padding:9px 14px}
+kbd{font:500 10.5px Geist,sans-serif;background:var(--soft);border-radius:6px;padding:2px 6px;color:var(--mu)}
+#tabs{display:flex;flex-direction:column;gap:3px;overflow:auto;flex:1;min-height:0;padding:2px 2px 8px}
+.sp{display:flex;align-items:center;gap:11px;border:0;background:none;text-align:left;padding:7px 9px;border-radius:14px;font-size:14.5px;font-weight:500;color:#3d3d39;width:100%}
+.sp:hover{background:var(--soft);transform:translateX(2px)}
+.sp.on{background:var(--sf);color:var(--tx);box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px -10px rgba(0,0,0,.18)}
+.sp i{flex:none;width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(140deg,var(--c1),var(--c2));box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 10px -4px var(--c2);transition:transform .35s var(--spring)}
+.sp.on i{transform:rotate(-8deg) scale(1.06)}
+.sp:hover i{transform:rotate(-6deg) scale(1.08)}
+.sp svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sp em{margin-left:auto;font-style:normal;font-size:11px;font-weight:600;color:#fff;background:#f0623a;border-radius:99px;min-width:19px;height:19px;padding:0 5px;display:grid;place-items:center}
+.navlinks{display:grid;gap:1px;padding:8px 0 6px;border-top:1px solid var(--ln)}
+.navlinks button{border:0;background:none;text-align:left;font-size:13px;color:var(--mu);padding:5px 10px;border-radius:10px;display:flex;align-items:center;gap:8px}
+.navlinks button:hover{background:var(--soft);color:var(--tx)}
+.navlinks button.on{color:var(--tx);font-weight:500;background:var(--sf)}
+.navlinks b{width:7px;height:7px;border-radius:50%;background:#c9c9c3}
+.navlinks b.ok{background:#22c55e;box-shadow:0 0 0 3px #dcfce7}
+.navfoot{padding:8px 4px 0;display:grid;gap:6px;border-top:1px solid var(--ln)}
+.navfoot b{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+.navfoot select{width:100%;background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:6px 8px;font-size:12.5px}
 /* panneau */
-#side{background:var(--sf);border-right:1px solid var(--ln);display:flex;flex-direction:column;min-height:0}
-#crumb{padding:16px 22px 0;font-size:12.5px;color:var(--mu)}
-#body{overflow:auto;padding:8px 22px 40px;flex:1;scroll-behavior:smooth}
-#body.in>*{animation:rise .34s var(--ease) both}
-#body.in>*:nth-child(2){animation-delay:.03s}#body.in>*:nth-child(3){animation-delay:.06s}#body.in>*:nth-child(4){animation-delay:.09s}#body.in>*:nth-child(5){animation-delay:.12s}#body.in>*:nth-child(n+6){animation-delay:.15s}
-@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
-h2{font:600 15.5px/1.3 Geist,sans-serif;letter-spacing:-.01em;margin:28px 0 8px}
+#side{background:var(--sf);display:flex;flex-direction:column;min-height:0;border-radius:22px 0 0 22px;box-shadow:-1px 0 0 var(--ln),0 0 40px -20px rgba(0,0,0,.12);position:relative;overflow:hidden}
+#crumb{padding:20px 24px 4px;position:relative}
+#crumb::after{content:"";position:absolute;right:-30px;top:-40px;width:200px;height:160px;background:radial-gradient(circle,var(--c2) 1.2px,transparent 1.6px) 0 0/9px 9px;-webkit-mask:radial-gradient(closest-side,#000,transparent);mask:radial-gradient(closest-side,#000,transparent);opacity:.32;pointer-events:none}
+.sph{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+.sph i{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(140deg,var(--c1),var(--c2));box-shadow:0 8px 18px -8px var(--c2);animation:pop .5s var(--spring) both}
+.sph svg{width:21px;height:21px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sph h1{font:650 27px/1.05 Geist,sans-serif;letter-spacing:-.035em;margin:0}
+.sph p{margin:2px 0 0;color:var(--mu);font-size:13px}
+@keyframes pop{from{transform:scale(.6) rotate(-20deg);opacity:0}to{transform:none;opacity:1}}
+.pills{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}
+.pills::-webkit-scrollbar{display:none}
+.pills button{flex:none;border:0;background:var(--soft);padding:8px 14px;font-size:13.5px;font-weight:500;color:#3d3d39;display:flex;align-items:center;gap:7px}
+.pills button:hover{background:#e7e7e3}
+.pills button.on{background:var(--tx);color:#fff;box-shadow:0 6px 14px -6px rgba(0,0,0,.45)}
+.pills button span{font:500 11.5px Geist,ui-monospace,monospace;color:#9a9a94;font-variant-numeric:tabular-nums}
+.pills button.on span{color:rgba(255,255,255,.6)}
+.pills button span.hot{color:#e2552e}
+#body{overflow:auto;padding:6px 24px 48px;flex:1;scroll-behavior:smooth}
+#body.in>*{animation:rise .42s var(--ease) both}
+#body.in>*:nth-child(2){animation-delay:.04s}#body.in>*:nth-child(3){animation-delay:.08s}#body.in>*:nth-child(4){animation-delay:.12s}#body.in>*:nth-child(5){animation-delay:.16s}#body.in>*:nth-child(n+6){animation-delay:.2s}
+@keyframes rise{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:none}}
+section.card{background:var(--card);border-radius:22px;padding:16px 18px 14px;margin:14px 0;transition:box-shadow .25s var(--ease),transform .25s var(--ease)}
+section.card:hover{box-shadow:0 1px 0 var(--ln),0 12px 30px -22px rgba(0,0,0,.25)}
+section.card>h2:first-child{margin-top:2px}
+section.card table{background:var(--sf);border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px var(--ln)}
+section.card td,section.card th{border-bottom:1px solid #f0f0ec}
+section.card tr:last-child td{border-bottom:0}
+h2{font:600 16.5px/1.3 Geist,sans-serif;letter-spacing:-.02em;margin:28px 0 10px}
 h2:first-child{margin-top:6px}
 p{margin:8px 0;text-wrap:pretty}
 table{border-collapse:collapse;width:100%;font-size:13px}
-td,th{padding:7px 6px;border-bottom:1px solid var(--ln);text-align:left;vertical-align:top}
-th{color:var(--mu);font-weight:500;font-size:12px}
+td,th{padding:9px 10px;border-bottom:1px solid var(--ln);text-align:left;vertical-align:top}
+th{color:var(--mu);font-weight:500;font-size:12px;background:#fbfbfa}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 tr.go{cursor:pointer;transition:background .14s}
-tr.go:hover{background:var(--bg)}
-.kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
-.kpi div{background:var(--bg);border-radius:var(--r);padding:11px 12px}
-.kpi b{display:block;font:500 22px/1.15 Geist,sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.kpi span{color:var(--mu);font-size:12px}
+tr.go:hover{background:var(--soft)}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0;margin:12px 0 16px;background:var(--sf);border-radius:20px;box-shadow:0 0 0 1px var(--ln),0 10px 30px -24px rgba(0,0,0,.3);overflow:hidden}
+.kpi div{padding:14px 16px;border-right:1px solid #f0f0ec;border-bottom:1px solid #f0f0ec}
+.kpi b{display:block;font:650 23px/1.1 Geist,sans-serif;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.kpi div:first-child b{background:linear-gradient(92deg,var(--c1),var(--c2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.kpi:has(>div:nth-child(4):last-child),.kpi:has(>div:nth-child(2):last-child){grid-template-columns:1fr 1fr}
+.kpi:has(>div:nth-child(3):last-child),.kpi:has(>div:nth-child(6):last-child){grid-template-columns:1fr 1fr 1fr}
+.its{display:grid;gap:8px}
+.it{background:var(--sf);border-radius:16px;padding:11px 14px;box-shadow:0 0 0 1px var(--ln);border-left:4px solid #d8d8d2;transition:transform .2s var(--spring),box-shadow .2s}
+.it:hover{transform:translateY(-1px);box-shadow:0 0 0 1px var(--ln),0 10px 24px -16px rgba(0,0,0,.3)}
+.it.st1{border-left-color:#f2a93b}.it.st2{border-left-color:#22c55e;background:linear-gradient(90deg,#f0fdf5,#fff 40%)}
+.ith{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.ith b{font-weight:600;letter-spacing:-.01em}
+.ith span{font:600 13px Geist,sans-serif;font-variant-numeric:tabular-nums;color:#3d3d39;white-space:nowrap;cursor:help}
+.it p.note{margin:2px 0 8px}
+.itc{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.itc select{width:118px}.itc input[type=text]{flex:1;min-width:110px}
+.eur{display:flex;align-items:center;gap:4px;color:var(--mu)}.eur input{width:92px;text-align:right}
+ul.chk{list-style:none;padding:0;margin:8px 0}
+ul.chk li{padding:6px 0 6px 28px;position:relative}
+ul.chk li::before{content:"";position:absolute;left:0;top:7px;width:18px;height:18px;border-radius:50%;border:1.8px solid #d1d1ca}
+ul.chk li.ok::before{background:var(--ok);border-color:var(--ok);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M5 9.4l2.6 2.6L13 6.6' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.mods label{display:inline-flex;gap:5px;align-items:center;margin:3px 12px 3px 0;font-size:13px}
+.navlinks .net{margin-left:auto;font-size:10.5px;background:#fff4e5;color:#b45309;border-radius:99px;padding:1px 7px}
+.navlinks b.off{background:#f59e0b;box-shadow:0 0 0 3px #fef3c7}
+table.roles td{background:none}
+.kpi span{color:var(--mu);font-size:12px;line-height:1.3;display:block;margin-top:3px}
 .note{color:var(--mu);font-size:12.5px}
-.warn{background:#fbf1dc;border:1px solid #ecd9a8;border-radius:var(--r);padding:9px 11px;font-size:13px;margin:10px 0}
-label.p{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center;margin:7px 0;font-size:13.5px}
-input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{background:var(--sf);border:1px solid var(--ln);border-radius:7px;padding:6px 8px;transition:border-color .16s,box-shadow .16s}
-input:hover,select:hover,textarea:hover{border-color:#cbc4b4}
+.warn{background:#fff7e6;border:0;border-radius:16px;padding:11px 14px;font-size:13px;margin:10px 0;box-shadow:inset 0 0 0 1px #f6e2b5}
+label.p{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center;margin:4px 0;font-size:13.5px;padding:5px 0;border-bottom:1px dashed #e4e4df}
+label.p:last-of-type{border-bottom:0}
+input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:7px 10px;transition:border-color .16s,box-shadow .16s}
+input:hover,select:hover,textarea:hover{border-color:#d2d2cc}
+input:focus,select:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 4px var(--ac-s);outline:0}
 label.p input,label.p select{width:100%}
-#body textarea{background:var(--sf)!important;color:var(--tx)!important;border:1px solid var(--ln)!important;border-radius:8px!important}
+#body textarea{background:var(--sf)!important;color:var(--tx)!important;border:1px solid var(--ln)!important;border-radius:14px!important}
 td input{width:80px;text-align:right}
 td input[type=text]{text-align:left}
-input[type=checkbox]{accent-color:var(--ac);width:15px;height:15px;vertical-align:-2px}
+input[type=checkbox]{accent-color:var(--ac);width:16px;height:16px;vertical-align:-3px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:7px}
-.late{color:#b3401f}
+.late{color:#d9472b}
 .tag{font-size:11px;color:var(--mu)}
+details.aud{margin:10px 0 18px;border-radius:16px;padding:6px 14px;background:var(--sf);box-shadow:0 0 0 1px var(--ln)}
+details.aud summary{cursor:pointer;padding:7px 0}
+#body textarea[data-w]{width:100%;padding:12px;font:15px/1.45 Geist,sans-serif}
 /* accueil */
-.hero{padding:10px 0 4px}
-.hero h1{font:400 35px/1.04 "Instrument Serif",Georgia,serif;letter-spacing:-.015em;margin:4px 0 8px;text-wrap:balance}
-.eyebrow{font-size:12.5px;color:var(--ac);margin:0}
+.hero{padding:6px 0 4px}
+.hero h1{font:650 34px/1.02 Geist,sans-serif;letter-spacing:-.045em;margin:4px 0 10px;text-wrap:balance}
+.hero h1:not(.q){background:linear-gradient(92deg,var(--tx) 0 40%,var(--c2) 75%,var(--c3,var(--g3)));-webkit-background-clip:text;background-clip:text;color:transparent}
+.eyebrow{font-size:12.5px;color:var(--mu);margin:0;display:inline-block;background:var(--soft);border-radius:99px;padding:3px 10px}
 .props{color:var(--mu);margin:0}
-.prog{height:5px;background:var(--soft);border-radius:3px;overflow:hidden;margin:16px 0 4px}
-.prog i{display:block;height:100%;background:var(--ok);border-radius:3px;transition:width .6s var(--ease)}
-button.next{display:block;width:100%;text-align:left;background:var(--tx);color:var(--sf);border-color:var(--tx);padding:14px 16px;border-radius:12px;margin:14px 0}
-button.next:hover{background:#35332d;box-shadow:0 6px 18px rgba(50,40,20,.18)}
-button.next span{font-size:12px;opacity:.65;display:block}
-button.next b{font:400 22px/1.15 "Instrument Serif",Georgia,serif;display:block;margin:2px 0}
-button.next em{font-style:normal;font-size:12.5px;opacity:.75}
+.prog{height:8px;background:var(--soft);border-radius:99px;overflow:hidden;margin:18px 0 6px}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--g1),var(--g2),var(--g3));border-radius:99px;transition:width .8s var(--ease)}
+button.next{display:block;width:100%;text-align:left;background:var(--tx);color:#fff;border-color:var(--tx);padding:16px 18px;border-radius:22px;margin:14px 0;position:relative;overflow:hidden}
+button.next::after{content:"→";position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:22px;transition:transform .3s var(--spring)}
+button.next:hover{background:#1d1d1b;box-shadow:0 14px 30px -12px rgba(0,0,0,.5);transform:translateY(-2px)}
+button.next:hover::after{transform:translate(5px,-50%)}
+button.next span{font-size:12px;opacity:.6;display:block}
+button.next b{font:600 21px/1.15 Geist,sans-serif;letter-spacing:-.025em;display:block;margin:3px 0}
+button.next em{font-style:normal;font-size:12.5px;opacity:.7}
 .steps{display:grid;gap:2px;margin-top:6px}
-.steps button{display:flex;gap:11px;align-items:flex-start;text-align:left;border:0;background:none;padding:9px 8px;border-radius:8px;width:100%}
-.steps button:hover{background:var(--bg)}
-.steps i{flex:none;width:18px;height:18px;border-radius:50%;border:1.5px solid #c9c2b2;margin-top:1px;transition:background .25s,border-color .25s}
-.steps .done i{background:var(--ok);border-color:var(--ok);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M5 9.4l2.6 2.6L13 6.6' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.steps button{display:flex;gap:12px;align-items:flex-start;text-align:left;border:0;background:none;padding:9px 10px;border-radius:14px;width:100%}
+.steps button:hover{background:var(--sf);box-shadow:0 0 0 1px var(--ln)}
+.steps i{flex:none;width:20px;height:20px;border-radius:50%;border:1.8px solid #cfcfc8;margin-top:1px;transition:background .3s,border-color .3s,transform .3s var(--spring)}
+.steps .done i{background:var(--ok);border-color:var(--ok);transform:scale(1.05);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M5 9.4l2.6 2.6L13 6.6' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
 .steps b{font-weight:500;display:block}
-.steps .done b{color:var(--mu);font-weight:400}
+.steps .done b{color:var(--mu);font-weight:400;text-decoration:line-through;text-decoration-color:#cfcfc8}
 .steps em{font-style:normal;font-size:12.5px;color:var(--mu)}
 /* questions une par une */
 .wz{padding:8px 0 0}
-.wzbar{display:flex;gap:5px;margin:4px 0 22px}
-.wzbar i{flex:1;height:4px;border-radius:2px;background:var(--soft);transition:background .4s var(--ease)}
-.wzbar i.on{background:var(--ac)}
+.wzbar{display:flex;gap:6px;margin:4px 0 22px}
+.wzbar i{flex:1;height:6px;border-radius:99px;background:var(--soft);transition:background .5s var(--ease)}
+.wzbar i.on{background:linear-gradient(90deg,var(--g1),var(--g2))}
 .wzstep{font-size:12.5px;color:var(--mu);margin:0}
-.q{font:400 31px/1.08 "Instrument Serif",Georgia,serif;letter-spacing:-.015em;margin:4px 0 6px;text-wrap:balance}
+.q{font:650 30px/1.05 Geist,sans-serif;letter-spacing:-.04em;margin:4px 0 6px;text-wrap:balance}
 .fld{display:block;margin:16px 0 0}
-.fld span{display:block;font-size:12.5px;color:var(--mu);margin-bottom:5px}
-.fld input{width:100%;font-size:17px;padding:11px 12px;border-radius:10px}
-.choices{display:grid;gap:7px;margin-top:16px}
-.choices button{text-align:left;padding:12px 14px;border-radius:10px;font-size:14.5px}
-.choices button:hover{border-color:var(--tx);transform:translateX(2px)}
+.fld span{display:block;font-size:12.5px;color:var(--mu);margin-bottom:6px}
+.fld input{width:100%;font-size:17px;padding:13px 14px;border-radius:14px}
+.choices{display:grid;gap:8px;margin-top:16px}
+.choices button{text-align:left;padding:13px 16px;border-radius:16px;font-size:14.5px}
+.choices button:hover{border-color:var(--tx);transform:translateX(3px)}
 .wznav{display:flex;gap:8px;align-items:center;margin-top:22px}
-.wznav .go{padding:10px 18px;font-size:15px}
+.wznav .go{padding:11px 22px;font-size:15px}
 /* carte */
-#stage{display:grid;grid-template-rows:1fr auto;min-height:0;min-width:0}
+#stage{display:grid;grid-template-rows:1fr auto;min-height:0;min-width:0;background:var(--sf)}
 #mapw{position:relative;min-height:0}
-#map{position:absolute;inset:0;background:#e8e4da}
-#tools{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:1100;display:flex;gap:4px;background:rgba(255,254,251,.94);backdrop-filter:blur(8px);border:1px solid var(--ln);border-radius:13px;padding:5px;box-shadow:0 8px 28px rgba(60,50,30,.16);white-space:nowrap}
-#tools button{border-color:transparent;background:none;font-size:13px;padding:6px 10px}
+#map{position:absolute;inset:0;background:#e9e9e5}
+#tools{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:1100;display:flex;gap:4px;background:rgba(255,255,255,.9);backdrop-filter:blur(12px) saturate(1.4);border:1px solid rgba(0,0,0,.06);border-radius:999px;padding:6px;box-shadow:0 14px 40px -14px rgba(0,0,0,.35);white-space:nowrap}
+#tools button{border-color:transparent;background:none;font-size:13px;padding:7px 12px}
 #tools button:hover{background:var(--soft)}
 #tools button.on{background:var(--ac-s);color:var(--ac)}
-#tools button.go{background:var(--tx);color:var(--sf)}
+#tools button.go{background:var(--tx);color:#fff}
 #prof{background:var(--sf);border-top:1px solid var(--ln);height:104px}
 #prof:empty{display:none}
 #prof svg{width:100%;height:100%;display:block}
@@ -126,17 +191,17 @@ button.next em{font-style:normal;font-size:12.5px;opacity:.75}
 .tipm{background:rgba(255,255,255,.9);border:0;box-shadow:none;font:600 11px Geist,sans-serif;color:#111;padding:1px 4px;text-align:center}
 .tipm::before{display:none}
 /* messages et recherche */
-#toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-24px);background:var(--tx);color:var(--sf);padding:10px 16px;border-radius:10px;font-size:13.5px;opacity:0;pointer-events:none;transition:opacity .25s,transform .35s var(--ease);z-index:3000;max-width:min(520px,90vw);box-shadow:0 10px 30px rgba(40,30,10,.28)}
-#toast.show{opacity:1;transform:translate(-50%,0)}
-#pal{position:fixed;inset:0;background:rgba(40,36,28,.32);z-index:2500;display:grid;place-items:start center;padding-top:14vh;animation:fade .16s}
+#toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-24px) scale(.96);background:var(--tx);color:#fff;padding:11px 18px;border-radius:999px;font-size:13.5px;opacity:0;pointer-events:none;transition:opacity .25s,transform .45s var(--spring);z-index:3000;max-width:min(560px,90vw);box-shadow:0 14px 36px -10px rgba(0,0,0,.45)}
+#toast.show{opacity:1;transform:translate(-50%,0) scale(1)}
+#pal{position:fixed;inset:0;background:rgba(20,20,18,.28);backdrop-filter:blur(3px);z-index:2500;display:grid;place-items:start center;padding-top:14vh;animation:fade .16s}
 #pal[hidden]{display:none}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-.palbox{width:min(560px,92vw);background:var(--sf);border-radius:14px;box-shadow:0 24px 70px rgba(40,30,10,.35);overflow:hidden;animation:rise .22s var(--ease)}
-#palq{width:100%;border:0;border-bottom:1px solid var(--ln);border-radius:0;padding:15px 18px;font-size:16px;background:none}
+.palbox{width:min(560px,92vw);background:var(--sf);border-radius:22px;box-shadow:0 30px 80px -20px rgba(0,0,0,.45);overflow:hidden;animation:rise .25s var(--ease)}
+#palq{width:100%;border:0;border-bottom:1px solid var(--ln);border-radius:0;padding:17px 20px;font-size:16px;background:none;box-shadow:none}
 #palq:focus-visible{outline:0}
 #pall{max-height:46vh;overflow:auto;padding:6px}
-#pall button{display:flex;justify-content:space-between;gap:12px;width:100%;border:0;background:none;text-align:left;padding:9px 12px;border-radius:8px}
-#pall button.on{background:var(--bg)}
+#pall button{display:flex;justify-content:space-between;gap:12px;width:100%;border:0;background:none;text-align:left;padding:10px 14px;border-radius:14px}
+#pall button.on{background:var(--soft)}
 #pall button span{color:var(--mu);font-size:12px}
 #pall p{padding:10px 12px;margin:0}
 #print{display:none}
@@ -144,14 +209,17 @@ button.next em{font-style:normal;font-size:12.5px;opacity:.75}
   #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 62dvh;height:auto}
   #nav,#side,#stage{min-width:0}
   #body{overflow:visible}
-  .hero h1{font-size:30px}
-  .q{font-size:27px}
+  #side{border-radius:22px 22px 0 0}
+  .hero h1{font-size:29px}
+  .q{font-size:26px}
   label.p{grid-template-columns:1fr 130px}
-  #nav{border-right:0;border-bottom:1px solid var(--ln)}
-  #tabs{flex-direction:row;flex-wrap:nowrap;overflow-x:auto}
-  .ph{display:none}
-  #tabs button{white-space:nowrap}
-  #side{border-right:0}
+  #nav{padding-bottom:8px}
+  #tabs{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:6px}
+  .sp{width:auto;flex:none;padding:6px 12px 6px 6px;background:var(--sf);border-radius:99px}
+  .sp i{width:26px;height:26px;border-radius:99px}
+  .navlinks,.navfoot{display:none}
+  .kpi,.kpi:has(>div){grid-template-columns:1fr 1fr!important}
+  .kpi b{font-size:20px}
   #tools{max-width:94vw;overflow-x:auto}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -161,11 +229,13 @@ button.next em{font-style:normal;font-size:12.5px;opacity:.75}
   #print{display:block;padding:0 6mm;font-size:10.5pt}
   #print h1{font-size:18pt;margin:0 0 4pt}
   #print h2{font-size:13pt;margin:14pt 0 4pt;break-after:avoid}
-  #print td,#print th{border-bottom:1px solid #bbb;color:#000}
+  #print td,#print th{border-bottom:1px solid #bbb;color:#000;background:none}
   #print th{color:#444}
   #print .warn{background:#fff3d6;border:1px solid #c90;color:#000}
   #print .note{color:#444}
+  #print .kpi{box-shadow:none}
   #print .kpi div{background:#f0f0f0}
+  #print .kpi b{color:#000;background:none}
   #print .kpi span{color:#444}
   #print svg{width:100%;height:auto;border:1px solid #999}
   #print input{border:0;background:none;color:#000}
@@ -176,10 +246,10 @@ button.next em{font-style:normal;font-size:12.5px;opacity:.75}
 <body>
 <div id="app">
   <aside id="nav">
-    <div class="brand">Organisateur <span>prototype</span></div>
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff4d8d"/><stop offset=".55" stop-color="#a855f7"/><stop offset="1" stop-color="#3b5bfd"/></linearGradient></defs><path d="M16 2l3.2 8.6L28 8l-5.6 7.2L30 20l-9 .6L22 30l-6-6.8L10 30l1-9.4-9-.6 7.6-4.8L4 8l8.8 2.6z" fill="url(#lg)"/><circle cx="16" cy="16.5" r="4.2" fill="#fff"/></svg>Organisateur <span>bêta</span></div>
     <button id="kbtn" class="search" type="button">Rechercher <kbd>⌘K</kbd></button>
     <nav id="tabs"></nav>
-    <div class="navfoot"><b id="pname"></b><select id="sport" aria-label="Type d'événement"></select></div>
+    <div class="navlinks" id="navlinks"></div><div class="navfoot"><b id="pname"></b><select id="sport" aria-label="Type d'événement"></select></div>
   </aside>
   <section id="side"><div id="crumb"></div><div id="body"></div></section>
   <div id="stage">
@@ -219,7 +289,7 @@ const SPORTS = {
   site:  { nom: 'Événement sur site, sans parcours (tournoi, village, salon)', site: true, snap: false, vFast: 1, vSlow: 1, ravito: 0, secours: 0, signal: 'route', motor: false, climb: 0, parts: 300, spect: 1000, delai: 60, corner: false },
   auto:  { nom: 'Sport mécanique sur route fermée (côte, spéciale)', snap: true, vFast: 110, vSlow: 70, ravito: 0, secours: 3, signal: 'route', motor: true, climb: .3, parts: 120, spect: 4000, delai: 60, corner: true }
 };
-const HY = { sport: 'run', date: '', start: '09:00', tours: 1, parts: 800, spect: 1500, close: 30, reopen: 15, nBoards: 12, perRavito: 4, perSecours: 2, base: 12, perJ: 2, nMarge: 5, nLot: 1, nEau: .25, nGob: 1.5, nFruit: .5, nPoub: 100, nRadio: 5, risP2: .35, risE1: .25, risE2: .25, tarif: 0, lieu: '', orga: '', orgaTel: '', mpMax: 250, perMP: 2, refNaming: 0, feeTix: 5, billet: 0 };
+const HY = { sport: 'run', date: '', start: '09:00', tours: 1, parts: 800, spect: 1500, close: 30, reopen: 15, nBoards: 12, perRavito: 4, perSecours: 2, base: 12, perJ: 2, nMarge: 5, nLot: 1, nEau: .25, nGob: 1.5, nFruit: .5, nPoub: 100, nRadio: 5, risP2: .35, risE1: .25, risE2: .25, tarif: 0, lieu: '', orga: '', orgaTel: '', mpMax: 250, perMP: 2, refNaming: 0, feeTix: 5, billet: 0, aReseaux: 0, aMail: 0, aSite: 0, aTv: 0, aPresse: 0 };
 const COST = { signaleur: 0, barriere: 0, rubalise: 0, fleche: 0, ravito: 0, secours: 0, panneau: 0 };
 Object.entries({ run: 2, trail: 2, velo: 4, rando: 2, auto: 20, site: 0 }).forEach(([k, v]) => SPORTS[k].recul = v);
 HY.nStands = 8; HY.wcRatio = 100; HY.duree = 6;
@@ -251,7 +321,7 @@ async function leg(a, b) {
 }
 async function addPoint(ll) { const p = [ll.lat, ll.lng]; if (SPORTS[HY.sport].site) { WP = [p]; LEGS = []; drawRoute(); store(); panel(); return; } WP.push(p); if (WP.length === 1 && map.getZoom() < 11) map.setView(p, 14); if (WP.length > 1) { LEGS.push([WP[WP.length - 2], p]); drawRoute(); LEGS[LEGS.length - 1] = await leg(WP[WP.length - 2], p); } drawRoute(); store(); panel(); }
 map.on('click', e => {
-  if (busy) return;
+  if (busy || !roleW('route')) return;
   if (drawing) { drawClick(e.latlng); return; }
   if (placing && A) { const o = addObj(placing, e.latlng.lat, e.latlng.lng); selO = o.id; placing = null; checkObj(); store(); drawObj(); panel(true); return; }
   if (tab === 'Épreuve') addPoint(e.latlng);
@@ -271,7 +341,7 @@ try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.projects) ST =
 if (!ST.projects[ST.cur]) { const k = Object.keys(ST.projects)[0]; if (k) ST.cur = k; else { ST.cur = 'p1'; ST.projects.p1 = { name: 'Mon épreuve' }; } }
 for (const k in ST.profiles) SPORTS[k] = Object.assign({}, SPORTS[k] || {}, ST.profiles[k]);
 function snapshot() { return { name: (ST.projects[ST.cur] || {}).name || 'Sans nom', WP, LEGS, HY: { ...HY }, COST: { ...COST }, snap, done: DONE, OBJ: OBJ.map(o => ({ id: o.id, t: o.t, lat: o.lat, lng: o.lng, L: o.L, W: o.W, ang: o.ang })), DRAW: DRAW.map(d => ({ id: d.id, k: d.k, t: d.t, pts: d.pts, txt: d.txt, n: d.n })), BG: BG && !BG.big ? BG : null, LV, SUMM, XT }; }
-function store() { ST.projects[ST.cur] = snapshot(); try { ST.projects[ST.cur].kpi = kpiOf(); } catch (e) { } try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { } }
+function store() { ST.projects[ST.cur] = snapshot(); try { ST.projects[ST.cur].kpi = kpiOf(); } catch (e) { } try { ST.projects[ST.cur].digest = digestOf(); } catch (e) { } syncDirty(); try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { } }
 const ready = () => (SPORTS[HY.sport] || {}).site ? WP.length >= 1 : line().length >= 2;
 
 // ───────── Analyse ─────────
@@ -503,7 +573,7 @@ const pfFields = [['nom', 'Nom du profil', 'text'], ['vFast', 'Vitesse du premie
 const pfFlags = [['motor', 'Sport motorisé'], ['corner', 'Extérieur des virages interdit au public'], ['snap', 'Le tracé suit les routes'], ['site', 'Événement sur site, sans parcours']];
 const sportOptions = () => Object.entries(SPORTS).map(([k, s]) => `<option value="${k}">${s.nom}</option>`).join('');
 const TABS = {
-  'Projets': () => `<p class="note">Chaque épreuve est un projet enregistré dans ce navigateur. Exportez un fichier pour le sauvegarder ou le transmettre.</p>
+  'Projets': () => `<p class="note">Chaque épreuve est un projet ${syncOn() ? 'synchronisé entre vos appareils' : 'enregistré dans ce navigateur'}. Exportez un fichier pour le sauvegarder ou le transmettre.</p>
     <table>${Object.entries(ST.projects).map(([id, p]) => `<tr><td>${id === ST.cur ? `<input type="text" id="pName" value="${(p.name || '').replace(/"/g, '&quot;')}" style="width:100%;text-align:left">` : (p.name || 'Sans nom')}<br><span class="note">${(SPORTS[(p.HY || {}).sport] || SPORTS.run).nom}${(p.HY || {}).date ? ', ' + new Date(p.HY.date + 'T00:00').toLocaleDateString('fr-FR') : ''}</span></td><td style="white-space:nowrap">${id === ST.cur ? '<b>ouvert</b>' : `<button data-pa="open" data-id="${id}">Ouvrir</button>`} <button data-pa="dup" data-id="${id}">Dupliquer</button> <button data-pa="pdel" data-id="${id}">✕</button></td></tr>`).join('')}</table>
     <p><button data-pa="new" class="go">+ Nouvelle épreuve</button> <button data-pa="export">Exporter le projet ouvert</button> <button data-pa="import">Importer un fichier</button><input type="file" id="impFile" accept=".json" hidden></p>
     <p class="note">Le fichier exporté contient l'épreuve, vos profils et votre catalogue d'éléments.</p>`,
@@ -725,9 +795,57 @@ function siteAct(a) {
 }
 
 let tab = 'Accueil';
-const PHASES = [['Piloter', ['Accueil', 'Portefeuille', 'Projets']], ['Vendre', ['Partenariats', 'Billetterie', 'Exposants', 'Engagés']], ['Concevoir', ['Épreuve', 'Synthèse', 'Carrefours', 'Secours et public', 'Implantation', 'Plan du site']], ['Préparer', ['Budget', 'Besoins', 'Équipe', 'Documents', 'Organisation', 'Réglages']], ['Jour J', ['Jour J', 'Chrono', 'Entrées']], ['Après', ['Bilan', 'Résultats']]];
-function panel(keep) { const sc = $('#body').scrollTop; $('#tabs').innerHTML = PHASES.map(([n, l]) => `<span class="ph">${n}</span>` + l.map(t => `<button class="${t === tab ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')).join(''); $('#body').innerHTML = TABS[tab](); $('#body').scrollTop = keep ? sc : 0; $('#crumb').textContent = ((PHASES.find(p => p[1].includes(tab)) || [''])[0] + ' / ' + tab); { const b = $('#body'); b.classList.remove('in'); if (!keep) { void b.offsetWidth; b.classList.add('in'); } } }
-$('#tabs').onclick = e => { if (e.target.dataset.tab) { tab = e.target.dataset.tab; panel(); } };
+const ICO = { home: 'M4 11.5 12 4l8 7.5V20h-5.5v-5.5h-5V20H4z', sell: 'M17.5 6.5A7 7 0 1 0 17.5 17.5M4 10.5h9M4 13.5h9', field: 'M5 21V4M5 4.5h11.5l-2.3 4 2.3 4H5', team: 'M9 11a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 9 11zM3 20c0-3.3 2.7-5.6 6-5.6s6 2.3 6 5.6M16.5 10.5a2.6 2.6 0 1 0 0-5.2M21 19.5c0-2.4-1.6-4.2-4-4.7', live: 'M13.5 3 5 13.8h6.2L10.5 21 19 10.2h-6.2z', after: 'M5 20v-7M12 20V5M19 20v-10', gear: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z' };
+const SPACES = [
+  { k: 'home', nom: 'Accueil', sub: 'Votre événement, d\'un coup d\'œil', c: ['#ff5f8f', '#ff8a5c'], tabs: [['Accueil', 'Tableau de bord'], ['Organisation', 'Planning'], ['Budget', 'Budget'], ['Portefeuille', 'Mes événements']] },
+  { k: 'sell', nom: 'Vendre', sub: 'Partenaires, billets, affiches : faites rentrer l\'argent', c: ['#ff8a3d', '#ff3d7f'], tabs: [['Partenariats', 'Partenaires'], ['Billetterie', 'Billetterie'], ['Affichage', 'Affichage'], ['Exposants', 'Exposants']] },
+  { k: 'field', nom: 'Terrain', sub: 'Le parcours, le site et la sécurité', c: ['#2fd182', '#0ea5a4'], tabs: [['Épreuve', 'Parcours'], ['Synthèse', 'Synthèse'], ['Carrefours', 'Carrefours'], ['Secours et public', 'Public et secours'], ['Implantation', 'Implantation'], ['Plan du site', 'Plan du site'], ['Dossier sécurité', 'Dossier sécurité']] },
+  { k: 'team', nom: 'Équipe', sub: 'Les bonnes personnes, le bon matériel, les papiers', c: ['#a66bff', '#5b5bf6'], tabs: [['Équipe', 'Équipe'], ['Besoins', 'Matériel'], ['Engagés', 'Engagés'], ['Documents', 'Démarches']] },
+  { k: 'live', nom: 'Jour J', sub: 'Tout piloter en direct', c: ['#ff4d6d', '#ff9f1c'], tabs: [['Jour J', 'En direct'], ['Chrono', 'Chrono'], ['Entrées', 'Entrées']] },
+  { k: 'after', nom: 'Bilan', sub: 'Ce qui s\'est passé, et la prochaine édition', c: ['#3b82f6', '#22c1e8'], tabs: [['Bilan', 'Bilan'], ['Résultats', 'Résultats']] },
+  { k: 'gear', nom: 'Réglages', sub: 'Appareils, IA, projets et hypothèses de calcul', c: ['#8a8a84', '#3d3d39'], hidden: true, tabs: [['Appareils et IA', 'Appareils et IA'], ['Projets', 'Projets'], ['Réglages', 'Hypothèses']] },
+];
+const LBL = {}; SPACES.forEach(s => s.tabs.forEach(([t, l]) => LBL[t] = l));
+const PHASES = SPACES.map(s => [s.nom, s.tabs.map(t => t[0])]);
+const SPLAST = {};
+const spaceOf = t => SPACES.find(s => s.tabs.some(x => x[0] === t)) || SPACES[0];
+const icoS = k => `<svg viewBox="0 0 24 24"><path d="${ICO[k]}"/>${k === 'gear' ? '<path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>' : ''}</svg>`;
+function pillCount(t) {
+  try {
+    if (t === 'Partenariats') { const it = sponItems(); return [it.filter(i => i.st === 2).length + '/' + it.length]; }
+    if (t === 'Affichage') { const s = affSum(); return s.lieux ? [s.posees + '/' + s.lieux] : null; }
+    if (t === 'Exposants') { const n = exh().length; return n ? [n] : null; }
+    if (t === 'Équipe') { const n = xt().people.length; return n ? [n] : null; }
+    if (t === 'Engagés') { const n = rc().ent.length; return n ? [n] : null; }
+    if (t === 'Organisation') { const n = retro().filter(r => r.late).length; return n ? [n, 1] : null; }
+    if (t === 'Documents') { const d = HY.date ? new Date(HY.date + 'T00:00') : null, td = new Date(new Date().toDateString()), dm = xt().dem || {}, n = d ? demRules().filter(r => !dm[r.k] && new Date(d.getTime() + r.j * 864e5) < td).length : 0; return n ? [n, 1] : null; }
+    if (t === 'Portefeuille') { const n = Object.keys(ST.projects).length; return n > 1 ? [n] : null; }
+    if (t === 'Carrefours' && A && A.J) return [A.J.filter(j => j.sig).length];
+  } catch (e) { }
+  return null;
+}
+function navDraw(sp) {
+  let al = []; try { al = alerts(); } catch (e) { }
+  $('#tabs').innerHTML = SPACES.filter(s => !s.hidden && s.tabs.some(([t]) => tabShown(t))).map(s => { const n = al.filter(a => s.tabs.some(x => x[0] === a[0])).length, first = (SPLAST[s.k] && tabShown(SPLAST[s.k])) ? SPLAST[s.k] : s.tabs.find(([t]) => tabShown(t))[0]; return `<button class="sp${s === sp ? ' on' : ''}" data-tab="${first}" style="--c1:${s.c[0]};--c2:${s.c[1]}"><i>${icoS(s.k)}</i>${s.nom}${n ? `<em>${n}</em>` : ''}</button>`; }).join('');
+  const on = syncOn();
+  $('#navlinks').innerHTML = `<button data-tab="Appareils et IA" class="${tab === 'Appareils et IA' ? 'on' : ''}"><b class="${on ? (navigator.onLine ? 'ok' : 'off') : ''}"></b>${on ? (myRole() !== 'direction' ? ROLE[myRole()].nom : 'Synchronisé') : 'Appareils et IA'}${netBadge() ? `<span class="net">${netBadge()}</span>` : ''}</button><button data-tab="Réglages" class="${tab === 'Réglages' || tab === 'Projets' ? 'on' : ''}"><b></b>Réglages</button>`;
+}
+function headDraw(sp) {
+  $('#crumb').innerHTML = `<div class="sph"><i>${icoS(sp.k)}</i><div><h1 class="grad">${sp.nom}</h1><p>${sp.sub}</p></div></div>${sp.tabs.filter(([t]) => tabShown(t)).length > 1 ? `<div class="pills">${sp.tabs.filter(([t]) => tabShown(t)).map(([t, l]) => { const c = pillCount(t); return `<button data-tab="${t}" class="${t === tab ? 'on' : ''}">${l}${c ? `<span class="${c[1] ? 'hot' : ''}">${c[0]}</span>` : ''}</button>`; }).join('')}</div>` : ''}`;
+}
+function cardify(b) {
+  let cur = null;
+  for (const el of [...b.children]) {
+    if (el.tagName === 'H2') { cur = document.createElement('section'); cur.className = 'card'; b.insertBefore(cur, el); cur.appendChild(el); }
+    else if (cur && !el.classList.contains('kpi')) cur.appendChild(el);
+    else if (el.classList.contains('kpi')) cur = null;
+  }
+  if (!b.querySelector('section.card') && !b.querySelector('.wz,.hero')) { const rest = [...b.children].filter((el, k) => !el.classList.contains('kpi') && !(k === 0 && el.classList.contains('note'))); if (rest.length) { const s = document.createElement('section'); s.className = 'card'; b.insertBefore(s, rest[0]); rest.forEach(el => s.appendChild(el)); } }
+}
+function panel(keep) {
+  if (!tabR(tab)) tab = 'Accueil';
+  tabHook(); const sc = $('#body').scrollTop, sp = spaceOf(tab); SPLAST[sp.k] = tab; const S = $('#side'); S.style.setProperty('--c1', sp.c[0]); S.style.setProperty('--c2', sp.c[1]); navDraw(sp); headDraw(sp); $('#body').innerHTML = TABS[tab](); cardify($('#body')); roleLock(); $('#tools').style.display = roleW('route') ? '' : 'none'; $('#body').scrollTop = keep ? sc : 0; { const b = $('#body'); b.classList.remove('in'); if (!keep) { void b.offsetWidth; b.classList.add('in'); } } }
+for (const id of ['#tabs', '#crumb', '#navlinks']) $(id).onclick = e => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; panel(); } };
 // ───────── Plan du site : tracés, zones, postes, signalisation, notes ─────────
 const LT = {
   barriere:  { nom: 'Barrière Vauban', c: '#e11d48', u: 2.5, un: 'barrières', w: 4 },
@@ -784,7 +902,7 @@ const dArea = p => { if (p.length < 3) return 0; const k = 111320 * Math.cos(p[0
 const dCap = d => d.k === 'zone' ? Math.floor(dArea(d.pts) * (ZT[d.t].d || 0)) : 0;
 const dUnits = d => LT[d.t].u ? Math.ceil(dLen(d.pts) / LT[d.t].u) : 0;
 const saveST = () => { try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { } };
-function setBase(k) { ST.base = k; map.removeLayer(baseOSM); map.removeLayer(baseOrtho); (k === 'ortho' ? baseOrtho : baseOSM).addTo(map).bringToBack(); saveST(); }
+function setBase(k) { ST.base = k; map.removeLayer(baseOSM); map.removeLayer(baseOrtho); map.removeLayer(baseIGNP); (k === 'ortho' ? baseOrtho : k === 'ignplan' ? baseIGNP : baseOSM).addTo(map).bringToBack(); saveST(); }
 function applyLayers() { [[lyRoute, 'parcours'], [lyRes, 'analyse'], [lyObj, 'objets'], [lyBg, 'fond']].forEach(([l, k]) => LYV[k] ? map.addLayer(l) : map.removeLayer(l)); drawDraw(); }
 function drawBg() { lyBg.clearLayers(); if (BG && BG.url) L.imageOverlay(BG.url, BG.b, { opacity: BG.op == null ? .6 : BG.op, interactive: false, pane: 'fond' }).addTo(lyBg); }
 function drawDraw() {
@@ -876,7 +994,7 @@ const nowM = () => { const d = new Date(); return d.getHours() * 60 + d.getMinut
 const hh = t => { t = ((Math.round(t) % 1440) + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
 const startM = () => { const m = /^(\d+):(\d+)/.exec(HY.start); return m ? +m[1] * 60 + +m[2] : 540; };
 // résumé de la dernière analyse, gardé avec le projet pour servir le jour J sans réseau
-function mkSum() { if (A && A.Q && !A.site) SUMM = { boards: A.B.map(b => ({ n: b.n, km: +(b.i * A.DS / 1000).toFixed(1), where: b.where, sp: b.sp, passes: b.passes, idx: b.idx })), Q: { ...A.Q }, len: A.len, nrav: A.RAV.length, nsec: A.SEC.length, winner: A.winner, lastIn: A.lastIn, posts: A.J.filter(j => j.sig).map(j => ({ nom: jn(j), km: +(j.i * A.DS / 1000).toFixed(1), sig: j.sig, t0: j.t0, t1: j.t1, role: A.sport.motor ? 'garde(s) de fermeture' : 'signaleur(s)' })).concat((A.MP || []).map(p => ({ nom: p.nom + ' (commissaires)', km: +(p.i * A.DS / 1000).toFixed(1), sig: Math.max(1, Math.round(+HY.perMP || 2)), t0: A.T0 - HY.close, t1: A.last(p.i) + HY.reopen, role: 'commissaire(s)' }))) }; else if (A && A.site) SUMM = { Q: { ...A.Q }, len: 0, nrav: 0, nsec: 1, posts: [], site: true }; return SUMM; }
+function mkSum() { if (A && A.Q && !A.site) SUMM = { boards: A.B.map(b => ({ n: b.n, km: +(b.i * A.DS / 1000).toFixed(1), where: b.where, sp: b.sp, passes: b.passes, idx: b.idx })), Q: { ...A.Q }, len: A.len, nrav: A.RAV.length, nsec: A.SEC.length, winner: A.winner, lastIn: A.lastIn, posts: A.J.filter(j => j.sig).map(j => ({ ll: A.LL[j.i], nom: jn(j), km: +(j.i * A.DS / 1000).toFixed(1), sig: j.sig, t0: j.t0, t1: j.t1, role: A.sport.motor ? 'garde(s) de fermeture' : 'signaleur(s)' })).concat((A.MP || []).map(p => ({ ll: A.LL[p.i % A.LL.length], nom: p.nom + ' (commissaires)', km: +(p.i * A.DS / 1000).toFixed(1), sig: Math.max(1, Math.round(+HY.perMP || 2)), t0: A.T0 - HY.close, t1: A.last(p.i) + HY.reopen, role: 'commissaire(s)' }))) }; else if (A && A.site) SUMM = { Q: { ...A.Q }, len: 0, nrav: 0, nsec: 1, posts: [], site: true }; return SUMM; }
 const benTotal = () => { const s = mkSum(), q = s ? s.Q : null, plan = DRAW.filter(x => x.k === 'point' && PT[x.t].staff).reduce((a, x) => a + (x.n || 1), 0); return (q ? (q.sig || 0) + (q.com || 0) + (q.benRav || 0) + (q.base || HY.base) : HY.base) + plan; };
 function ris() {
   const P = +HY.spect || 0, P1 = P <= 100000 ? P : 100000 + (P - 100000) / 2, i = (+HY.risP2 || .3) + (+HY.risE1 || .25) + (+HY.risE2 || .25), r = i * P1 / 1000;
@@ -959,24 +1077,24 @@ function dayPlan() {
   return l.sort((a, b) => a.m - b.m);
 }
 function dayPosts() {
-  const s = mkSum(), o = (s ? s.posts : []).map((p, k) => ({ id: 'j' + k, nom: p.nom, det: `km ${fmt(p.km, 1)} — ${p.sig} ${p.role || 'signaleur(s)'} — de ${hh(p.t0)} à ${hh(p.t1)}`, n: p.sig }));
-  DRAW.filter(x => x.k === 'point' && PT[x.t].staff).forEach(x => o.push({ id: 'p' + x.id, nom: PT[x.t].nom, det: (x.txt ? x.txt + ' — ' : '') + (x.n || 1) + ' personne(s)', n: x.n || 1 }));
+  const s = mkSum(), o = (s ? s.posts : []).map((p, k) => ({ id: 'j' + k, nom: p.nom, det: `km ${fmt(p.km, 1)} — ${p.sig} ${p.role || 'signaleur(s)'} — de ${hh(p.t0)} à ${hh(p.t1)}`, n: p.sig, ll: p.ll }));
+  DRAW.filter(x => x.k === 'point' && PT[x.t].staff).forEach(x => o.push({ id: 'p' + x.id, nom: PT[x.t].nom, det: (x.txt ? x.txt + ' — ' : '') + (x.n || 1) + ' personne(s)', n: x.n || 1, ll: x.pts && x.pts[0] }));
   return o;
 }
 const LOGT = ['Médical', 'Sécurité', 'Circulation', 'Logistique', 'Météo', 'Participant', 'Autre'], PST = ['À pourvoir', 'En place', 'Levé'], PSC = ['#6b7280', '#16a34a', '#2563eb'];
 function dayTab() {
   const dt = new Date(), today = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'), live = !HY.date || HY.date === today;
-  const steps = dayPlan(), posts = dayPosts(), now = nowM(), T0 = startM(), log = LV.log || [], open = log.filter(x => !x.clos).length, inPlace = posts.filter(p => (LV.post || {})[p.id] === 1).length;
+  const steps = dayPlan(), posts = dayPosts(), now = nowM(), T0 = startM(), log = LV.log || [], open = log.filter(x => !x.clos).length, inPlace = posts.filter(p => Math.max((LV.post || {})[p.id] || 0, ((((LIVE.data || {}).postes || {})[p.id]) || {}).status || 0) === 1).length;
   return `${live ? '' : `<p class="late">L'événement est daté du ${new Date(HY.date + 'T00:00').toLocaleDateString('fr-FR', { dateStyle: 'full' })}. Le suivi des retards s'activera ce jour-là ; d'ici là, cette page sert de répétition.</p>`}${HY.date ? '' : '<p class="note">Aucune date n\'est saisie dans l\'onglet « Épreuve » : le suivi considère que l\'événement a lieu aujourd\'hui.</p>'}<p style="font-size:15px">Il est <b>${hh(now)}</b>. ${!live ? 'Départ prévu à <b>' + hh(T0) + '</b>.' : now < T0 ? 'Départ dans <b>' + Math.floor((T0 - now) / 60) + ' h ' + String((T0 - now) % 60).padStart(2, '0') + '</b>.' : 'Course lancée depuis <b>' + Math.floor((now - T0) / 60) + ' h ' + String((now - T0) % 60).padStart(2, '0') + '</b>.'} <button data-xa="refresh">Actualiser</button></p>
   <p>Postes en place : <b>${inPlace} sur ${posts.length}</b>. Incidents ouverts : <b class="${open ? 'late' : ''}">${open}</b>.</p>
   <h2>Déroulé de la journée</h2><table><tr><th></th><th>Prévu</th><th>Étape</th><th>Fait à</th></tr>${steps.map(x => { const d = (LV.step || {})[x.id], late = live && d == null && now > x.m + 5; return `<tr><td><input type="checkbox" data-xstep="${x.id}"${d != null ? ' checked' : ''}></td><td class="${late ? 'late' : ''}">${hh(x.m)}</td><td>${esc(x.t)}${x.user ? ` <button data-xa="stepdel" data-id="${x.id}">×</button>` : ''}</td><td>${d != null ? hh(d) + (d - x.m > 5 ? ' <span class="late">+' + (d - x.m) + ' min</span>' : '') : late ? '<span class="late">en retard</span>' : ''}</td></tr>`; }).join('')}</table>
   <p><input type="time" id="xStepH" value="${hh(now)}"> <input type="text" id="xStepT" placeholder="Étape à ajouter" style="width:55%"> <button data-xa="stepadd">Ajouter</button></p>
-  <h2>Postes</h2>${posts.length ? `<table>${posts.map(p => { const v = (LV.post || {})[p.id] || 0; return `<tr><td><b>${esc(p.nom)}</b><br><span class="note">${esc(p.det)}</span></td><td><button data-xa="post" data-id="${p.id}" style="border-left:6px solid ${PSC[v]}">${PST[v]}</button></td></tr>`; }).join('')}</table><p class="note">Cliquez sur l'état d'un poste pour le faire passer de « À pourvoir » à « En place » puis « Levé ».</p>` : '<p class="note">Aucun poste : lancez l\'analyse du parcours ou placez du personnel dans « Plan du site ».</p>'}
-  <h2>Main courante</h2><p><select id="xLogT">${LOGT.map(t => `<option>${t}</option>`).join('')}</select> <input type="text" id="xLogL" placeholder="Lieu ou poste" style="width:30%"> <label><input type="checkbox" id="xLogG"> grave</label></p>
+  <h2>Postes</h2>${posts.length ? `<table>${posts.map(p => { const v = Math.max((LV.post || {})[p.id] || 0, ((((LIVE.data || {}).postes || {})[p.id]) || {}).status || 0); return `<tr><td><b>${esc(p.nom)}</b><br><span class="note">${esc(p.det)}</span></td><td><button data-xa="post" data-id="${p.id}" style="border-left:6px solid ${PSC[v]}">${PST[v]}</button></td></tr>`; }).join('')}</table><p class="note">Cliquez sur l'état d'un poste pour le faire passer de « À pourvoir » à « En place » puis « Levé ».</p>` : '<p class="note">Aucun poste : lancez l\'analyse du parcours ou placez du personnel dans « Plan du site ».</p>'}
+  ${volHTML()}<h2>Main courante</h2><p><select id="xLogT">${LOGT.map(t => `<option>${t}</option>`).join('')}</select> <input type="text" id="xLogL" placeholder="Lieu ou poste" style="width:30%"> <label><input type="checkbox" id="xLogG"> grave</label></p>
   <p><input type="text" id="xLogX" placeholder="Ce qui se passe, ce qui est décidé" style="width:75%"> <button data-xa="log" class="go">Consigner</button></p>
   <table>${log.slice().reverse().map(x => `<tr><td>${hh(x.m)}</td><td><b class="${x.g ? 'late' : ''}">${esc(x.ty)}</b>${x.l ? ' — ' + esc(x.l) : ''}<br>${esc(x.x)}${x.clos ? `<br><span class="note">Clos à ${hh(x.clos)}</span>` : ''}</td><td>${x.clos ? '' : `<button data-xa="logclose" data-id="${x.id}">Clore</button>`}</td></tr>`).join('') || '<tr><td class="note">Rien n\'est encore consigné.</td></tr>'}</table>
   <p><button data-xa="logcsv">Exporter la main courante</button></p>
-  <p class="note">Tout est enregistré sur cet appareil seulement : la main courante n'est pas partagée entre plusieurs postes. Le jour J, un seul appareil doit la tenir, au PC course.</p>`;
+  <p class="note">${syncOn() ? 'La main courante est partagée entre vos appareils synchronisés (mise à jour toutes les 20 secondes).' : 'Tout est enregistré sur cet appareil seulement : activez la synchronisation pour partager la main courante entre plusieurs postes.'}</p>`;
 }
 // ── Bilan ──
 const AFT = ['Routes rouvertes et signalisation retirée', 'Barrières et matériel loué rendus', 'Site nettoyé, déchets évacués', 'Résultats publiés', 'Bénévoles remerciés', 'Compte rendu envoyé à la mairie et à la préfecture', 'Bilan envoyé aux partenaires', 'Factures réglées, comptes arrêtés', 'Déclaration à l\'assurance si incident', 'Date de la prochaine édition fixée'];
@@ -1026,8 +1144,8 @@ const pName = () => (ST.projects[ST.cur] || {}).name || 'Mon événement';
 const isSite = () => !!(SPORTS[HY.sport] || {}).site;
 function budget() {
   const x = xt(), P = +HY.parts || 0, ins = P * (+HY.tarif || 0), sum = (l, f) => l.reduce((a, p) => a + (+f(p) || 0), 0);
-  const sw = sponWho(), part = sponSold() + sum(x.people.filter(p => p.type === 'Partenaire' && !sw.has(p.nom)), p => p.montant), tic = tickRev(), fee = tic * (+HY.feeTix || 0) / 100, prest = sum(x.people.filter(p => p.type === 'Prestataire'), p => p.montant), need = sum(needRows(), r => r.cost), recX = sum(x.bud.rec, l => l.v), depX = sum(x.bud.dep, l => l.v), exh = sum((x.exh || []).filter(e => e.st === 'Confirmé'), e => e.tarif), rec = ins + tic + part + exh + recX, dep = need + prest + fee + depX;
-  return { ins, tic, fee, part, exh, prest, need, recX, depX, rec, dep, solde: rec - dep, seuil: +HY.tarif > 0 ? Math.max(0, Math.ceil((dep - part - recX) / HY.tarif)) : null, tarifEq: P ? Math.max(0, (dep - part - recX) / P) : null };
+  const sw = sponWho(), part = sponSold() + sum(x.people.filter(p => p.type === 'Partenaire' && !sw.has(p.nom)), p => p.montant), tic = tickRev(), fee = tic * (+HY.feeTix || 0) / 100, prest = sum(x.people.filter(p => p.type === 'Prestataire'), p => p.montant), need = sum(needRows(), r => r.cost), recX = sum(x.bud.rec, l => l.v), depX = sum(x.bud.dep, l => l.v), exh = sum((x.exh || []).filter(e => e.st === 'Confirmé'), e => e.tarif), rec = ins + tic + part + exh + recX, affc = affCost(), dep = need + prest + fee + affc + depX;
+  return { ins, tic, fee, affc, part, exh, prest, need, recX, depX, rec, dep, solde: rec - dep, seuil: +HY.tarif > 0 ? Math.max(0, Math.ceil((dep - part - recX) / HY.tarif)) : null, tarifEq: P ? Math.max(0, (dep - part - recX) / P) : null };
 }
 // ── Accueil et assistant ──
 let W = {}, geo = [];
@@ -1042,7 +1160,7 @@ const wSync = () => document.querySelectorAll('#body [data-w]').forEach(i => W[i
 function wizard() {
   const i = clamp(W.step || 0, 0, WZ.length - 1), [k, q, sub] = WZ[i], f = (k, t, ty, ph) => `<label class="fld"><span>${t}</span><input type="${ty}" data-w="${k}" value="${esc(W[k] == null ? '' : W[k])}"${ph ? ` placeholder="${ph}"` : ''}></label>`;
   let c = '';
-  if (k === 'nom') c = f('nom', 'Nom de l\'événement', 'text', 'Les 10 km de…');
+  if (k === 'nom') c = f('nom', 'Nom de l\'événement', 'text', 'Les 10 km de…') + `<label class="fld"><span>Ou décrivez-le en une phrase</span><textarea data-w="desc" rows="3" placeholder="Un 10 km à Nantes le 23 mai, 800 coureurs, inscription 15 €, départ à 9 h 30">${esc(W.desc || '')}</textarea></label><p><button data-sy="parse">Remplir à partir de la description</button></p>`;
   else if (k === 'sport') c = `<div class="choices">${Object.entries(SPORTS).map(([s, S]) => `<button data-ya="wtype" data-id="${s}" class="${W.sport === s ? 'on' : ''}">${S.nom}</button>`).join('')}</div>`;
   else if (k === 'quand') c = f('date', 'Date', 'date') + f('start', 'Heure de début', 'time');
   else if (k === 'combien') c = f('parts', 'Participants', 'number', '800') + f('spect', 'Spectateurs', 'number', '1500') + f('tarif', 'Tarif d\'inscription des participants en euros, 0 si gratuit', 'number', '12') + f('billet', 'Prix moyen d\'un billet spectateur en euros, 0 si gratuit', 'number', '25');
@@ -1057,6 +1175,8 @@ function homeSteps() {
     ['Lancer l\'analyse', !!mkSum(), 'Épreuve', 'Bouton « Analyser » sous la carte : signaleurs, fermetures, secours.'],
     ['Dessiner le plan du site', DRAW.length + OBJ.length > 0, 'Plan du site', DRAW.length + OBJ.length ? (DRAW.length + OBJ.length) + ' élément(s) placé(s).' : 'Barrières, zones, postes, stands.'],
     ['Vendre les partenariats', sponSold() > 0, 'Partenariats', fmt(sponSold()) + ' € vendus.'],
+    ['Valider le dossier de sécurité', !!(secVal() && secVal().ok), 'Dossier sécurité', secVal() ? (secVal().ok ? 'Validé par ' + secVal().by + '.' : 'À revalider : le dispositif a changé.') : 'Le responsable sécurité vérifie et valide.'],
+    ['Organiser l\'affichage', affSum().posees > 0, 'Affichage', affSum().lieux ? affSum().lieux + ' lieu(x), ' + affSum().posees + ' où l\'affiche est posée.' : 'Où poser vos affiches, combien en imprimer.'],
     ['Fixer la billetterie', !!x.free || tkc().some(c => +c.prix > 0), 'Billetterie', x.free ? 'Événement gratuit.' : 'Prix, places et remplissage visé.'],
     ['Chiffrer les besoins', needRows().some(r => r.cost > 0), 'Besoins', 'Saisissez vos prix : le budget se remplit seul.'],
     ['Équilibrer le budget', b.rec > 0 && b.solde >= 0, 'Budget', b.rec || b.dep ? 'Recettes ' + fmt(b.rec) + ' €, dépenses ' + fmt(b.dep) + ' €.' : 'Tarif, partenaires, subventions, dépenses.'],
@@ -1078,7 +1198,7 @@ function budgetTab() {
   <div class="kpi"><div><b>${fmt(b.rec)} €</b><span>recettes</span></div><div><b>${fmt(b.dep)} €</b><span>dépenses</span></div><div><b class="${b.solde < 0 ? 'late' : ''}">${b.rec || b.dep ? fmt(b.solde) + ' €' : '—'}</b><span>résultat prévu</span></div><div><b>${b.rec ? Math.round(100 * b.solde / b.rec) + ' %' : '—'}</b><span>marge</span></div></div>
   <h2>Recettes</h2><table>${auto('Billetterie (onglet Billetterie)', b.tic)}${auto('Partenariats vendus et partenaires (onglets Partenariats, Équipe)', b.part)}${auto('Exposants confirmés (onglet Exposants)', b.exh)}${auto(`Inscriptions (${fmt(P)} × ${fmt(+HY.tarif || 0, 2)} €)`, b.ins)}${lines('rec')}<tr><th>Total des recettes</th><th class="n">${fmt(b.rec)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="rec">Ajouter une recette</button></p>
   <label class="p">Tarif d'inscription des participants (€)<input type="number" step="any" data-hy="tarif" value="${HY.tarif || ''}"></label>
-  <h2>Dépenses</h2><table>${auto('Matériel et équipe (onglet Besoins)', b.need)}${auto('Prestataires (onglet Équipe)', b.prest)}${b.fee ? auto('Commission de billetterie', b.fee) : ''}${lines('dep')}<tr><th>Total des dépenses</th><th class="n">${fmt(b.dep)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="dep">Ajouter une dépense</button></p>
+  <h2>Dépenses</h2><table>${auto('Matériel et équipe (onglet Besoins)', b.need)}${auto('Prestataires (onglet Équipe)', b.prest)}${b.fee ? auto('Commission de billetterie', b.fee) : ''}${b.affc ? auto('Affichage (onglet Affichage)', b.affc) : ''}${lines('dep')}<tr><th>Total des dépenses</th><th class="n">${fmt(b.dep)} €</th><th></th></tr></table><p><button data-ya="bladd" data-id="dep">Ajouter une dépense</button></p>
   ${scenHTML()}
   ${P && b.dep ? `<p class="note">Coût par participant : ${fmt(b.dep / P, 2)} €${+HY.spect ? ' ; par spectateur : ' + fmt(b.dep / HY.spect, 2) + ' €' : ''}.</p>` : ''}
   <p><button data-ya="budcsv">Exporter le budget (tableur)</button></p>`;
@@ -1335,42 +1455,22 @@ const fill = c => Math.min(1, (+c.taux || 0) / 100 * TF);
 const tickRev = () => xt().free ? 0 : tkc().reduce((a, c) => a + (+c.prix || 0) * (+c.cap || 0) * fill(c), 0);
 const tickPeople = () => tkc().reduce((a, c) => a + (+c.cap || 0) * fill(c), 0);
 const spx = () => { const x = xt(); x.spon = x.spon || {}; return x.spon; };
-function sponItems() {
-  const P = +HY.parts || 0, S = +HY.spect || 0, ref = +HY.refNaming || 0, nc = Math.max(1, (P + S) * 3), s = mkSum() || SUMM, it = [], site = isSite(), MOT = !!(SPORTS[HY.sport] || {}).motor;
-  const add = (key, nom, cat, contacts, why) => { const v = spx()[key] || {}, c = Math.round(contacts); it.push({ key, nom, cat, contacts: c, why, conseil: ref ? Math.max(10, Math.round(ref * c / nc / 10) * 10) : 0, st: v.st || 0, who: v.who || '', prix: v.prix }); };
-  add('naming', 'Nom de l\'événement (naming)', 'Visibilité majeure', (P + S) * 3, 'tout le public, sur tous les supports, avant, pendant et après');
-  if (!site) add('arche', 'Arche de départ et d\'arrivée', 'Visibilité majeure', S * .6 + P * 2, 'public massé au départ et à l\'arrivée, photos d\'arrivée');
-  add('podium', 'Podium et remise des prix', 'Visibilité majeure', S * .3 + P, 'photos officielles, presse locale');
-  if (P && !site) add('dossard', MOT ? 'Numéros de course et combinaisons' : 'Dossards', 'Participants', P * 3 + S * .5, 'porté par chaque participant, visible sur toutes les photos');
-  add('digital', 'Site, réseaux sociaux, courriels aux inscrits', 'Numérique', (P + S), 'annonces avant l\'événement et résultats après');
-  if (OBJ.some(o => o.t === 'ecran')) add('ecran', 'Spots sur l\'écran géant', 'Sur le site', S * 2, 'diffusion répétée pendant l\'événement');
-  for (const b of (s && s.boards) || []) add('pan' + b.n, `Panneau ${b.n} — km ${fmt(b.km, 1)}, ${b.where.toLowerCase()}`, 'Panneaux du parcours', b.sp + b.passes, `${fmt(b.sp)} spectateurs à proximité, ${fmt(b.passes)} passages de participants`);
-  for (const k in spx()) if (k.startsWith('u:')) { const v = spx()[k]; it.push({ key: k, nom: v.nom || 'Emplacement', cat: 'Mes emplacements', contacts: 0, why: 'ajouté par vous', conseil: 0, st: v.st || 0, who: v.who || '', prix: v.prix, user: true }); }
-  return it;
-}
 const itPrice = i => i.prix != null && i.prix !== '' ? +i.prix : i.conseil;
 const sponSold = () => sponItems().filter(i => i.st === 2).reduce((a, i) => a + itPrice(i), 0);
 const sponWho = () => new Set(sponItems().filter(i => i.st > 0 && i.who).map(i => i.who));
-function sponReport(who, after) {
-  const items = sponItems().filter(i => i.who === who && i.st > 0), r = LV.real || {}, base = (+HY.spect || 0) + (+HY.parts || 0) || 1, ratio = after && r.public ? ((+r.public) + (+r.partants || +HY.parts || 0)) / base : 1, tot = items.reduce((a, i) => a + itPrice(i), 0), cont = items.reduce((a, i) => a + i.contacts * ratio, 0), orga = HY.orga || '[organisateur]';
-  if (!items.length) return 'Ce partenaire n\'a aucun emplacement en option ou vendu.';
-  const lines = items.map(i => `- ${i.nom} : environ ${fmt(i.contacts * ratio)} contacts${after ? '' : ' — ' + fmt(itPrice(i)) + ' €'}`).join('\n');
-  if (!after) return `${orga}\n\nProposition de partenariat — « ${pName()} »\n${dateFr()}${HY.lieu ? ', ' + HY.lieu : ''}\n\nÀ l'attention de ${who}\n\nAudience attendue : ${fmt(HY.spect)} spectateurs et ${fmt(HY.parts)} participants.\n\nEmplacements proposés :\n${lines}\n\nTotal : ${fmt(tot)} € HT, pour environ ${fmt(cont)} contacts.\n\nVous recevrez après l'événement un bilan avec la fréquentation réelle et les photos de vos emplacements.\n\n${orga}`;
-  return `BILAN PARTENAIRE — « ${pName()} »\n${dateFr()}${HY.lieu ? ', ' + HY.lieu : ''}\n\nPartenaire : ${who}\n\nFréquentation : ${fmt(r.public || HY.spect)} spectateurs et ${fmt(r.partants || HY.parts)} participants${r.public ? '' : ' (prévisions : les chiffres réels ne sont pas encore saisis dans le bilan)'}.\n\nVos emplacements et leur exposition estimée :\n${lines}\n\nTotal : environ ${fmt(cont)} contacts pour ${fmt(tot)} € HT, soit ${fmt(tot / Math.max(1, cont) * 1000, 2)} € pour mille contacts.\n\nMéthode : estimation fondée sur la fréquentation et sur la position de chaque emplacement le long du parcours ; ce n'est pas une mesure d'audience. Photos jointes.\n\nMerci pour votre confiance. Nous serions heureux de vous retrouver à la prochaine édition.\n\n${orga}`;
-}
 function sponTab() {
   const it = sponItems(), cats = [...new Set(it.map(i => i.cat))], sold = it.filter(i => i.st === 2), opt = it.filter(i => i.st === 1), pot = it.reduce((a, i) => a + itPrice(i), 0), vs = sold.reduce((a, i) => a + itPrice(i), 0), vo = opt.reduce((a, i) => a + itPrice(i), 0), names = [...new Set(xt().people.filter(p => p.type === 'Partenaire').map(p => p.nom).concat(it.map(i => i.who)).filter(Boolean))], who = [...sponWho()];
   if (!spSel || !who.includes(spSel)) spSel = who[0] || '';
-  const row = i => `<tr><td><b style="font-weight:500">${esc(i.nom)}</b>${i.user ? ` <button data-pr="spdel" data-id="${i.key}" style="padding:0 5px">×</button>` : ''}<br><span class="note">${esc(i.why)}</span></td><td class="n">${i.contacts ? fmt(i.contacts) : '—'}</td><td><select data-sp="${i.key}:st" style="border-color:${SPC[i.st]}">${SPS.map((s, k) => `<option value="${k}"${i.st === k ? ' selected' : ''}>${s}</option>`).join('')}</select><br><input type="text" list="spNames" data-sp="${i.key}:who" value="${esc(i.who)}" placeholder="Partenaire" style="width:130px;margin-top:4px"></td><td class="n"><input type="number" step="any" data-sp="${i.key}:prix" value="${i.prix != null && i.prix !== '' ? i.prix : ''}" placeholder="${i.conseil ? fmt(i.conseil) : 'à fixer'}" style="width:86px">${i.conseil && (i.prix == null || i.prix === '') ? '' : i.conseil ? '<br><span class="note">conseillé ' + fmt(i.conseil) + ' €</span>' : ''}</td></tr>`;
+  const row = i => `<div class="it st${i.st}"><div class="ith"><b>${esc(i.nom)}</b>${i.user ? `<input type="number" data-sx="reach:${i.key}" value="${i.contacts || ''}" placeholder="audience" style="width:96px">` : `<span title="Calcul : ${esc(i.how)}">${i.contacts ? fmt(i.contacts) + ' pers.' : '—'}</span>`}</div><p class="note">${esc(i.why)}</p><div class="itc"><select data-sp="${i.key}:st">${SPS.map((s, k) => `<option value="${k}"${i.st === k ? ' selected' : ''}>${s}</option>`).join('')}</select><input type="text" list="spNames" data-sp="${i.key}:who" value="${esc(i.who)}" placeholder="Partenaire"><label class="eur"><input type="number" step="any" data-sp="${i.key}:prix" value="${i.prix != null && i.prix !== '' ? i.prix : ''}" placeholder="${i.conseil ? fmt(i.conseil) : 'à fixer'}"> €</label>${(daysTo() != null && daysTo() <= 0) || (i.mes != null && i.mes !== '') ? `<input type="number" data-sx="mes:${i.key}" value="${i.mes == null ? '' : i.mes}" placeholder="mesuré" title="Audience constatée après l'événement" style="width:90px">` : ''}${i.user ? `<button data-pr="spdel" data-id="${i.key}" class="link" title="Supprimer">×</button>` : ''}</div>${i.conseil && i.prix != null && i.prix !== '' ? `<p class="note">Prix conseillé : ${fmt(i.conseil)} €</p>` : ''}</div>`;
   return `<p class="note">Tout ce que vous pouvez vendre à des partenaires, avec l'audience estimée de chaque emplacement et un prix conseillé. Suivez chaque vente jusqu'au bilan envoyé au partenaire.</p>
   <div class="kpi"><div><b>${fmt(vs)} €</b><span>vendus (${sold.length} emplacement(s))</span></div><div><b>${fmt(vo)} €</b><span>en option (${opt.length})</span></div><div><b>${fmt(pot)} €</b><span>si tout est vendu au prix affiché</span></div><div><b>${pot ? Math.round(100 * vs / pot) + ' %' : '—'}</b><span>du potentiel vendu</span></div></div>
   <div class="prog"><i style="width:${pot ? Math.min(100, Math.round(100 * vs / pot)) : 0}%"></i></div>
   ${(mkSum() || SUMM) && (mkSum() || SUMM).boards ? '' : `<p class="warn">${isSite() ? 'Placez un écran géant ou ajoutez vos emplacements ci-dessous.' : 'Analysez le parcours pour ajouter les panneaux, classés selon leur audience.'}</p>`}
-  <label class="p"><b style="font-weight:500">Prix du naming (€ HT)</b><input type="number" step="any" data-hy="refNaming" value="${HY.refNaming || ''}" placeholder="à fixer"></label>${HY.refNaming ? '' : '<p class="note">Fixez le prix de votre emplacement principal : l\'outil en déduit un prix pour chaque autre emplacement, selon son audience.</p>'}
+  <label class="p"><b style="font-weight:500">Prix du naming (€ HT)</b><input type="number" step="any" data-hy="refNaming" value="${HY.refNaming || ''}" placeholder="à fixer"></label>${audHTML()}${HY.refNaming ? '' : '<p class="note">Fixez le prix de votre emplacement principal : l\'outil en déduit un prix pour chaque autre emplacement, selon son audience.</p>'}
   <datalist id="spNames">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
-  ${cats.map(c => `<h2>${c}</h2><table><tr><th>Emplacement</th><th class="n">Contacts</th><th>Statut</th><th class="n">Prix (€)</th></tr>${it.filter(i => i.cat === c).map(row).join('')}</table>`).join('')}
+  ${cats.map(c => `<h2>${c}</h2><div class="its">${it.filter(i => i.cat === c).map(row).join('')}</div>`).join('')}
   <p><input id="spNew" type="text" placeholder="Autre emplacement (ex. banderole du pont)" style="width:62%"> <button data-pr="spadd">Ajouter</button></p>
-  <p class="note">Le prix conseillé de chaque emplacement est le prix du naming multiplié par son audience relative : un panneau vu par deux fois moins de monde vaut deux fois moins. Vous restez libre de vos prix. Les contacts sont des estimations (un spectateur peut voir plusieurs fois le même panneau), pas une mesure d'audience.</p>
+  <p class="note">Chaque emplacement compte les personnes différentes qui le voient, puis un poids d'attention : un nom repris partout pèse plus qu'un logo sur un dossard, un panneau d'arrivée plus qu'un panneau de pleine ligne. Le prix conseillé est le prix du naming multiplié par ce poids relatif ; vous restez libre de vos prix. Ce sont des estimations ; passez la souris sur un chiffre pour voir son calcul. Après l'événement, une colonne « mesuré » apparaît pour saisir vos chiffres réels.</p>
   <h2>Dossier d'un partenaire</h2>${who.length ? `<p><select data-pr2="sel">${who.map(w => `<option${w === spSel ? ' selected' : ''}>${esc(w)}</option>`).join('')}</select> <button data-pr="spdoc" data-id="0" class="go">Proposition</button> <button data-pr="spdoc" data-id="1">Bilan après l'événement</button></p><textarea id="spDoc" rows="14" style="width:100%;font:13px/1.45 Geist,sans-serif;padding:8px">${esc(sponReport(spSel, false))}</textarea><p><button data-pr="spcopy">Copier</button> <button data-pr="spprint">Imprimer</button></p>` : '<p class="note">Indiquez un partenaire sur un emplacement en option ou vendu pour préparer sa proposition et son bilan.</p>'}
   <p><button data-pr="spcsv">Exporter l'inventaire (tableur)</button></p>`;
 }
@@ -1414,15 +1514,18 @@ function alerts() {
   const due = (x.exh || []).filter(e => e.st === 'Confirmé').reduce((a, e) => a + Math.max(0, (+e.tarif || 0) - (+e.paye || 0)), 0); if (due) go('Exposants', `${fmt(due)} € restent à encaisser auprès des exposants.`);
   const R = retro(), late = R.filter(r => r.late).length, bl = R.filter(r => tstOf(r.id).s === 2).length; if (late || bl) go('Organisation', `${late} tâche(s) en retard, ${bl} bloquée(s).`);
   const ben = benTotal(), conf = x.people.filter(p => /Bénévole|Signaleur/.test(p.type) && p.ok).length; if (ben && conf < ben) go('Équipe', `Il manque ${ben - conf} bénévole(s) confirmé(s) sur ${ben}.`);
-  return o;
+  { const d = daysTo(), f = aff(), s = affSum(); if (d != null && d < 0 && s.posees) go('Affichage', `${s.posees} lieu(x) où l'affiche est encore posée : à retirer.`); else if (d != null && d >= 0 && d <= (+f.pose || 21) && s.a_demarcher) go('Affichage', `${s.a_demarcher} lieu(x) d'affichage à démarcher.`); }
+  { const dd = HY.date ? new Date(HY.date + 'T00:00') : null, today = new Date(new Date().toDateString()), dm = xt().dem || {}, late = dd ? demRules().filter(r => !dm[r.k] && new Date(dd.getTime() + r.j * 864e5) < today).length : 0; if (late) go('Documents', `${late} démarche(s) administrative(s) en retard.`); }
+  { const d = daysTo(), v = secVal(); if (d != null && d >= 0 && d <= 45 && !(v && v.ok) && ready()) go('Dossier sécurité', v ? 'Le dispositif de sécurité a changé : il doit être validé à nouveau.' : 'Le dispositif de sécurité n\'est pas encore validé par le responsable sécurité.'); }
+  return o.filter(a => tabR(a[0]));
 }
 function homeTab() {
   if (isBlank()) return `${(W.step || 0) === 0 ? '<div class="hero"><h1>Vendez mieux, dépensez juste, maîtrisez le jour J.</h1><p class="props">Cinq questions, et l\'outil prépare le parcours, les partenariats à vendre, la billetterie, le budget, l\'équipe et les démarches.</p></div>' : ''}${wizard()}`;
   const st = homeSteps(), nx = st.find(s => !s[1]), d = daysTo(), nd = st.filter(s => s[1]).length, b = budget(), it = sponItems(), pot = it.reduce((a, i) => a + itPrice(i), 0), sold = sponSold(), al = alerts(), S = +HY.spect || 0;
   return `<div class="hero"><p class="eyebrow">${SPORTS[HY.sport].nom}</p><h1>${esc(pName())}</h1><p class="props">${dateFr()}${HY.start ? ' à ' + HY.start.replace(':', ' h ') : ''}${HY.lieu ? ' — ' + esc(HY.lieu) : ''}</p></div>
   <div class="kpi"><div><b class="${b.dep && b.solde < 0 ? 'late' : ''}">${b.dep ? fmt(b.solde) + ' €' : '—'}</b><span>${b.dep ? 'résultat prévu' : 'budget à chiffrer'}</span></div><div><b>${d == null ? '—' : d > 0 ? 'J-' + d : d === 0 ? 'Jour J' : 'J+' + (-d)}</b><span>${d == null ? 'date à fixer' : d > 0 ? 'avant l\'événement' : d === 0 ? 'c\'est aujourd\'hui' : 'après l\'événement'}</span></div><div><b>${fmt(sold)} €</b><span>partenariats vendus sur ${fmt(pot)} €</span></div><div><b>${xt().free ? 'Gratuit' : fmt(tickRev()) + ' €'}</b><span>billetterie prévue</span></div><div><b>${fmt(b.rec)} €</b><span>recettes prévues</span></div><div><b>${S && b.dep ? fmt(b.dep / S, 2) + ' €' : '—'}</b><span>coût par spectateur</span></div></div>
-  ${al.length ? `<h2>À surveiller</h2><div class="steps">${al.map(a => `<button data-ya="go" data-id="${a[0]}"><i style="border-color:#c58a1e;background:#fbf1dc"></i><span><b>${a[1]}</b><em>${a[0]}</em></span></button>`).join('')}</div>` : ''}
-  <div class="prog"><i style="width:${Math.round(100 * nd / st.length)}%"></i></div><p class="note">${nd} étape(s) faite(s) sur ${st.length}</p>
+  ${al.length ? `<h2>À surveiller</h2><div class="steps">${al.map(a => `<button data-ya="go" data-id="${a[0]}"><i style="border-color:#c58a1e;background:#fbf1dc"></i><span><b>${a[1]}</b><em>${LBL[a[0]] || a[0]}</em></span></button>`).join('')}</div>` : ''}
+  ${meteoHTML()}<h2>Avancement</h2><div class="prog"><i style="width:${Math.round(100 * nd / st.length)}%"></i></div><p class="note">${nd} étape(s) faite(s) sur ${st.length}</p>
   ${nx ? `<button class="next" data-ya="go" data-id="${nx[2]}"><span>À faire maintenant</span><b>${nx[0]}</b><em>${nx[3]}</em></button>` : '<p><b>Toutes les étapes sont faites.</b></p>'}
   <div class="steps">${st.map(s => `<button data-ya="go" data-id="${s[2]}" class="${s[1] ? 'done' : ''}"><i></i><span><b>${s[0]}</b><em>${s[3]}</em></span></button>`).join('')}</div>
   <h2>En bref</h2><label class="p">Date<input type="date" data-hy="date" value="${HY.date || ''}"></label><label class="p">Heure de début<input type="time" data-hy="start" value="${HY.start || ''}"></label><label class="p">Lieu<input type="text" data-hy="lieu" value="${esc(HY.lieu || '')}"></label><label class="p">Participants attendus<input type="number" data-hy="parts" value="${HY.parts}"></label><label class="p">Spectateurs attendus<input type="number" data-hy="spect" value="${HY.spect}"></label><label class="p">Organisateur<input type="text" data-hy="orga" value="${esc(HY.orga || '')}"></label>
@@ -1436,12 +1539,578 @@ function proAct(a, id) {
   else if (a === 'spdoc') { const t = $('#spDoc'); if (t) t.value = sponReport(spSel, id === '1'); return; }
   else if (a === 'spcopy') { const t = $('#spDoc').value; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Texte copié.'), () => { $('#spDoc').select(); document.execCommand('copy'); }); return; }
   else if (a === 'spprint') { $('#print').innerHTML = `<pre style="white-space:pre-wrap;font:11.5pt/1.5 serif;margin:0">${esc($('#spDoc').value)}</pre>`; print(); return; }
-  else if (a === 'spcsv') { csvOut('partenariats', [['Catégorie', 'Emplacement', 'Contacts estimés', 'Statut', 'Partenaire', 'Prix conseillé (€)', 'Prix (€)']].concat(sponItems().map(i => [i.cat, i.nom, i.contacts, SPS[i.st], i.who, i.conseil, itPrice(i)]))); return; }
+  else if (a === 'spcsv') { csvOut('partenariats', [['Catégorie', 'Emplacement', 'Personnes touchées (estimation)', 'Mesuré', 'Statut', 'Partenaire', 'Prix conseillé (€)', 'Prix (€)']].concat(sponItems().map(i => [i.cat, i.nom, i.contacts, i.mes == null ? '' : i.mes, SPS[i.st], i.who, i.conseil, itPrice(i)]))); return; }
   else if (a === 'tadd') tkc().push({ id: uid2('k'), nom: 'Nouvelle catégorie', prix: 0, cap: 0, taux: 80 });
   else if (a === 'tdel') x.tick = tkc().filter(c => c.id !== id);
   else if (a === 'tsync') HY.spect = Math.round(tickPeople());
   store(); panel(true);
 }
+// ───────── Audiences des partenariats : personnes touchées et poids d'exposition ─────────
+// reach = personnes différentes qui voient l'emplacement ; att = attention (durée, taille, répétition), sert au prix.
+function audBase() {
+  const P = +HY.parts || 0, S = +HY.spect || 0, MOT = !!(SPORTS[HY.sport] || {}).motor, net = +HY.aReseaux || 0, mail = +HY.aMail || 0, web = +HY.aSite || 0, tv = +HY.aTv || 0, pr = +HY.aPresse || 0;
+  return { P, S, MOT, net, mail, web, tv, pr, dig: net + mail + web, media: net + mail + web + tv + pr };
+}
+function sponItems() {
+  const a = audBase(), { P, S, MOT } = a, ref = +HY.refNaming || 0, s = mkSum() || SUMM, it = [], site = isSite();
+  const add = (key, nom, cat, reach, att, why, how) => { const v = spx()[key] || {}, c = Math.round(reach); it.push({ key, nom, cat, contacts: c, w: reach * att, why, how, mes: v.mes, st: v.st || 0, who: v.who || '', prix: v.prix }); };
+  add('naming', 'Nom de l\'événement (naming)', 'Visibilité majeure', P + S + a.media, 4, 'tout le public, sur tous les supports, avant, pendant et après', `${fmt(P + S)} présents + ${fmt(a.media)} touchés par les médias et le numérique déclarés`);
+  if (!site) add('arche', 'Arche de départ et d\'arrivée', 'Visibilité majeure', S * .6 + P + a.tv * .5, .8, 'public massé au départ et à l\'arrivée, photos d\'arrivée', `60 % des spectateurs se tiennent au départ ou à l'arrivée, tous les participants passent dessous${a.tv ? ', la moitié des téléspectateurs voit l\'arrivée' : ''}`);
+  add('podium', 'Podium et remise des prix', 'Visibilité majeure', S * .3 + P * .5 + a.pr + a.tv * .3, .8, 'photos officielles, presse locale', `30 % des spectateurs, la moitié des participants${a.pr ? ', les lecteurs de la presse' : ''}${a.tv ? ', 30 % des téléspectateurs' : ''}`);
+  if (P && !site) add('dossard', MOT ? 'Numéros de course et combinaisons' : 'Dossards', 'Participants', MOT ? S * .8 + a.tv : P + S * .5, MOT ? .5 : .5, MOT ? 'sur chaque voiture, à l\'écran et sur les photos' : 'porté par chaque participant, visible sur toutes les photos', MOT ? '80 % des spectateurs' + (a.tv ? ' et les téléspectateurs' : '') : 'tous les participants, la moitié des spectateurs');
+  add('digital', 'Site, réseaux sociaux, courriels aux inscrits', 'Numérique', a.dig, .3, a.dig ? 'annonces avant l\'événement et résultats après' : 'renseignez vos abonnés, contacts et visites ci-dessus', a.dig ? `${fmt(a.net)} abonnés, ${fmt(a.mail)} contacts, ${fmt(a.web)} visites` : 'à renseigner');
+  if (a.tv) add('tv', 'Logo dans la retransmission (vidéo, télévision)', 'Médias', a.tv, .6, 'incrustation pendant la diffusion', `${fmt(a.tv)} spectateurs de la retransmission déclarés`);
+  if (OBJ.some(o => o.t === 'ecran')) add('ecran', 'Spots sur l\'écran géant', 'Sur le site', S * .7, .6, 'diffusion répétée pendant l\'événement', '70 % des spectateurs regardent l\'écran');
+  for (const b of ((s && s.boards) || []).filter(b => b.sp > 0 || !(SPORTS[HY.sport] || {}).motor)) { const hot = b.where === 'Départ' || b.where === 'Arrivée', cam = a.tv && (hot || b.where === 'Virage serré') ? a.tv * .05 : 0, run = MOT ? 0 : P;
+    add('pan' + b.n, `Panneau ${b.n} — km ${fmt(b.km, 1)}, ${b.where.toLowerCase()}`, 'Panneaux du parcours', b.sp + run + cam, (b.sp * (hot ? .6 : b.where === 'Virage serré' ? .45 : .3) + run * .2 + cam * .6) / Math.max(1, b.sp + run + cam), `${fmt(b.sp)} spectateurs à proximité${run ? ', ' + fmt(run) + ' participants qui passent devant' : ''}${cam ? ', dans le champ des caméras' : ''}`, 'spectateurs placés à moins de 60 m, selon la répartition du public le long du parcours'); }
+  for (const k in spx()) if (k.startsWith('u:')) { const v = spx()[k]; it.push({ key: k, nom: v.nom || 'Emplacement', cat: 'Mes emplacements', contacts: +v.reach || 0, w: (+v.reach || 0) * .5, why: 'ajouté par vous', how: v.reach ? 'audience saisie par vous' : 'indiquez une audience pour obtenir un prix conseillé', mes: v.mes, st: v.st || 0, who: v.who || '', prix: v.prix, user: true }); }
+  const nw = (it.find(i => i.key === 'naming') || {}).w || 1;
+  it.forEach(i => i.conseil = ref && i.w ? Math.max(10, Math.round(ref * i.w / nw / 10) * 10) : 0);
+  return it;
+}
+const itReach = (i, after) => i.mes != null && i.mes !== '' ? +i.mes : i.contacts * (after || 1);
+function sponReport(who, after) {
+  const items = sponItems().filter(i => i.who === who && i.st > 0), r = LV.real || {}, base = (+HY.spect || 0) + (+HY.parts || 0) || 1, ratio = after && r.public ? ((+r.public) + (+r.partants || +HY.parts || 0)) / base : 1, tot = items.reduce((a, i) => a + itPrice(i), 0), cont = items.reduce((a, i) => a + itReach(i, ratio), 0), orga = HY.orga || '[organisateur]';
+  if (!items.length) return 'Ce partenaire n\'a aucun emplacement en option ou vendu.';
+  const lines = items.map(i => `- ${i.nom} : ${i.mes != null && i.mes !== '' ? fmt(+i.mes) + ' personnes (mesuré)' : 'environ ' + fmt(i.contacts * ratio) + ' personnes (' + i.how + ')'}${after ? '' : ' — ' + fmt(itPrice(i)) + ' €'}`).join('\n');
+  if (!after) return `${orga}\n\nProposition de partenariat — « ${pName()} »\n${dateFr()}${HY.lieu ? ', ' + HY.lieu : ''}\n\nÀ l'attention de ${who}\n\nAudience attendue : ${fmt(HY.spect)} spectateurs et ${fmt(HY.parts)} participants${audBase().media ? ', plus ' + fmt(audBase().media) + ' personnes touchées par nos médias et réseaux' : ''}.\n\nEmplacements proposés :\n${lines}\n\nTotal : ${fmt(tot)} € HT, pour environ ${fmt(cont)} personnes touchées (une même personne peut voir plusieurs emplacements).\n\nVous recevrez après l'événement un bilan avec la fréquentation réelle et les photos de vos emplacements.\n\n${orga}`;
+  return `BILAN PARTENAIRE — « ${pName()} »\n${dateFr()}${HY.lieu ? ', ' + HY.lieu : ''}\n\nPartenaire : ${who}\n\nFréquentation : ${fmt(r.public || HY.spect)} spectateurs et ${fmt(r.partants || HY.parts)} participants${r.public ? '' : ' (prévisions : les chiffres réels ne sont pas encore saisis dans le bilan)'}.\n\nVos emplacements et leur exposition :\n${lines}\n\nTotal : environ ${fmt(cont)} personnes touchées pour ${fmt(tot)} € HT, soit ${fmt(tot / Math.max(1, cont) * 1000, 2)} € pour mille personnes.\n\nMéthode : les chiffres marqués « mesuré » viennent de vos statistiques (réseaux, site, diffusion) ou d'un comptage ; les autres sont estimés à partir de la fréquentation réelle et de la position de chaque emplacement. Photos jointes.\n\nMerci pour votre confiance. Nous serions heureux de vous retrouver à la prochaine édition.\n\n${orga}`;
+}
+const AUDF = [['aReseaux', 'Abonnés sur vos réseaux sociaux'], ['aMail', 'Contacts de votre liste de courriels'], ['aSite', 'Visites du site pendant la campagne'], ['aTv', 'Spectateurs de la retransmission (télévision, vidéo en direct)'], ['aPresse', 'Lecteurs de la presse qui couvre l\'événement']];
+function audHTML() {
+  return `<details class="aud"${audBase().media ? '' : ' open'}><summary><b style="font-weight:500">Audience hors du site</b> <span class="note">— ${audBase().media ? fmt(audBase().media) + ' personnes déclarées' : 'à renseigner pour chiffrer le naming, le numérique et la diffusion'}</span></summary>${AUDF.map(([k, t]) => `<label class="p">${t}<input type="number" data-hy="${k}" value="${HY[k] || ''}" placeholder="0"></label>`).join('')}<p class="note">Mettez les chiffres que vous pourrez justifier au partenaire (statistiques de vos comptes, du site, du diffuseur). Après l'événement, saisissez dans la colonne « Mesuré » ce que vous avez réellement constaté : le bilan partenaire utilisera ces chiffres.</p></details>`;
+}
+
+// ───────── Affichage : où poser ses affiches, combien, quand ─────────
+const AFS = ['À démarcher', 'Accepté', 'Posée', 'Retirée', 'Refus'], AFC = ['#9a958a', '#c58a1e', '#3f6b4f', '#2f5d8a', '#a94a25'];
+const AFCAT = { mairie: ['Mairie', 2, '84.11Z', /mairie|h[oô]tel de ville/i], boulangerie: ['Boulangerie, pâtisserie', 1, '10.71C,10.71D'], cafe: ['Café, bar', 1, '56.30Z'], sport: ['Salle ou club de sport', 1, '93.13Z,93.12Z'], magsport: ['Magasin de sport', 1, '47.64Z'], commerce: ['Supermarché, supérette', 1, '47.11B,47.11C,47.11D,47.11F'], pharmacie: ['Pharmacie', 1, '47.73Z'] };
+const aff = () => { const x = xt(); x.aff = x.aff || { r: 10, fmt: 'A3', pu: .9, pose: 21, depose: 7, pl: [], paid: [] }; return x.aff; };
+const evCenter = () => HY.ll || (WP.length ? (line().length ? line()[0] : WP[0]) : null);
+function affSum() { const f = aff(), live = f.pl.filter(p => p.st < 4), n = live.reduce((a, p) => a + (+p.n || 1), 0), imp = Math.ceil(n * 1.1), paid = f.paid.reduce((a, p) => a + (+p.cost || 0), 0); return { lieux: live.length, affiches: n, imprimer: imp, posees: f.pl.filter(p => p.st === 2).length, a_demarcher: f.pl.filter(p => p.st === 0).length, cout: Math.round(imp * (+f.pu || 0) + paid) }; }
+const affCost = () => affSum().cout;
+const lyAff = L.layerGroup().addTo(map), lyLive = L.layerGroup().addTo(map);
+function drawAff() { lyAff.clearLayers(); for (const p of aff().pl) L.circleMarker([p.lat, p.lng], { radius: 6, color: '#fff', weight: 1.5, fillColor: AFC[p.st], fillOpacity: 1 }).bindTooltip(`${esc(p.nom)} — ${AFS[p.st]}`).addTo(lyAff); }
+async function affSearch() {
+  const c = evCenter(); if (!c) { toast('Placez d\'abord l\'événement : lieu dans l\'onglet Accueil ou parcours sur la carte.'); return; }
+  const f = aff(), R = Math.max(1, Math.min(30, +f.r || 10)), have = new Set(f.pl.map(p => p.osm)), add = [];
+  let k = 0, fail = 0;
+  for (const [key, [cat, n, codes, re]] of Object.entries(AFCAT)) {
+    toast(`Recherche des lieux d'affichage… ${++k}/${Object.keys(AFCAT).length}`);
+    try {
+      const r = await fetch(`https://recherche-entreprises.api.gouv.fr/near_point?lat=${(+c[0]).toFixed(5)}&long=${(+c[1]).toFixed(5)}&radius=${R}&activite_principale=${codes}&per_page=25`), j = await r.json(), cs = codes.split(',');
+      for (const e of j.results || []) for (const m of e.matching_etablissements || []) {
+        const nom = (m.liste_enseignes || [])[0] || m.nom_commercial || e.nom_complet, id = 'siret' + m.siret;
+        if (m.etat_administratif !== 'A' || !cs.includes(m.activite_principale) || !m.latitude || have.has(id) || (re && !re.test(nom + ' ' + e.nom_complet))) continue;
+        have.add(id); const ll = [+m.latitude, +m.longitude];
+        add.push({ id: uid2('a'), osm: id, nom: nom.replace(/\s+\(.*\)$/, ''), cat, lat: ll[0], lng: ll[1], adr: (m.adresse || '').toLowerCase().replace(/(^|\s)\S/g, s => s.toUpperCase()), st: 0, n, d: Math.round(dM(ll, c)) });
+      }
+    } catch (e) { fail++; }
+    await new Promise(r => setTimeout(r, 160));
+  }
+  add.sort((a, b) => a.d - b.d); f.pl.push(...add.slice(0, Math.max(0, 150 - f.pl.length)));
+  store(); drawAff(); panel(true);
+  toast(add.length ? `${add.length} lieu(x) ajouté(s), du plus proche au plus éloigné${fail ? ` (${fail} catégorie(s) n'ont pas répondu)` : ''}.` : fail ? 'L\'annuaire des entreprises ne répond pas : réessayez dans un moment.' : 'Aucun nouveau lieu trouvé dans ce rayon.');
+}
+function affTour() { const f = aff(), c = evCenter(), rest = f.pl.slice(), out = []; let cur = c || (rest[0] && [rest[0].lat, rest[0].lng]); while (rest.length) { let b = 0, bd = Infinity; rest.forEach((p, k) => { const d = dM([p.lat, p.lng], cur); if (d < bd) { bd = d; b = k; } }); const p = rest.splice(b, 1)[0]; out.push(p); cur = [p.lat, p.lng]; } f.pl = out; }
+function affTab() {
+  const f = aff(), s = affSum(), d = HY.date ? new Date(HY.date + 'T00:00') : null, dd = n => d ? new Date(d.getTime() + n * 864e5).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : 'J' + (n > 0 ? '+' : '') + n;
+  const row = p => `<tr><td><b style="font-weight:500">${esc(p.nom)}</b><br><span class="note">${esc(p.cat)}${p.adr ? ' — ' + esc(p.adr) : ''}${p.d != null ? ' — ' + fmt(p.d / 1000, 1) + ' km' : ''}</span></td><td class="n"><input type="number" min="0" data-sx="afpl:${p.id}:n" value="${p.n}" style="width:52px"></td><td><select data-sx="afpl:${p.id}:st" style="border-color:${AFC[p.st]}">${AFS.map((t, k) => `<option value="${k}"${p.st === k ? ' selected' : ''}>${t}</option>`).join('')}</select></td><td><button data-sy="afgo" data-id="${p.id}" title="Voir sur la carte">◎</button> <button data-sy="afdel" data-id="${p.id}">×</button></td></tr>`;
+  return `<p class="note">Où annoncer l'événement : l'outil cherche autour du lieu, dans l'annuaire des entreprises de l'État, les mairies, commerces et salles de sport qui acceptent souvent une affiche, puis suit chaque lieu jusqu'au retrait.</p>
+  <div class="kpi"><div><b>${s.lieux}</b><span>lieu(x) retenu(s)</span></div><div><b>${fmt(s.imprimer)}</b><span>affiches à imprimer (marge de 10 %)</span></div><div><b>${s.posees}</b><span>lieu(x) où l'affiche est posée</span></div><div><b>${fmt(s.cout)} €</b><span>coût de l'affichage</span></div></div>
+  <h2>Calendrier</h2><p>Pose à partir du <b>${dd(-(+f.pose || 21))}</b>, retrait au plus tard le <b>${dd(+f.depose || 7)}</b>.</p>
+  <label class="p">Poser les affiches (jours avant)<input type="number" data-sx="af:pose" value="${f.pose}"></label><label class="p">Retirer les affiches (jours après)<input type="number" data-sx="af:depose" value="${f.depose}"></label>
+  <h2>Trouver des lieux</h2><label class="p">Rayon autour de l'événement (km)<input type="number" data-sx="af:r" value="${f.r}"></label><p><button data-sy="afsearch" class="go">Chercher autour de l'événement</button> <button data-sy="aftour">Ordonner en tournée</button> <button data-sy="afcsv">Exporter la tournée (tableur)</button></p>
+  <p><input id="afNew" type="text" placeholder="Autre lieu (ex. salle des fêtes)" style="width:60%"> <button data-sy="afadd">Ajouter</button></p>
+  ${f.pl.length ? `<table><tr><th>Lieu</th><th class="n">Affiches</th><th>Statut</th><th></th></tr>${f.pl.map(row).join('')}</table>` : '<p class="note">Aucun lieu pour l\'instant.</p>'}
+  <h2>Impression</h2><label class="p">Format<select data-sx="af:fmt">${['A4', 'A3', 'A2', '40 × 60 cm', '120 × 176 cm'].map(t => `<option${f.fmt === t ? ' selected' : ''}>${t}</option>`).join('')}</select></label><label class="p">Prix unitaire d'impression (€)<input type="number" step="any" data-sx="af:pu" value="${f.pu}"></label>
+  <h2>Affichage payant</h2>${f.paid.map(p => `<p><input type="text" data-sx="afpaid:${p.id}:t" value="${esc(p.t)}" style="width:55%"> <input type="number" step="any" data-sx="afpaid:${p.id}:cost" value="${p.cost || ''}" placeholder="€" style="width:90px"> <button data-sy="afpdel" data-id="${p.id}">×</button></p>`).join('')}<p><button data-sy="afpadd">Ajouter une campagne (abribus, panneaux 4 × 3, radio…)</button></p>
+  <p class="note">Règles à respecter (Code de l'environnement, art. L581-1 et suivants) : pas d'affiche sur les arbres, les poteaux, les monuments ni le mobilier urbain sans autorisation ; demandez à la mairie les panneaux d'affichage libre réservés aux associations ; retirez toutes les affiches après l'événement. L'affichage sauvage est sanctionné par affiche. Vérifiez le règlement local de publicité de chaque commune.</p>`;
+}
+
+// ───────── Synchronisation entre appareils et clés API ─────────
+const API = 'https://kghejlrmklbsxsuwcqoy.supabase.co/functions/v1/orga-api';
+const SY = { dirty: {}, t: null, last: null, err: '', busy: false, keys: null, fresh: null, vol: null };
+const syncOn = () => !!(ST.sync && ST.sync.key);
+async function api(path, method = 'GET', body) {
+  const r = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(syncOn() ? { Authorization: 'Bearer ' + ST.sync.key } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && syncOn()) { SY.err = 'La clé de cet appareil a été révoquée ou n\'est plus valable.'; }
+  return { ok: r.ok, status: r.status, j };
+}
+const blankP = p => !p || (!(p.WP && p.WP.length) && !(p.HY && p.HY.date) && !(p.XT && (p.XT.people || []).length) && /^(Mon épreuve|Nouvelle épreuve|Sans nom)$/.test(p.name || 'Sans nom'));
+function syncDirty() { if (!syncOn()) return; SY.dirty[ST.cur] = 1; clearTimeout(SY.t); SY.t = setTimeout(syncPushAll, 1500); }
+async function syncPush(id) {
+  const p = ST.projects[id]; if (!p) return;
+  const rv = ST.sync.rv = ST.sync.rv || {}, r = await api('/projects/' + encodeURIComponent(id), 'PUT', { name: p.name || 'Sans nom', data: p, base: rv[id] || null });
+  if (r.ok) { rv[id] = r.j.updated_at; delete SY.dirty[id]; SY.last = new Date(); SY.err = ''; }
+  else if (r.status === 409 && r.j.server) { const loc = ST.projects[id]; adopt({ ...r.j.server, data: mergeAppend(r.j.server.data, loc) }); SY.dirty[id] = 1; toast('« ' + (r.j.server.name || 'Projet') + ' » a été modifié ailleurs : la version la plus récente est chargée, et vos ajouts (main courante, passages, entrées) sont gardés.'); }
+  else if (r.status !== 401) SY.err = r.j.error || 'Synchronisation impossible pour le moment.';
+}
+async function syncPushAll() { if (!syncOn()) return; try { for (const id of Object.keys(SY.dirty)) await syncPush(id); } catch (e) { SY.err = 'Pas de réseau : les modifications partiront au retour de la connexion.'; } saveST(); }
+function adopt(s) {
+  const p = s.data || {}; p.name = s.name || p.name || 'Sans nom'; ST.projects[s.id] = p; (ST.sync.rv = ST.sync.rv || {})[s.id] = s.updated_at;
+  if (s.id === ST.cur) { const keepTab = tab; loadProject(s.id); tab = keepTab; panel(true); }
+}
+const editing = () => { const a = document.activeElement; return a && a.closest && a.closest('#side') && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName); };
+async function syncPull(first) {
+  if (!syncOn() || SY.busy) return; SY.busy = true;
+  try {
+    if (!SY.meAt || Date.now() - SY.meAt > 300000) { const me = await api('/me'); if (me.ok) { SY.meAt = Date.now(); if (ST.sync.role !== me.j.role) { ST.sync.role = me.j.role; saveST(); panel(true); } } }
+    await syncPushAll();
+    const r = await api('/projects'); if (!r.ok) { if (r.status !== 401) SY.err = r.j.error || 'Synchronisation impossible.'; return; }
+    const rv = ST.sync.rv = ST.sync.rv || {}, remote = new Map(r.j.map(x => [x.id, x]));
+    for (const x of r.j) {
+      if (!rv[x.id] && ST.projects[x.id] && !blankP(ST.projects[x.id])) { const nid = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); ST.projects[nid] = ST.projects[x.id]; delete ST.projects[x.id]; SY.dirty[nid] = 1; delete SY.dirty[x.id]; if (ST.cur === x.id) ST.cur = nid; }
+      if (rv[x.id] && new Date(x.updated_at) <= new Date(rv[x.id])) continue;
+      if (SY.dirty[x.id]) continue;
+      if (x.id === ST.cur && editing()) continue;
+      const g = await api('/projects/' + encodeURIComponent(x.id)); if (g.ok) adopt(g.j);
+    }
+    for (const id of Object.keys(ST.projects)) if (!remote.has(id)) {
+      if (rv[id]) { if (Object.keys(ST.projects).length > 1) { delete ST.projects[id]; delete rv[id]; if (id === ST.cur) loadProject(Object.keys(ST.projects)[0]); } }
+      else if (!blankP(ST.projects[id])) await syncPush(id);
+    }
+    if (first && blankP(ST.projects[ST.cur]) && r.j.length && ST.projects[r.j[0].id]) { const b = ST.cur; loadProject(r.j[0].id); if (!rv[b]) delete ST.projects[b]; }
+    SY.last = new Date(); if (!SY.err.startsWith('La clé')) SY.err = '';
+    saveST();
+    if (tab === 'Appareils et IA' || tab === 'Portefeuille' || tab === 'Projets') panel(true);
+  } catch (e) { SY.err = 'Pas de réseau : la synchronisation reprendra toute seule.'; }
+  finally { SY.busy = false; }
+}
+async function syncDel(id) { if (syncOn() && ST.sync.rv && ST.sync.rv[id]) { delete ST.sync.rv[id]; await api('/projects/' + encodeURIComponent(id), 'DELETE').catch(() => { }); saveST(); } }
+async function syncStart(name) {
+  const r = await api('/workspace', 'POST', { name: name || HY.orga || 'Mon espace', label: devName() });
+  if (!r.ok) { toast(r.j.error || 'Création impossible pour le moment.'); return; }
+  ST.sync = { key: r.j.key, ws: r.j.workspace, rv: {} }; Object.keys(ST.projects).forEach(id => { if (!blankP(ST.projects[id]) || id === ST.cur) SY.dirty[id] = 1; }); saveST();
+  await syncPull(); toast('Synchronisation activée. Ajoutez maintenant vos autres appareils.'); panel(true);
+}
+async function syncJoin(key) {
+  key = (key || '').trim(); if (!/^orga_dev_\w{20,}$/.test(key)) { toast('Ce code n\'est pas un code d\'appareil valable.'); return; }
+  const prev = ST.sync; ST.sync = { key, rv: {} }; const r = await api('/me');
+  if (!r.ok) { ST.sync = prev; toast('Code refusé : il a peut-être été révoqué.'); return; }
+  ST.sync.ws = r.j.workspace; ST.sync.role = r.j.role || 'direction'; saveST(); await syncPull(true); toast('Cet appareil est relié à « ' + (r.j.workspace.name || 'votre espace') + ' ».'); panel(true);
+}
+const devName = () => /iPhone/.test(navigator.userAgent) ? 'iPhone' : /iPad/.test(navigator.userAgent) ? 'iPad' : /Android/.test(navigator.userAgent) ? 'Téléphone Android' : /Mac/.test(navigator.platform) ? 'Mac' : /Win/.test(navigator.platform) ? 'PC Windows' : 'Appareil';
+async function loadKeys() { const r = await api('/keys'); SY.keys = r.ok ? r.j : []; if (tab === 'Appareils et IA') panel(true); }
+const appURL = () => location.origin + location.pathname;
+function syncTab() {
+  if (!syncOn()) return `<p class="note">Pour l'instant, vos événements ne sont enregistrés que dans ce navigateur. Activez la synchronisation pour les retrouver sur votre téléphone, votre ordinateur et ceux de votre équipe, pour envoyer à chaque bénévole son poste sur son téléphone, et pour relier votre IA.</p>
+    <p><button data-sy="start" class="go">Activer la synchronisation</button></p>
+    <h2>J'ai déjà activé la synchronisation sur un autre appareil</h2><p>Ouvrez sur cet appareil le lien d'ajout créé sur l'autre, ou collez son code :</p><p><input id="syCode" type="text" placeholder="orga_dev_…" style="width:65%"> <button data-sy="join">Relier cet appareil</button></p>
+    <p class="note">Vos données sont hébergées en Europe (Irlande). Chaque appareil a sa propre clé, révocable à tout moment. Pas de compte, pas de mot de passe : celui qui détient une clé accède aux événements de l'espace, gardez-la pour vous.</p>`;
+  if (!SY.keys) loadKeys();
+  const ks = SY.keys || [], dev = ks.filter(k => k.kind === 'device' && !k.revoked), apis = ks.filter(k => k.kind === 'api' && !k.revoked), F = SY.fresh, dt = t => t ? new Date(t).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : 'jamais';
+  return `<div class="kpi"><div><b>${esc((ST.sync.ws || {}).name || 'Mon espace')}</b><span>espace synchronisé</span></div><div><b>${SY.last ? SY.last.toLocaleTimeString('fr-FR', { timeStyle: 'short' }) : '—'}</b><span>dernière synchronisation</span></div><div><b>${dev.length}</b><span>appareil(s)</span></div><div><b>${apis.length}</b><span>clé(s) d'IA</span></div></div>
+  ${SY.err ? `<p class="late">${esc(SY.err)}</p>` : ''}<p><button data-sy="pull">Synchroniser maintenant</button></p>
+  ${F ? `<div class="warn" style="padding:12px 14px"><b>${F.kind === 'api' ? 'Clé pour votre IA' : 'Lien d\'accès pour ' + esc(F.label || 'le nouvel appareil')}</b>${F.role ? ' (' + (ROLE[F.role] || ROLE.direction).nom + ')' : ''} — copiez-la maintenant, elle ne sera plus affichée.<p><input type="text" readonly value="${esc(F.kind === 'api' ? F.key : appURL() + '#k=' + F.key)}" style="width:100%" onclick="this.select()"></p>${F.kind === 'api' ? `<p><b>Claude</b> (claude.ai ou l'application) : Paramètres, Connecteurs, « Ajouter un connecteur personnalisé », puis cette adresse :<br><input type="text" readonly value="${API}/mcp?key=${esc(F.key)}" style="width:100%" onclick="this.select()"></p><p><b>ChatGPT</b> : créez un GPT, puis Configurer, Actions, « Importer depuis une URL » : <code>${API}/openapi.json</code>. Authentification : clé API, type « Bearer », collez la clé.</p><p><b>Autre IA ou automatisation</b> (Make, Zapier, Mistral, un script) :<br><code style="word-break:break-all">curl -X POST ${API}/tools/list_events -H "Authorization: Bearer ${esc(F.key)}"</code></p><p class="note">Ensuite, demandez simplement à votre IA : « Quels partenariats me reste-t-il à vendre pour le Grand Prix ? », « Passe le naming en vendu à Garage Martin pour 150 000 € », « Crée un 10 km à Nantes le 23 mai 2027 pour 800 coureurs ».</p>` : '<p>Ouvrez ce lien sur l\'autre appareil (envoyez-le-vous par message) : il se relie tout seul.</p>'}<p><button data-sy="hidefresh">J'ai copié</button></p></div>` : ''}
+  <h2>Appareils</h2><table>${dev.map(k => `<tr><td>${esc(k.label || 'Appareil')}${k.current ? ' <span class="note">(cet appareil)</span>' : ''}<br><span class="note">ajouté le ${dt(k.created_at)}, dernière utilisation ${dt(k.last_used)}</span></td><td>${k.current ? '' : `<button data-sy="revoke" data-id="${k.id}">Révoquer</button>`}</td></tr>`).join('') || '<tr><td class="note">Chargement…</td></tr>'}</table>
+  <p><input id="syLabel" type="text" placeholder="Nom de l'appareil (ex. téléphone de Paul)" style="width:55%"> <button data-sy="adddev" class="go">Ajouter un appareil</button></p>
+  <h2>Relier votre IA</h2><p class="note">Une clé API permet à Claude, ChatGPT ou à une automatisation de lire vos événements et d'agir dessus : créer un événement, changer une date, suivre les partenariats, consigner un incident, lire l'état des postes le jour J. Tout ce que fait l'IA apparaît sur vos appareils.</p>
+  <table>${apis.map(k => `<tr><td>${esc(k.label || 'IA')}<br><span class="note">créée le ${dt(k.created_at)}, dernière utilisation ${dt(k.last_used)}</span></td><td><button data-sy="revoke" data-id="${k.id}">Révoquer</button></td></tr>`).join('') || '<tr><td class="note">Aucune clé pour l\'instant.</td></tr>'}</table>
+  <p><input id="syApiLabel" type="text" placeholder="Nom (ex. Claude, ChatGPT)" style="width:55%"> <button data-sy="addapi" class="go">Créer une clé API</button></p>
+  <h2>Cet appareil</h2><p><button data-sy="leave">Délier cet appareil</button> <span class="note">Les événements restent dans ce navigateur, mais ne se synchronisent plus.</span></p>`;
+}
+
+// ───────── Bénévoles : un lien par poste, suivi en direct ─────────
+const LIVE = { t: null, data: null, at: null };
+const consigne = p => `${p.det}. Présentez-vous 15 minutes avant l'heure de début. Restez à votre poste jusqu'au passage du dernier participant (ou du véhicule de fin de course). En cas d'incident, appelez ${HY.orgaTel || 'le PC course'} puis signalez-le depuis cette page.`;
+async function volMake() {
+  const posts = dayPosts().map(p => ({ id: p.id, nom: p.nom, det: p.det, consignes: consigne(p), lat: p.ll ? p.ll[0] : null, lng: p.ll ? p.ll[1] : null }));
+  if (!posts.length) { toast('Aucun poste : lancez l\'analyse du parcours ou placez du personnel dans « Plan du site ».'); return; }
+  store(); await syncPushAll();
+  const r = await api('/volunteers/' + encodeURIComponent(ST.cur), 'POST', { posts });
+  if (!r.ok) { toast(r.j.error || 'Création des liens impossible.'); return; }
+  xt().vol = Object.fromEntries(r.j.map(v => [v.post, v.token])); store(); panel(true); toast(r.j.length + ' lien(s) prêt(s) : envoyez à chaque bénévole celui de son poste.');
+}
+const volURL = t => appURL().replace(/[^/]*$/, '') + 'benevole.html#t=' + t;
+async function livePoll() {
+  clearTimeout(LIVE.t); if (!syncOn() || tab !== 'Jour J') return;
+  try { const r = await api('/checkins/' + encodeURIComponent(ST.cur)); if (r.ok) { LIVE.data = r.j; LIVE.at = new Date(); drawLive(); if (!editing()) panel(true); } } catch (e) { }
+  LIVE.t = setTimeout(livePoll, 15000);
+}
+function drawLive() {
+  lyLive.clearLayers(); if (tab !== 'Jour J') return; const st = (LIVE.data || {}).postes || {};
+  for (const p of dayPosts()) if (p.ll) { const v = Math.max((LV.post || {})[p.id] || 0, (st[p.id] || {}).status || 0); L.circleMarker(p.ll, { radius: 8, color: '#fff', weight: 2, fillColor: PSC[v], fillOpacity: 1 }).bindTooltip(`${esc(p.nom)} — ${PST[v]}`).addTo(lyLive); }
+  for (const i of (LIVE.data || {}).incidents || []) if (i.lat) L.circleMarker([i.lat, i.lng], { radius: 9, color: '#a94a25', weight: 3, fillColor: '#fff', fillOpacity: 1 }).bindTooltip(`${esc(i.type || 'Incident')} : ${esc(i.note || '')}`).addTo(lyLive);
+}
+function volHTML() {
+  if (!syncOn()) return `<h2>Téléphones des bénévoles</h2><p class="note">Activez la synchronisation (onglet « Appareils et IA ») : chaque bénévole recevra un lien vers son poste, avec la carte, l'horaire et les consignes. Il appuiera sur « Je suis en place » et pourra signaler un incident avec une photo. Vous suivrez tout ici, en direct.</p>`;
+  const V = xt().vol || {}, posts = dayPosts(), st = (LIVE.data || {}).postes || {}, inc = (LIVE.data || {}).incidents || [], seen = new Set((LV.log || []).map(l => l.rid).filter(Boolean)), msg = (p, t) => encodeURIComponent(`Bonjour, voici votre poste pour « ${pName()} » (${dateFr()}) : ${p.nom}. Tout est sur cette page, ouvrez-la le jour J : ${volURL(t)}`);
+  return `<h2>Téléphones des bénévoles</h2><p><button data-sy="volmake" class="go">${Object.keys(V).length ? 'Mettre à jour les liens' : 'Créer un lien par poste'}</button> ${LIVE.at ? `<span class="note">Mis à jour à ${LIVE.at.toLocaleTimeString('fr-FR', { timeStyle: 'short' })}, toutes les 15 secondes.</span>` : ''}</p>
+  ${inc.length ? `<h2>Signalé par les bénévoles</h2><table>${inc.slice().reverse().map(i => `<tr><td>${new Date(i.at).toLocaleTimeString('fr-FR', { timeStyle: 'short' })}</td><td><b class="late">${esc(i.type || 'Incident')}</b> — ${esc((posts.find(p => p.id === i.post) || {}).nom || i.post)}<br>${esc(i.note || '')}${i.photo ? `<br><img src="${i.photo}" style="max-width:220px;border-radius:6px;margin-top:6px">` : ''}</td><td>${seen.has(i.id) ? '<span class="note">dans la main courante</span>' : `<button data-sy="inclog" data-id="${i.id}">Consigner</button>`}</td></tr>`).join('')}</table>` : ''}
+  ${Object.keys(V).length ? `<table>${posts.map(p => { const t = V[p.id], s = st[p.id]; return `<tr><td><b style="font-weight:500">${esc(p.nom)}</b><br><span class="note">${s ? PST[s.status] + ' à ' + new Date(s.at).toLocaleTimeString('fr-FR', { timeStyle: 'short' }) + ' (téléphone)' : 'pas encore de nouvelles du téléphone'}</span></td><td>${t ? `<button data-sy="volcopy" data-id="${t}">Copier le lien</button> <a href="sms:?&body=${msg(p, t)}">SMS</a> · <a href="https://wa.me/?text=${msg(p, t)}" target="_blank" rel="noopener">WhatsApp</a>` : '<span class="note">lien à créer</span>'}</td></tr>`; }).join('')}</table>` : ''}`;
+}
+
+// ───────── Météo (Open-Meteo) ─────────
+const METEO = {};
+function meteoHTML() {
+  const d = daysTo(), c = evCenter(); if (d == null || !c || d < 0) return '';
+  if (d > 15) return `<p class="note">Météo : la prévision s'affichera ici à partir de J-15. Pensez à consulter la vigilance de Météo-France la veille.</p>`;
+  const k = HY.date + c.map(v => (+v).toFixed(2)).join(','), m = METEO[k];
+  if (!m) { METEO[k] = 'wait'; fetch(`https://api.open-meteo.com/v1/forecast?latitude=${c[0]}&longitude=${c[1]}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max&timezone=Europe%2FParis&start_date=${HY.date}&end_date=${HY.date}`).then(r => r.json()).then(j => { METEO[k] = j.daily; if (tab === 'Accueil') panel(true); }).catch(() => { METEO[k] = 'err'; }); return ''; }
+  if (m === 'wait' || m === 'err') return '';
+  const tx = m.temperature_2m_max[0], tn = m.temperature_2m_min[0], pr = m.precipitation_sum[0], pp = m.precipitation_probability_max[0], gu = m.wind_gusts_10m_max[0], todo = [];
+  if (tx >= 27) todo.push(`Chaleur : prévoyez environ 50 % d'eau en plus (${fmt((+HY.parts || 0) * (HY.nEau || .25) * 1.5)} L pour les participants), des points d'épongement, et prévenez les secours.`);
+  if (tx >= 32) todo.push('Au-delà de 32 °C, envisagez d\'avancer le départ ou de raccourcir le parcours, en accord avec le médecin de l\'épreuve.');
+  if (gu >= 60) todo.push(`Rafales de ${fmt(gu)} km/h : arches gonflables, tentes et barrières de chantier à lester ou démonter.`);
+  if (pr >= 5) todo.push(`Pluie (${fmt(pr, 1)} mm) : sols glissants aux virages, protégez le matériel électrique et la sonorisation.`);
+  if (tn <= 3) todo.push('Froid au petit matin : couvertures de survie à l\'arrivée et boissons chaudes pour les bénévoles.');
+  return `<h2>Météo prévue</h2><p>${fmt(tn)} à ${fmt(tx)} °C, pluie ${fmt(pr, 1)} mm (risque ${fmt(pp)} %), rafales ${fmt(gu)} km/h. <span class="note">Prévision Open-Meteo, à confirmer avec la vigilance de Météo-France.</span></p>${todo.length ? `<ul>${todo.map(t => `<li>${t}</li>`).join('')}</ul>` : '<p class="note">Rien de particulier à prévoir.</p>'}`;
+}
+
+// ───────── Fermetures de routes au format Waze ─────────
+function wazeOut() {
+  const ll = line(); if (ll.length < 2 || !HY.date) { toast(HY.date ? 'Tracez d\'abord le parcours.' : 'Indiquez d\'abord la date de l\'événement.'); return; }
+  const s = mkSum() || SUMM, T0 = startM(), t0 = T0 - (+HY.close || 30), t1 = T0 + ((s && s.lastIn) || 180) + (+HY.reopen || 15), iso = m => { const d = new Date(HY.date + 'T00:00'); d.setMinutes(m); return d.toISOString(); };
+  const step = Math.max(1, Math.ceil(ll.length / 400)), pts = ll.filter((_, k) => k % step === 0 || k === ll.length - 1);
+  const feed = { incidents: [{ id: 'orga-' + ST.cur, type: 'ROAD_CLOSED', subtype: 'ROAD_CLOSED_EVENT', polyline: pts.map(p => (+p[0]).toFixed(6) + ' ' + (+p[1]).toFixed(6)).join(' '), street: HY.lieu || '', starttime: iso(t0), endtime: iso(t1), description: `${pName()} — route fermée à la circulation`, direction: 'BOTH_DIRECTIONS' }] };
+  const b = new Blob([JSON.stringify(feed, null, 1)], { type: 'application/json' }), l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = 'fermetures-waze.json'; l.click();
+}
+function wazeHTML() { return `<p class="note">Fermetures du ${HY.date ? new Date(HY.date + 'T00:00').toLocaleDateString('fr-FR') : '[date]'} : <button data-sy="waze">Exporter pour Waze</button> — fichier au format des fermetures du programme Waze pour les collectivités. La mairie, si elle est partenaire de Waze, le publie : les GPS des automobilistes contournent alors le parcours. Vérifiez avec elle les conditions du programme.</p>`; }
+
+// ───────── Démarches : règles générales, avec échéances ─────────
+function demRules() {
+  const S = SPORTS[HY.sport] || {}, P = +HY.parts || 0, Sp = +HY.spect || 0, site = !!S.site, o = [];
+  const R = (k, t, j, why) => o.push({ k, t, j, why });
+  if (S.motor) R('auto', 'Demande d\'autorisation de la manifestation à moteur en préfecture, avec l\'avis de la fédération (FFSA ou FFM)', -(S.delai || 90), 'Code du sport, art. R331-18 et suivants');
+  else if (!site) R('decl', 'Déclaration de la manifestation sur la voie publique (mairie si une seule commune, préfecture sinon)', -(S.delai || 60), 'Code du sport, art. R331-6 et suivants ; trois mois avant si plusieurs départements');
+  if (!site) R('arrete', 'Arrêtés de circulation et de stationnement de chaque commune traversée', -45, 'délai usuel, à confirmer avec chaque mairie');
+  if (!site && !S.motor) R('fede', 'Inscription au calendrier ou avis de la fédération délégataire', -90, 'pour une compétition chronométrée avec classement');
+  R('assu', 'Assurance responsabilité civile de l\'organisateur', -30, 'obligatoire, Code du sport, art. L331-9');
+  R('dps', 'Dispositif prévisionnel de secours auprès d\'une association agréée de sécurité civile', -60, 'dimensionné selon le référentiel national (effectif, risques)');
+  if (Sp >= 1500) R('rass', 'Déclaration au maire d\'un rassemblement de plus de 1 500 personnes', -30, 'pour une manifestation à but lucratif, Code de la sécurité intérieure, art. R211-22 ; à vérifier selon votre statut');
+  if (xt().exh && xt().exh.length || site) R('buvette', 'Autorisation de buvette temporaire (mairie)', -21, 'Code de la santé publique ; nombre d\'autorisations par an limité pour une association');
+  R('sacem', 'Déclaration de la musique diffusée (Sacem)', -15, 'si vous diffusez de la musique');
+  if (Sp + P >= 5000) R('pref', 'Réunion de sécurité avec la préfecture, la police ou la gendarmerie et les secours', -45, 'usuelle pour les grands rassemblements');
+  return o;
+}
+function demHTML() {
+  const d = HY.date ? new Date(HY.date + 'T00:00') : null, today = new Date(new Date().toDateString()), x = xt(); x.dem = x.dem || {};
+  return `<h2>Démarches à faire</h2><table>${demRules().map(r => { const dt = d ? new Date(d.getTime() + r.j * 864e5) : null, ok = !!x.dem[r.k], late = dt && !ok && dt < today; return `<tr><td><input type="checkbox" data-sx="dem:${r.k}"${ok ? ' checked' : ''}></td><td>${r.t}<br><span class="note">${r.why}</span></td><td class="${late ? 'late' : ''}" style="white-space:nowrap">${dt ? 'avant le ' + dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'J' + r.j}</td></tr>`; }).join('')}</table>
+  <p class="note">Règles générales tirées des textes nationaux. Elles ne remplacent pas l'avis de votre mairie, de votre préfecture et de votre fédération : vérifiez auprès d'elles avant de déposer. Les dépôts se font en ligne sur le site de l'État ou de la préfecture.</p>`;
+}
+
+// ───────── Repères partagés entre organisateurs ─────────
+const BEN = {};
+function benchHTML(full) {
+  const P = +HY.parts || 0, k = HY.sport + ':' + P, b = BEN[k];
+  if (!b) { BEN[k] = 'wait'; fetch(`${API}/benchmarks?sport=${encodeURIComponent(HY.sport)}&participants=${P}`).then(r => r.json()).then(j => { BEN[k] = j; panel(true); }).catch(() => { BEN[k] = 'err'; }); return ''; }
+  if (b === 'wait' || b === 'err') return '';
+  if (b.evenements < 3) return full ? `<p class="note">Repères : ${b.evenements} bilan(s) partagé(s) pour des événements comparables. Il en faut au moins 3 pour comparer sans révéler un événement en particulier. Chaque bilan partagé améliore les repères de tous.</p>` : '';
+  const ben = benTotal(), you = P ? 100 * ben / P : null, f = v => v == null ? '—' : fmt(v, 1);
+  return `<h2>Événements comparables</h2><p class="note">Médianes de ${b.evenements} bilans partagés anonymement, même type d'événement, de ${fmt(P / 2)} à ${fmt(P * 2)} participants.</p><table><tr><th></th><th class="n">Les autres</th><th class="n">Vous</th></tr><tr><td>Bénévoles pour 100 participants</td><td class="n">${f(b.benevoles_pour_100_participants)}</td><td class="n">${f(you)}</td></tr><tr><td>Postes de signaleur par km</td><td class="n">${f(b.postes_par_km)}</td><td class="n">${SUMM && SUMM.len ? f(SUMM.posts.length / (SUMM.len / 1000)) : '—'}</td></tr><tr><td>Inscrits réellement au départ</td><td class="n">${b.taux_presence_pct == null ? '—' : fmt(b.taux_presence_pct) + ' %'}</td><td class="n"></td></tr><tr><td>Abandons</td><td class="n">${b.taux_abandon_pct == null ? '—' : fmt(b.taux_abandon_pct, 1) + ' %'}</td><td class="n"></td></tr><tr><td>Coût par participant</td><td class="n">${b.cout_par_participant == null ? '—' : fmt(b.cout_par_participant, 2) + ' €'}</td><td class="n">${P && budget().dep ? fmt(budget().dep / P, 2) + ' €' : '—'}</td></tr></table>`;
+}
+function shareHTML() {
+  return `<h2>Partager ce bilan, anonymement</h2><p class="note">Seuls ces chiffres partent : type d'événement, participants, spectateurs, distance, nombre de postes et de bénévoles, partants, arrivants, coût et recettes. Ni nom, ni lieu, ni date. En échange, l'outil vous donne les repères des événements comparables.</p><p>${syncOn() ? '<button data-sy="share" class="go">Partager mes chiffres</button>' : '<span class="note">Activez la synchronisation (onglet « Appareils et IA ») pour partager.</span>'}${xt().shared ? ' <span class="note">Déjà partagé ; un nouveau partage remplace l\'ancien.</span>' : ''}</p>${benchHTML(true)}`;
+}
+
+// ───────── Décrire son événement en une phrase ─────────
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+function parseIdea(t) {
+  const s = ' ' + t.replace(/ /g, ' ') + ' ', lo = s.toLowerCase(), o = {}, num = v => +String(v).replace(/[\s.]/g, '');
+  o.sport = /trail/.test(lo) ? 'trail' : /v[ée]lo|cyclo|cyclis|gravel|vtt/.test(lo) ? 'velo' : /rando|marche nordique|\bmarche\b/.test(lo) ? 'rando' : /rallye|course de c[ôo]te|auto|moto|circuit|grand prix|karting|slalom/.test(lo) ? 'auto' : /festival|salon|concert|f[êe]te|march[ée] de|foire|brocante|tournoi/.test(lo) ? 'site' : /course|km|semi|marathon|corrida|foul[ée]es|run/.test(lo) ? 'run' : null;
+  let m = lo.match(/(\d[\d\s.]*)\s*(?:coureurs|participants|pilotes|engag[ée]s|cyclistes|marcheurs|voitures|concurrents|inscrits|équipages|joueurs|randonneurs|traileurs)/); if (m) o.parts = num(m[1]);
+  m = lo.match(/(\d[\d\s.]*)\s*(?:spectateurs|visiteurs|personnes|festivaliers|entrées)/); if (m) o.spect = num(m[1]);
+  m = lo.match(/billets?\s*(?:à|de|:)?\s*(\d+(?:[.,]\d+)?)\s*(?:€|euros?)|(\d+(?:[.,]\d+)?)\s*(?:€|euros?)\s*(?:le |la |l')?(?:billet|entr[ée]e|place)/); if (m) o.billet = parseFloat((m[1] || m[2]).replace(',', '.'));
+  m = lo.match(/inscriptions?\s*(?:à|de|:)?\s*(\d+(?:[.,]\d+)?)\s*(?:€|euros?)|(\d+(?:[.,]\d+)?)\s*(?:€|euros?)\s*(?:l'|par )?(?:inscription|dossard|coureur|équipage|participant)/); if (m) o.tarif = parseFloat((m[1] || m[2]).replace(',', '.'));
+  const yr = mo => { const n = new Date(), y = n.getFullYear(); return mo < n.getMonth() ? y + 1 : y; }, ds = (y, mo, d) => `${y}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  m = lo.match(/(\d{1,2})(?:er)?\s+(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)(?:\s+(\d{4}))?/);
+  if (m) { const mo = MOIS.indexOf(m[2].replace('fevrier', 'février').replace('aout', 'août').replace('decembre', 'décembre')); o.date = ds(m[3] ? +m[3] : yr(mo), mo, +m[1]); }
+  else if ((m = lo.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/))) o.date = ds(+m[3] < 100 ? 2000 + +m[3] : +m[3], +m[2] - 1, +m[1]);
+  else if ((m = lo.match(/(début|mi|fin)[\s-]+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)(?:\s+(\d{4}))?/))) { const mo = MOIS.indexOf(m[2]), y = m[3] ? +m[3] : yr(mo), d0 = new Date(y, mo, m[1] === 'début' ? 3 : m[1] === 'mi' ? 14 : 24); while (d0.getDay() !== 0) d0.setDate(d0.getDate() + 1); o.date = ds(d0.getFullYear(), d0.getMonth(), d0.getDate()); o.approx = true; }
+  m = lo.match(/(?:à|départ)\s+(\d{1,2})\s*h\s*(\d{2})?/); if (m) o.start = String(+m[1]).padStart(2, '0') + ':' + (m[2] || '00');
+  m = s.match(/(?:^|\s)(?:à|au|sur|dans|en)\s+(\p{Lu}[\p{L}'’-]*(?:[\s-](?:(?:sur|sous|de|du|des|la|le|les|en|lès)[\s-])?\p{Lu}[\p{L}'’-]*)*)/u); if (m && !/^(Janvier|Février|Mars|Avril|Mai|Juin|Juillet|Août|Septembre|Octobre|Novembre|Décembre)$/.test(m[1])) o.lieu = m[1];
+  return o;
+}
+function ideaFill() {
+  wSync(); const t = (W.desc || '').trim(); if (!t) { toast('Décrivez votre événement en une phrase.'); return; }
+  const o = parseIdea(t), got = [];
+  if (o.sport) { W.sport = o.sport; got.push(SPORTS[o.sport].nom.toLowerCase()); }
+  if (o.date) { W.date = o.date; got.push((o.approx ? 'vers le ' : 'le ') + new Date(o.date + 'T00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })); }
+  if (o.start) { W.start = o.start; got.push('à ' + o.start.replace(':', ' h ')); }
+  if (o.parts) { W.parts = o.parts; got.push(fmt(o.parts) + ' participants'); }
+  if (o.spect) { W.spect = o.spect; got.push(fmt(o.spect) + ' spectateurs'); }
+  if (o.tarif != null) { W.tarif = o.tarif; got.push('inscription ' + fmt(o.tarif, 2) + ' €'); }
+  if (o.billet != null) { W.billet = o.billet; got.push('billet ' + fmt(o.billet, 2) + ' €'); }
+  if (o.lieu) { W.lieu = o.lieu; got.push(o.lieu); }
+  if (!(W.nom || '').trim()) W.nom = t.length <= 60 ? t.replace(/[.,;].*$/, '') : (o.sport ? SPORTS[o.sport].nom : 'Événement') + (o.lieu ? ' de ' + o.lieu : '');
+  if (!o.sport) W.sport = W.sport || null;
+  if (!got.length) { toast('Je n\'ai rien reconnu : essayez par exemple « 10 km à Nantes le 23 mai, 800 coureurs, inscription 15 € ».'); return; }
+  W.step = W.sport ? WZ.findIndex(w => w[0] === (o.lieu ? 'ou' : 'quand')) : 1; W.err = ''; panel();
+  toast('J\'ai compris : ' + got.join(', ') + '. Vérifiez et complétez.');
+  if (o.lieu) geoSearch();
+}
+
+// ───────── Résumé pour les IA et actions ─────────
+function digestOf() {
+  const it = sponItems(), s = mkSum() || SUMM;
+  return { spon: it.map(i => ({ cle: i.key, nom: i.nom, statut: ['disponible', 'option', 'vendu'][i.st], partenaire: i.who || null, prix: itPrice(i), personnes_touchees: i.contacts })), late: retro().filter(r => r.late).map(r => r.t).slice(0, 20), alerts: alerts().map(a => a[1]), posters: affSum(), route: s && s.len ? { km: +(s.len / 1000).toFixed(1), postes: (s.posts || []).length, signaleurs: (s.Q || {}).sig || 0, benevoles: benTotal() } : null };
+}
+function syChange(t) {
+  const [a, id, fl] = t.dataset.sx.split(':'), f = aff(), val = t.type === 'number' || t.tagName === 'SELECT' && fl === 'st' ? (parseFloat(t.value) || 0) : t.value;
+  if (a === 'af') f[id] = t.type === 'number' ? (parseFloat(t.value) || 0) : t.value;
+  else if (a === 'afpl') { const p = f.pl.find(p => p.id === id); if (p) p[fl] = val; drawAff(); }
+  else if (a === 'afpaid') { const p = f.paid.find(p => p.id === id); if (p) p[fl] = fl === 'cost' ? (parseFloat(t.value) || 0) : t.value.slice(0, 80); }
+  else if (a === 'dem') xt().dem[id] = t.checked;
+  else if (a === 'mod') { const x = xt(); x.mods = x.mods || {}; x.mods[id] = t.checked; }
+  else if (a === 'annex') { const x = xt(); x.annex = x.annex || {}; x.annex[id] = t.checked; }
+  else if (a === 'mes') { const s = spx()[id] = spx()[id] || {}; if (t.value === '') delete s.mes; else s.mes = parseFloat(t.value) || 0; }
+  else if (a === 'reach') { const s = spx()[id] = spx()[id] || {}; s.reach = parseFloat(t.value) || 0; }
+  store(); panel(true);
+}
+async function syAct(a, id) {
+  if (await pro2Act(a, id)) return;
+  const f = aff();
+  if (a === 'afsearch') { await affSearch(); return; }
+  if (a === 'aftour') { affTour(); store(); panel(true); toast('Lieux classés dans l\'ordre d\'une tournée au départ de l\'événement.'); return; }
+  if (a === 'afcsv') { csvOut('affichage', [['Ordre', 'Lieu', 'Type', 'Adresse', 'Affiches', 'Statut', 'Latitude', 'Longitude']].concat(f.pl.map((p, k) => [k + 1, p.nom, p.cat, p.adr, p.n, AFS[p.st], p.lat, p.lng]))); return; }
+  if (a === 'afadd') { const n = ($('#afNew').value || '').trim(), c = evCenter(); if (!n) return; f.pl.push({ id: uid2('a'), nom: n.slice(0, 80), cat: 'Ajouté par vous', lat: c ? +c[0] : 46.6, lng: c ? +c[1] : 2.5, adr: '', st: 0, n: 1, d: 0 }); }
+  else if (a === 'afdel') f.pl = f.pl.filter(p => p.id !== id);
+  else if (a === 'afgo') { const p = f.pl.find(p => p.id === id); if (p) map.setView([p.lat, p.lng], 17); return; }
+  else if (a === 'afpadd') f.paid.push({ id: uid2('c'), t: 'Campagne d\'affichage', cost: 0 });
+  else if (a === 'afpdel') f.paid = f.paid.filter(p => p.id !== id);
+  else if (a === 'waze') { wazeOut(); return; }
+  else if (a === 'parse') { ideaFill(); return; }
+  else if (a === 'start') { await syncStart(); return; }
+  else if (a === 'join') { await syncJoin($('#syCode').value); return; }
+  else if (a === 'pull') { await syncPull(); loadKeys(); toast(SY.err || 'Synchronisé.'); panel(true); return; }
+  else if (a === 'adddev' || a === 'addapi') { const lab = ($(a === 'adddev' ? '#syLabel' : '#syApiLabel').value || '').trim() || (a === 'adddev' ? 'Autre appareil' : 'IA'); const sel = $(a === 'adddev' ? '#syRole' : '#syApiRole'), r = await api('/keys', 'POST', { kind: a === 'adddev' ? 'device' : 'api', label: lab, role: sel ? sel.value : 'direction' }); if (!r.ok) { toast(r.j.error || 'Création impossible.'); return; } SY.fresh = r.j; await loadKeys(); panel(true); return; }
+  else if (a === 'hidefresh') { SY.fresh = null; panel(true); return; }
+  else if (a === 'revoke') { if (!confirm('Révoquer cette clé ? L\'appareil ou l\'IA qui l\'utilise perdra l\'accès immédiatement.')) return; await api('/keys/' + id, 'DELETE'); await loadKeys(); return; }
+  else if (a === 'leave') { if (!confirm('Délier cet appareil ? Vos événements restent dans ce navigateur.')) return; ST.sync = null; SY.keys = null; saveST(); panel(true); return; }
+  else if (a === 'volmake') { await volMake(); livePoll(); return; }
+  else if (a === 'volcopy') { const u = volURL(id); (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Lien copié.'), () => prompt('Lien du bénévole :', u)); return; }
+  else if (a === 'inclog') { const i = ((LIVE.data || {}).incidents || []).find(i => String(i.id) === String(id)); if (!i) return; const d = new Date(i.at); LV.log = LV.log || []; LV.log.push({ id: 'l' + Date.now().toString(36), rid: i.id, m: d.getHours() * 60 + d.getMinutes(), ty: LOGT.includes(i.type) ? i.type : 'Autre', l: (dayPosts().find(p => p.id === i.post) || {}).nom || '', x: (i.note || '') + (i.photo ? ' (photo reçue)' : ''), g: false }); }
+  else if (a === 'share') { const r0 = LV.real || {}, s = mkSum() || SUMM, b = budget(), v = k => +r0[k] || 0; const r = await api('/benchmarks', 'POST', { project: ST.cur, sport: HY.sport, participants: v('inscrits') || +HY.parts, spectators: v('public') || +HY.spect, km: s && s.len ? s.len / 1000 : null, posts: s ? (s.posts || []).length : null, staff: v('benev') || benTotal(), starters: v('partants') || null, finishers: v('arrivants') || null, cost: v('dReel') || b.dep, revenue: (v('rInscr') + v('rPart') + v('rSub') + v('rDiv')) || b.rec }); if (!r.ok) { toast(r.j.error || 'Partage impossible.'); return; } xt().shared = Date.now(); for (const k in BEN) delete BEN[k]; toast('Merci : vos chiffres enrichissent les repères de tous.'); }
+  store(); drawAff(); panel(true);
+}
+TABS['Affichage'] = () => affTab();
+TABS['Appareils et IA'] = () => syncTab();
+function tabHook() { if (tab === 'Jour J') { if (syncOn() && LIVE.t == null) { LIVE.t = -1; livePoll(); } } else if (LIVE.t != null) { clearTimeout(LIVE.t); LIVE.t = null; lyLive.clearLayers(); } }
+function syncBoot() {
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => { });
+  if (!navigator.onLine && (ST.base || 'plan') === 'plan') setBase('ignplan');
+  const m = /#k=(orga_dev_\w+)/.exec(location.hash);
+  if (m) { history.replaceState(null, '', location.pathname + location.search); syncJoin(m[1]); } else if (syncOn()) syncPull();
+  setInterval(() => { if (!document.hidden) syncPull(); }, 20000);
+  window.addEventListener('focus', () => syncPull()); window.addEventListener('online', () => syncPushAll());
+}
+{ const f = TABS['Carrefours']; TABS['Carrefours'] = () => (ready() && !isSite() ? wazeHTML() : '') + f(); }
+{ const f = TABS['Bilan']; TABS['Bilan'] = () => f() + shareHTML(); }
+{ const f = TABS['Besoins']; TABS['Besoins'] = () => benchHTML(false) + f(); }
+TABS['Documents'] = () => demHTML() + docsTab();
+// ───────── Rôles : ce que chacun voit et modifie (le serveur applique la même règle) ─────────
+const ROLE = {
+  direction: { nom: 'Direction', r: ['*'], w: ['*'], d: 'tout voir, tout modifier, gérer les accès' },
+  tresorier: { nom: 'Trésorier', r: ['route', 'money', 'aff', 'docs', 'tasks', 'needs', 'people*', 'mods', 'secu'], w: ['money', 'aff', 'tasks'], d: 'budget, partenaires, billetterie, exposants ; pas les coordonnées des bénévoles' },
+  securite: { nom: 'Responsable sécurité', r: ['route', 'people', 'live', 'docs', 'secu', 'tasks', 'needs', 'mods'], w: ['route', 'people', 'live', 'docs', 'secu', 'tasks', 'needs'], d: 'parcours, postes, secours, jour J, dossier de sécurité ; pas les montants' },
+  logistique: { nom: 'Logistique', r: ['route', 'people', 'live', 'aff', 'needs', 'tasks', 'docs', 'mods', 'secu'], w: ['route', 'needs', 'aff', 'tasks', 'live'], d: 'matériel, plan du site, affichage, jour J ; pas les montants' },
+  commercial: { nom: 'Commercial', r: ['route', 'money', 'aff', 'tasks', 'people*', 'mods'], w: ['money', 'aff'], d: 'partenaires, billetterie, exposants, affichage' },
+  lecture: { nom: 'Lecture seule', r: ['route', 'docs', 'tasks', 'needs', 'aff', 'mods', 'secu'], w: [], d: 'consulter sans modifier, sans montants ni coordonnées' },
+};
+const TABG = { Organisation: 'tasks', Budget: 'money', Partenariats: 'money', Billetterie: 'money', Affichage: 'aff', Exposants: 'money', 'Épreuve': 'route', 'Synthèse': 'route', Carrefours: 'route', 'Secours et public': 'route', Implantation: 'route', 'Plan du site': 'route', 'Dossier sécurité': 'secu', 'Équipe': 'people', Besoins: 'needs', 'Engagés': 'people', Documents: 'docs', 'Jour J': 'live', Chrono: 'live', 'Entrées': 'live', Bilan: 'live', 'Résultats': 'live', 'Réglages': 'route' };
+const myRole = () => (syncOn() && ST.sync.role) || 'direction';
+const roleR = g => { const R = ROLE[myRole()] || ROLE.lecture; return !g || R.r.includes('*') || R.r.includes(g) || (g === 'people' && R.r.includes('people*')); };
+const roleW = g => { const R = ROLE[myRole()] || ROLE.lecture; return !g || R.w.includes('*') || R.w.includes(g); };
+const tabR = t => roleR(TABG[t]) && (t !== 'Dossier sécurité' || roleR('route')) && (t !== 'Engagés' || (ROLE[myRole()] || ROLE.lecture).r.some(g => g === '*' || g === 'people'));
+const tabW = t => roleW(TABG[t]);
+function roleLock() {
+  if (tabW(tab)) return;
+  const b = $('#body'); b.querySelectorAll('input,select,textarea').forEach(e => { if (!e.closest('[data-keep]')) e.disabled = true; });
+  b.querySelectorAll('button').forEach(e => { const d = e.dataset; if (d.tab || d.ya === 'go' || d.ya === 'doc' || d.sy === 'pdfsec' || d.sy === 'pull' || /print|csv|copy/i.test(d.ya || d.pr || d.ra || d.sy || d.xa || '')) return; e.disabled = true; });
+  b.insertAdjacentHTML('afterbegin', `<p class="warn">Lecture seule : votre rôle (${ROLE[myRole()].nom}) ne permet pas de modifier cette page.</p>`);
+}
+// ───────── Pages utiles seulement ─────────
+function tabUseful(t) {
+  const m = (xt().mods || {})[t]; if (m != null) return m;
+  const S = SPORTS[HY.sport] || {}, compet = !S.site && HY.sport !== 'rando';
+  if (S.site && /^(Carrefours|Synthèse)$/.test(t)) return false;
+  if (!compet && /^(Chrono|Engagés|Résultats)$/.test(t)) return false;
+  return true;
+}
+const tabShown = t => tabR(t) && (tabUseful(t) || t === tab);
+function modsHTML() {
+  return `<h2>Pages affichées</h2><p class="note">L'outil cache les pages qui ne servent pas à ce type d'événement (par exemple « Carrefours » pour un festival, « Chrono » pour une randonnée). Vous pouvez en remettre ou en enlever.</p><div class="mods">${SPACES.filter(s => !s.hidden).map(s => `<p><b>${s.nom}</b><br>${s.tabs.map(([t, l]) => `<label><input type="checkbox" data-sx="mod:${t}"${tabUseful(t) ? ' checked' : ''}> ${l}</label>`).join(' ')}</p>`).join('')}</div>`;
+}
+
+// ───────── Accès de l'équipe et journal ─────────
+SY.jr = null;
+async function loadJournal() { const r = await api('/journal/' + encodeURIComponent(ST.cur)); SY.jr = r.ok ? r.j : []; if (tab === 'Appareils et IA') panel(true); }
+function accessHTML() {
+  const ks = SY.keys || [], mem = ks.filter(k => k.kind === 'device' && !k.revoked), apis = ks.filter(k => k.kind === 'api' && !k.revoked), dt = t => t ? new Date(t).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : 'jamais', ro = k => (ROLE[k.role] || ROLE.direction).nom;
+  if (myRole() !== 'direction') return `<h2>Votre accès</h2><p>Vous êtes connecté en tant que <b>${ROLE[myRole()].nom}</b> : ${ROLE[myRole()].d}. Seule la direction gère les accès.</p>`;
+  const opts = sel => Object.entries(ROLE).map(([k, r]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${r.nom}</option>`).join('');
+  return `<h2>L'équipe et ses accès</h2><p class="note">Chaque personne reçoit son propre lien, avec un rôle. Le serveur ne lui envoie que ce que son rôle permet de voir, et refuse ce qu'il ne permet pas de modifier.</p>
+  <table>${mem.map(k => `<tr><td><b style="font-weight:500">${esc(k.label || 'Appareil')}</b>${k.current ? ' <span class="note">(cet appareil)</span>' : ''}<br><span class="note">${ro(k)} — dernière utilisation ${dt(k.last_used)}</span></td><td>${k.current ? '' : `<button data-sy="revoke" data-id="${k.id}">Retirer l'accès</button>`}</td></tr>`).join('') || '<tr><td class="note">Chargement…</td></tr>'}</table>
+  <p><input id="syLabel" type="text" placeholder="Prénom, fonction (ex. Claire, trésorière)" style="width:46%"> <select id="syRole">${opts('tresorier')}</select> <button data-sy="adddev" class="go">Inviter</button></p>
+  <table class="roles">${Object.values(ROLE).map(r => `<tr><td><b style="font-weight:500">${r.nom}</b></td><td class="note">${r.d}</td></tr>`).join('')}</table>
+  <h2>Relier votre IA</h2><p class="note">La clé API a elle aussi un rôle : une IA en « Commercial » peut suivre les partenariats, mais ne voit ni les bénévoles ni le dossier de sécurité.</p>
+  <table>${apis.map(k => `<tr><td>${esc(k.label || 'IA')}<br><span class="note">${ro(k)} — dernière utilisation ${dt(k.last_used)}</span></td><td><button data-sy="revoke" data-id="${k.id}">Révoquer</button></td></tr>`).join('') || '<tr><td class="note">Aucune clé pour l\'instant.</td></tr>'}</table>
+  <p><input id="syApiLabel" type="text" placeholder="Nom (ex. Claude)" style="width:46%"> <select id="syApiRole">${opts('direction')}</select> <button data-sy="addapi" class="go">Créer une clé API</button></p>
+  <h2>Historique des modifications</h2>${(!SY.jrAt || Date.now() - SY.jrAt > 15000) && (SY.jrAt = Date.now(), loadJournal()), ''}${SY.jr == null ? '<p class="note">Chargement…</p>' : SY.jr.length ? `<table>${SY.jr.slice(0, 30).map(j => `<tr><td style="white-space:nowrap">${dt(j.at)}</td><td><b style="font-weight:500">${esc(j.who)}</b> <span class="note">(${esc(j.role)})</span><br>${esc(j.what)}</td></tr>`).join('')}</table>` : '<p class="note">Aucune modification enregistrée pour cet événement.</p>'}`;
+}
+
+// ───────── Hors ligne ─────────
+const OFF = { tiles: null };
+const baseIGNP = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { maxZoom: 21, maxNativeZoom: 18, attribution: '© IGN' });
+const tileURL = (lay, z, x, y) => `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${lay}&STYLE=normal&FORMAT=${lay.startsWith('ORTHO') ? 'image/jpeg' : 'image/png'}&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}`;
+function offBounds() { const pts = line().length > 1 ? line() : evCenter() ? [evCenter()] : null; if (!pts) return null; const b = L.latLngBounds(pts); return b.pad(pts.length > 1 ? .25 : 0).extend(L.latLng(b.getNorth() + .008, b.getEast() + .012)).extend(L.latLng(b.getSouth() - .008, b.getWest() - .012)); }
+async function offPrepare() {
+  const b = offBounds(); if (!b) { toast('Placez d\'abord l\'événement sur la carte.'); return; }
+  if (!('caches' in window)) { toast('Ce navigateur ne permet pas le mode hors ligne.'); return; }
+  const t2 = (lat, lng, z) => { const n = 2 ** z, x = Math.floor((lng + 180) / 360 * n), r = lat * Math.PI / 180, y = Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n); return [x, y]; };
+  const urls = []; let zMax = 17;
+  const build = zm => { urls.length = 0; for (let z = 12; z <= zm; z++) { const [x0, y0] = t2(b.getNorth(), b.getWest(), z), [x1, y1] = t2(b.getSouth(), b.getEast(), z); for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (const lay of ['GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'ORTHOIMAGERY.ORTHOPHOTOS']) urls.push(tileURL(lay, z, x, y)); } };
+  build(zMax); while (urls.length > 3000 && zMax > 14) build(--zMax);
+  const cache = await caches.open('orga-tiles'); let done = 0, fail = 0; OFF.tiles = { n: urls.length, done: 0 };
+  const work = async () => { while (urls.length) { const u = urls.pop(); try { if (!(await cache.match(u))) { const r = await fetch(u, { mode: 'cors' }); if (r.ok) await cache.put(u, r); else fail++; } } catch (e) { fail++; } done++; OFF.tiles.done = done; if (done % 60 === 0) toast(`Carte hors ligne : ${Math.round(100 * done / OFF.tiles.n)} %`); } };
+  await Promise.all(Array.from({ length: 6 }, work));
+  xt().offline = { at: Date.now(), tiles: OFF.tiles.n - fail, zMax }; store(); OFF.tiles = null;
+  toast(fail ? `Carte téléchargée, ${fail} morceau(x) manquant(s) : relancez avec un meilleur réseau.` : 'Carte de la zone prête hors ligne (plan IGN et photo aérienne).'); panel(true);
+}
+function offHTML() {
+  const o = xt().offline, sw = 'serviceWorker' in navigator && navigator.serviceWorker.controller;
+  return `<h2>Prêt sans réseau ?</h2><p class="note">Dans une foule, le réseau mobile sature. Préparez chaque appareil la veille, avec du réseau : l'application et la carte de la zone restent alors utilisables sans connexion. Ce que vous saisissez hors ligne est gardé et envoyé dès que le réseau revient.</p>
+  <ul class="chk"><li class="${sw ? 'ok' : ''}">Application enregistrée sur cet appareil${sw ? '' : ' (rechargez la page une fois, avec du réseau)'}</li><li class="${o ? 'ok' : ''}">Carte de la zone téléchargée${o ? ` le ${new Date(o.at).toLocaleDateString('fr-FR')} (${fmt(o.tiles)} morceaux, jusqu'au zoom ${o.zMax})` : ''}</li><li class="${syncOn() ? 'ok' : ''}">Synchronisation active${syncOn() ? '' : ' (onglet « Appareils et IA »)'}</li><li class="${Object.keys(xt().vol || {}).length ? 'ok' : ''}">Liens des bénévoles envoyés : chaque bénévole ouvre son lien la veille, il fonctionne ensuite sans réseau</li></ul>
+  <p><button data-sy="offprep" class="go">${o ? 'Mettre à jour la carte hors ligne' : 'Télécharger la carte de la zone'}</button> <button data-sy="fiches">Imprimer les fiches de poste</button></p>
+  <p class="note">Bénévoles sans smartphone : imprimez leur fiche de poste, et leur chef de secteur signale leur arrivée au PC course, qui clique pour eux dans la liste des postes.</p>`;
+}
+function netBadge() { const n = Object.keys(SY.dirty || {}).length; return navigator.onLine ? (n ? `${n} envoi(s) en attente` : '') : `Hors ligne${n ? ' · ' + n + ' en attente' : ''}`; }
+window.addEventListener('offline', () => { if ((ST.base || 'plan') === 'plan') setBase('ignplan'); toast('Hors ligne : vos saisies sont gardées et partiront au retour du réseau.'); panel(true); });
+window.addEventListener('online', () => { toast('Réseau revenu : envoi des modifications.'); panel(true); });
+// fusion des ajouts faits hors ligne : rien de ce qui ne fait que s'ajouter n'est perdu
+function mergeAppend(srv, loc) {
+  const s = JSON.parse(JSON.stringify(srv || {})), u = (a, b, k = 'id') => { const m = new Map(); (a || []).forEach(x => m.set(String(x[k] != null ? x[k] : JSON.stringify(x)), x)); (b || []).forEach(x => m.set(String(x[k] != null ? x[k] : JSON.stringify(x)), x)); return [...m.values()]; };
+  if (loc.LV) { s.LV = s.LV || {}; s.LV.log = u(s.LV.log, loc.LV.log).sort((a, b) => (a.m || 0) - (b.m || 0)); s.LV.step = { ...(s.LV.step || {}), ...(loc.LV.step || {}) }; s.LV.post = { ...(s.LV.post || {}), ...(loc.LV.post || {}) }; if (loc.LV.real) s.LV.real = { ...(s.LV.real || {}), ...loc.LV.real }; }
+  if (loc.XT && loc.XT.race && s.XT) { s.XT.race = s.XT.race || { ent: [], pass: [] }; s.XT.race.pass = u(s.XT.race.pass, loc.XT.race.pass); s.XT.race.ent = u(s.XT.race.ent, loc.XT.race.ent); if (!s.XT.race.t0) s.XT.race.t0 = loc.XT.race.t0; }
+  if (loc.XT && loc.XT.tix && s.XT) { s.XT.tix = s.XT.tix || { list: {}, log: [] }; s.XT.tix.log = u(s.XT.tix.log, loc.XT.tix.log, 't'); for (const k in loc.XT.tix.list || {}) { const a = (s.XT.tix.list || {})[k], b = loc.XT.tix.list[k]; s.XT.tix.list = s.XT.tix.list || {}; s.XT.tix.list[k] = a && b ? [a[0], Math.max(a[1] || 0, b[1] || 0)] : (a || b); } }
+  return s;
+}
+
+// ───────── Dossier de sécurité ─────────
+const ANNEX = [['assu', 'Attestation d\'assurance responsabilité civile de l\'organisateur'], ['dps', 'Convention avec l\'association agréée de sécurité civile (dispositif de secours)'], ['arretes', 'Arrêtés de circulation des communes traversées'], ['fede', 'Avis ou visa de la fédération'], ['carte', 'Carte détaillée du parcours (IGN au 1/25 000)'], ['medecin', 'Engagement du médecin de l\'épreuve, si exigé']];
+const SECF = [['secuNom', 'Responsable sécurité (nom)'], ['secuTel', 'Téléphone du responsable sécurité'], ['pcLieu', 'Lieu du PC course'], ['dpsAsso', 'Association de secours (dispositif prévisionnel)'], ['hopital', 'Hôpital ou urgences les plus proches'], ['evac', 'Plan d\'évacuation et accès des secours (en quelques lignes)']];
+function secSig() { const s = mkSum() || SUMM || {}, q = s.Q || {}; return [HY.date, HY.start, HY.parts, HY.spect, Math.round(s.len || 0), (s.posts || []).length, q.sig || 0, q.com || 0, s.nsec || 0, HY.close, HY.reopen].join('|'); }
+const secVal = () => { const v = (xt().valid || {}).secu; return v ? { ...v, ok: v.sig === secSig() } : null; };
+function secChecks() {
+  const s = mkSum() || SUMM, x = xt(), staff = x.people.filter(p => p.post && p.post !== 'Non affecté').length;
+  return [['Parcours ou site placé sur la carte', ready()], ['Analyse faite : carrefours, postes, secours', !!(s && s.Q)], ['Date et horaires', !!(HY.date && HY.start)], ['Responsable sécurité et téléphone', !!(HY.secuNom && HY.secuTel)], ['PC course', !!HY.pcLieu], ['Association de secours', !!HY.dpsAsso], ['Hôpital le plus proche', !!HY.hopital], ['Plan d\'évacuation', !!HY.evac], ['Bénévoles nommés sur les postes', staff > 0, staff ? staff + ' affecté(s)' : '']];
+}
+function secTab() {
+  const v = secVal(), ch = secChecks(), an = xt().annex || {}, nOk = ch.filter(c => c[1]).length, nA = ANNEX.filter(a => an[a[0]]).length;
+  return `<p class="note">Le dossier que vous déposez en mairie ou en préfecture. L'outil l'assemble à partir de tout ce que vous avez saisi ; vous ajoutez les pièces qu'il ne peut pas produire, puis le responsable sécurité valide le dispositif.</p>
+  <div class="kpi"><div><b>${nOk}/${ch.length}</b><span>rubriques remplies</span></div><div><b>${nA}/${ANNEX.length}</b><span>pièces jointes prêtes</span></div><div><b class="${v && v.ok ? '' : 'late'}">${v ? (v.ok ? 'Validé' : 'À revalider') : 'Non validé'}</b><span>${v ? 'par ' + esc(v.by) + ', le ' + new Date(v.at).toLocaleDateString('fr-FR') : 'par le responsable sécurité'}</span></div></div>
+  <h2>Ce que contient le dossier</h2><ul class="chk">${ch.map(c => `<li class="${c[1] ? 'ok' : ''}">${c[0]}${c[2] ? ' <span class="note">— ' + c[2] + '</span>' : ''}</li>`).join('')}</ul>
+  <h2>Informations de sécurité</h2>${SECF.map(([k, t]) => k === 'evac' ? `<label class="fld"><span>${t}</span><textarea data-hy="${k}" rows="3" style="width:100%">${esc(HY[k] || '')}</textarea></label>` : `<label class="p">${t}<input type="text" data-hy="${k}" value="${esc(HY[k] || '')}"></label>`).join('')}
+  <h2>Pièces à joindre</h2><p class="note">L'outil ne peut pas les produire : cochez-les quand vous les avez en main, elles seront listées en annexe.</p>${ANNEX.map(([k, t]) => `<p><label><input type="checkbox" data-sx="annex:${k}"${an[k] ? ' checked' : ''}> ${t}</label></p>`).join('')}
+  <h2>Validation du dispositif</h2><p class="note">Les nombres de signaleurs, de commissaires et de postes de secours sont calculés à partir d'hypothèses (onglet Réglages, « Hypothèses »). Ce sont des propositions : un responsable compétent doit les vérifier sur le terrain, puis les valider. Si le parcours, les horaires ou les effectifs changent ensuite, la validation tombe d'elle-même.</p>
+  ${v ? `<p class="${v.ok ? '' : 'late'}">${v.ok ? 'Validé' : 'Le dispositif a changé depuis la validation'} — ${esc(v.by)}, ${new Date(v.at).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}.</p>` : ''}
+  ${roleW('secu') ? `<p><button data-sy="secval" class="go">${v ? 'Valider à nouveau' : 'Je valide ce dispositif'}</button></p>` : '<p class="note">Seuls le responsable sécurité et la direction peuvent valider.</p>'}
+  <h2>Hypothèses utilisées</h2><table>${HYPO().map(h => `<tr><td>${h[0]}</td><td class="n">${h[1]}</td><td class="note">${h[2]}</td></tr>`).join('')}</table>
+  <p style="margin-top:18px"><button data-sy="pdfsec" class="go">Générer le dossier en PDF</button></p><p class="note">Dans la fenêtre d'impression, choisissez « Enregistrer au format PDF ».</p>`;
+}
+const HYPO = () => [['Fermeture des routes avant le premier passage', (HY.close || 30) + ' min', 'hypothèse de l\'outil, à confirmer avec la mairie'], ['Réouverture après le dernier passage', (HY.reopen || 15) + ' min', 'hypothèse de l\'outil'], ['Signaleurs par carrefour fermé', '1 à 2 selon la voie', 'usage courant, à valider par le responsable sécurité'], ['Commissaires par poste (sport mécanique)', String(+HY.perMP || 2), 'à valider avec la fédération'], ['Écart maximal entre postes de commissaires', (+HY.mpMax || 250) + ' m', 'à valider avec la fédération'], ['Poste de secours tous les', (+HY.secours || (SPORTS[HY.sport] || {}).secours || 5) + ' km', 'à dimensionner avec l\'association de secours (référentiel national)'], ['Eau par participant', fmt(+HY.nEau || .25, 2) + ' L', 'hypothèse, à augmenter par forte chaleur']];
+function routeSVG(W = 700, H = 440) {
+  const ll = line().length > 1 ? line() : evCenter() ? [evCenter()] : []; if (!ll.length) return '';
+  const s = mkSum() || SUMM || {}, posts = (s.posts || []).filter(p => p.ll), all = ll.concat(posts.map(p => p.ll));
+  const la = all.map(p => +p[0]), lo = all.map(p => +p[1]), k = Math.cos(la[0] * Math.PI / 180), x0 = Math.min(...lo), x1 = Math.max(...lo), y0 = Math.min(...la), y1 = Math.max(...la), sc = Math.min((W - 60) / Math.max(1e-6, (x1 - x0) * k), (H - 60) / Math.max(1e-6, y1 - y0));
+  const X = p => 30 + ((+p[1] - x0) * k) * sc, Y = p => H - 30 - (+p[0] - y0) * sc;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;border:1px solid #999"><polyline points="${ll.map(p => X(p).toFixed(1) + ',' + Y(p).toFixed(1)).join(' ')}" fill="none" stroke="#111" stroke-width="3"/>${posts.map((p, i) => `<circle cx="${X(p.ll).toFixed(1)}" cy="${Y(p.ll).toFixed(1)}" r="6" fill="${/commissaire/.test(p.role) ? '#f59e0b' : '#dc2626'}" stroke="#fff"/><text x="${(X(p.ll) + 8).toFixed(1)}" y="${(Y(p.ll) + 4).toFixed(1)}" font-size="10" font-family="sans-serif">${i + 1}</text>`).join('')}<circle cx="${X(ll[0]).toFixed(1)}" cy="${Y(ll[0]).toFixed(1)}" r="8" fill="#16a34a" stroke="#fff"/><text x="${W - 10}" y="${H - 8}" font-size="10" text-anchor="end" font-family="sans-serif">Vert : départ. Rouge : signaleurs. Orange : commissaires. Nord en haut. Schéma sans échelle : joindre une carte IGN.</text></svg>`;
+}
+function pdfSecu() {
+  const s = mkSum() || SUMM || {}, v = secVal(), x = xt(), an = x.annex || {}, posts = dayPosts(), who = p => x.people.filter(q => q.post === p.nom).map(q => q.nom + (q.tel ? ' (' + q.tel + ')' : '')).join(', ');
+  const steps = dayPlan(), q = s.Q || {};
+  $('#print').innerHTML = `<h1>Dossier de sécurité — ${esc(pName())}</h1>
+  <p>${dateFr()}${HY.start ? ', départ à ' + HY.start.replace(':', ' h ') : ''}${HY.lieu ? ' — ' + esc(HY.lieu) : ''}<br>Organisateur : ${esc(HY.orga || '[à compléter]')}${HY.orgaTel ? ', ' + esc(HY.orgaTel) : ''}</p>
+  <p class="warn">${v && v.ok ? `Dispositif validé par ${esc(v.by)} le ${new Date(v.at).toLocaleDateString('fr-FR')}.` : 'PROJET — dispositif non validé par le responsable sécurité.'}</p>
+  <h2>1. Présentation</h2><p>${esc(SPORTS[HY.sport].nom)}. ${fmt(HY.parts)} participants et ${fmt(HY.spect)} spectateurs attendus.${s.len ? ' Parcours de ' + fmt(s.len / 1000, 1) + ' km' + (+HY.tours > 1 ? ', ' + HY.tours + ' tours' : '') + '.' : ''}</p>
+  <h2>2. Responsables et liaisons</h2><table><tr><td>Responsable sécurité</td><td>${esc(HY.secuNom || '[à compléter]')} — ${esc(HY.secuTel || '[téléphone]')}</td></tr><tr><td>PC course</td><td>${esc(HY.pcLieu || '[à compléter]')}</td></tr><tr><td>Secours</td><td>${esc(HY.dpsAsso || '[association à compléter]')}${s.nsec ? ', ' + s.nsec + ' poste(s) de secours' : ''}</td></tr><tr><td>Hôpital le plus proche</td><td>${esc(HY.hopital || '[à compléter]')}</td></tr><tr><td>Radios</td><td>${fmt(+HY.nRadio || 0)} postes</td></tr><tr><td>Urgences</td><td>15 (SAMU), 18 (pompiers), 17 (police), 112</td></tr></table>
+  <h2>3. Schéma du parcours et des postes</h2>${routeSVG()}
+  <h2>4. Déroulé et fermetures de routes</h2><table><tr><th>Heure</th><th>Étape</th></tr>${steps.map(t => `<tr><td>${hh(t.m)}</td><td>${esc(t.t)}</td></tr>`).join('')}</table>
+  <h2>5. Postes de signaleurs et de commissaires</h2><p>${q.sig ? fmt(q.sig) + ' signaleur(s)' : ''}${q.com ? ', ' + fmt(q.com) + ' commissaire(s)' : ''}${posts.length ? ' sur ' + posts.length + ' poste(s)' : ''}.</p><table><tr><th>N°</th><th>Poste</th><th>Détail</th><th>Personnes</th></tr>${posts.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.nom)}</td><td>${esc(p.det)}</td><td>${esc(who(p) || '[à affecter]')}</td></tr>`).join('')}</table>
+  <h2>6. Schéma d'alerte</h2><p>Le témoin d'un incident prévient le PC course (${esc(HY.secuTel || HY.orgaTel || '[téléphone]')}) par téléphone ou radio, ou le signale depuis son lien de poste. Le PC course alerte les secours de l'épreuve ; en cas d'urgence vitale, le 15 ou le 112 est appelé immédiatement. Chaque incident est consigné dans la main courante, avec l'heure et la décision prise.</p>
+  <h2>7. Évacuation et accès des secours</h2><p>${esc(HY.evac || '[à compléter : points d\'accès des secours, itinéraires d\'évacuation, zones de regroupement]')}</p>
+  <h2>8. Hypothèses de calcul</h2><table>${HYPO().map(h => `<tr><td>${h[0]}</td><td>${h[1]}</td><td>${h[2]}</td></tr>`).join('')}</table>
+  <h2>9. Pièces jointes</h2><ul>${ANNEX.map(([k, t]) => `<li>${an[k] ? '☑' : '☐ [manquant]'} ${t}</li>`).join('')}</ul>
+  <p class="note">Document préparé avec l'aide d'un logiciel. Son contenu, les effectifs et les mesures de sécurité restent de la responsabilité de l'organisateur ; les règles et délais sont à confirmer avec la mairie, la préfecture et la fédération.</p>`;
+  print();
+}
+function fichesPrint() {
+  const posts = dayPosts(), x = xt(), V = x.vol || {};
+  if (!posts.length) { toast('Aucun poste : lancez l\'analyse du parcours.'); return; }
+  $('#print').innerHTML = posts.map((p, i) => `<div style="break-after:page"><h1>Poste ${i + 1} — ${esc(p.nom)}</h1><p><b>${esc(pName())}</b>, ${dateFr()}</p><p>${esc(p.det)}</p><p>${esc(consigne(p))}</p><p>Personnes : ${esc(x.people.filter(q => q.post === p.nom).map(q => q.nom).join(', ') || '____________________')}</p><p>PC course : ${esc(HY.secuTel || HY.orgaTel || '____________')}. Urgence vitale : 15 ou 112.</p>${p.ll ? `<p>Position : ${(+p.ll[0]).toFixed(5)}, ${(+p.ll[1]).toFixed(5)}</p>` : ''}${V[p.id] ? `<p class="note">Lien du poste : ${volURL(V[p.id])}</p>` : ''}<p>Arrivée : ____ h ____ &nbsp; Départ : ____ h ____ &nbsp; Signature : ____________</p></div>`).join('');
+  print();
+}
+
+// ───────── Imports depuis les billetteries et plateformes d'inscription ─────────
+function parseCSV(t) {
+  t = t.replace(/^﻿/, ''); const first = t.split(/\r?\n/)[0] || '', sep = [';', '\t', ','].sort((a, b) => first.split(b).length - first.split(a).length)[0], rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < t.length; i++) { const c = t[i]; if (q) { if (c === '"') { if (t[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; } else if (c === '"') q = true; else if (c === sep) { row.push(cell.trim()); cell = ''; } else if (c === '\n' || c === '\r') { if (c === '\r' && t[i + 1] === '\n') i++; row.push(cell.trim()); if (row.some(Boolean)) rows.push(row); row = []; cell = ''; } else cell += c; }
+  row.push(cell.trim()); if (row.some(Boolean)) rows.push(row); return rows;
+}
+const colFind = (h, re) => h.findIndex(x => re.test(nrm(x)));
+function pickFile(cb) { const i = document.createElement('input'); i.type = 'file'; i.accept = '.csv,.txt,text/csv'; i.onchange = () => { const f = i.files[0]; if (f) f.text().then(cb); }; i.click(); }
+function impEngages(t) {
+  const r = parseCSV(t); if (r.length < 2) { toast('Fichier vide ou illisible.'); return; }
+  const h = r[0], iNum = colFind(h, /dossard|bib|numero|n°|^no$/), iNom = colFind(h, /^nom|last ?name|nom de famille/), iPre = colFind(h, /prenom|first ?name/), iFull = colFind(h, /participant|nom complet|full ?name|^name$/), iCat = colFind(h, /categ|tarif|formule|epreuve|course/), iClub = colFind(h, /club|equipe|team|association/);
+  if (iNom < 0 && iFull < 0) { toast('Colonne du nom introuvable : le fichier doit avoir une colonne « Nom » ou « Participant ».'); return; }
+  const R = rc(), have = new Set(R.ent.map(e => nrm(e.nom))), nextNum = () => R.ent.reduce((m, e) => Math.max(m, +e.num || 0), 0) + 1; let k = 0, dup = 0;
+  for (const x of r.slice(1, 10001)) { const nom = ((iPre >= 0 ? x[iPre] + ' ' : '') + (iNom >= 0 ? x[iNom] : x[iFull] || '')).trim(); if (!nom) continue; if (have.has(nrm(nom))) { dup++; continue; } have.add(nrm(nom)); R.ent.push({ id: uid2('e'), num: String(iNum >= 0 && /^\d+$/.test(x[iNum]) ? +x[iNum] : nextNum()), nom: nom.slice(0, 80), cat: iCat >= 0 ? (x[iCat] || '').slice(0, 40) : '', club: iClub >= 0 ? (x[iClub] || '').slice(0, 60) : '' }); k++; }
+  store(); panel(true); toast(`${k} engagé(s) importé(s)${dup ? `, ${dup} déjà présent(s) ignoré(s)` : ''}.`);
+}
+function impBillets(t) {
+  const r = parseCSV(t); if (r.length < 2) { toast('Fichier vide ou illisible.'); return; }
+  const h = r[0], iCode = colFind(h, /code|billet|ticket|barcode|reference|numero/), iCat = colFind(h, /tarif|categ|type|formule|offre/), iPx = colFind(h, /prix|montant|price|amount|total/), T = tx(), by = {}; let n = 0, rev = 0;
+  for (const x of r.slice(1, 50001)) { const cat = iCat >= 0 ? x[iCat] || 'Billet' : 'Billet', px = iPx >= 0 ? parseFloat(String(x[iPx]).replace(/[^\d,.-]/g, '').replace(',', '.')) || 0 : 0; by[cat] = by[cat] || { n: 0, rev: 0 }; by[cat].n++; by[cat].rev += px; n++; rev += px; if (iCode >= 0 && x[iCode]) { const c = String(x[iCode]).trim(); if (!T.list[c]) T.list[c] = [cat, 0]; } }
+  xt().tickImp = { at: Date.now(), n, rev: Math.round(rev), by };
+  store(); panel(true); toast(`${fmt(n)} billet(s) importé(s) pour ${fmt(rev)} €${iCode >= 0 ? ' ; les codes sont prêts pour le contrôle aux entrées' : ''}.`);
+}
+function tickImpHTML() {
+  const m = xt().tickImp;
+  return `<h2>Ventes réelles</h2><p class="note">Exportez vos ventes depuis HelloAsso, Weezevent, Billetweb ou Shotgun (fichier CSV) : l'outil compte les billets vendus par catégorie et charge les codes pour le contrôle aux entrées.</p><p><button data-sy="impbil" class="go">Importer un export de billetterie</button></p>${m ? `<p>Import du ${new Date(m.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} : <b>${fmt(m.n)} billets</b> vendus, <b>${fmt(m.rev)} €</b> encaissés, soit ${tickRev() ? Math.round(100 * m.rev / tickRev()) + ' % de la recette prévue' : 'recette prévue non fixée'}.</p><table>${Object.entries(m.by).map(([c, v]) => `<tr><td>${esc(c)}</td><td class="n">${fmt(v.n)}</td><td class="n">${fmt(v.rev)} €</td></tr>`).join('')}</table>` : ''}`;
+}
+
+// ───────── Preuves pour les partenaires ─────────
+const PRF = { data: null, at: 0 };
+async function proofLoad() { if (!syncOn() || Date.now() - PRF.at < 20000) return; PRF.at = Date.now(); const r = await api('/checkins/' + encodeURIComponent(ST.cur)); if (r.ok) { PRF.data = r.j.preuves || []; if (tab === 'Partenariats') panel(true); } }
+const proofsOf = k => (PRF.data || []).filter(p => p.type === k);
+function proofHTML() {
+  if (!syncOn()) return `<h2>Preuves en photo</h2><p class="note">Avec la synchronisation, chaque bénévole peut photographier depuis son lien les emplacements vendus ; les photos, datées et situées, s'ajoutent au bilan du partenaire.</p>`;
+  proofLoad(); const P = PRF.data || [], it = sponItems().filter(i => i.st > 0);
+  return `<h2>Preuves en photo</h2><p class="note">Les bénévoles photographient les emplacements vendus depuis leur lien de poste. Chaque photo est datée et située : c'est la preuve que vous joindrez au bilan.</p>${it.length ? `<table>${it.map(i => { const ps = proofsOf(i.key); return `<tr><td><b style="font-weight:500">${esc(i.nom)}</b><br><span class="note">${esc(i.who || 'partenaire à indiquer')}</span></td><td class="n">${ps.length ? ps.length + ' photo(s)' : '<span class="late">aucune</span>'}</td></tr>${ps.length ? `<tr><td colspan="2">${ps.slice(-4).map(p => `<img src="${p.photo}" title="${new Date(p.at).toLocaleString('fr-FR')}" style="height:72px;border-radius:8px;margin:0 6px 6px 0">`).join('')}</td></tr>` : ''}`; }).join('')}</table>` : '<p class="note">Aucun emplacement en option ou vendu pour l\'instant.</p>'}`;
+}
+function bilanPrint(who) {
+  const items = sponItems().filter(i => i.who === who && i.st > 0), txt = sponReport(who, true);
+  $('#print').innerHTML = `<pre style="white-space:pre-wrap;font:11pt/1.5 sans-serif;margin:0">${esc(txt)}</pre>${items.map(i => { const ps = proofsOf(i.key); return ps.length ? `<h2>${esc(i.nom)}</h2>${ps.map(p => `<figure style="display:inline-block;margin:0 8px 8px 0;width:46%"><img src="${p.photo}" style="width:100%"><figcaption style="font-size:9pt">${new Date(p.at).toLocaleString('fr-FR')}${p.lat ? ` — ${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)}` : ''}</figcaption></figure>`).join('')}` : ''; }).join('')}`;
+  print();
+}
+
+// ───────── Bandeau « à valider » sur les calculs de sécurité ─────────
+function valBanner() {
+  const v = secVal();
+  return `<p class="${v && v.ok ? 'note' : 'warn'}">${v && v.ok ? `Dispositif validé par ${esc(v.by)} le ${new Date(v.at).toLocaleDateString('fr-FR')}.` : 'Ces effectifs sont des propositions calculées à partir d\'hypothèses. Le responsable sécurité doit les vérifier puis les valider dans « Dossier sécurité ».'} <button data-tab="Dossier sécurité" class="link">Dossier sécurité →</button></p>`;
+}
+
+// ───────── Actions de ce bloc ─────────
+async function pro2Act(a, id) {
+  if (a === 'offprep') { await offPrepare(); return true; }
+  if (a === 'fiches') { fichesPrint(); return true; }
+  if (a === 'pdfsec') { pdfSecu(); return true; }
+  if (a === 'secval') { if (!roleW('secu')) return true; const by = prompt('Nom et fonction de la personne qui valide :', HY.secuNom ? HY.secuNom + ', responsable sécurité' : ''); if (!by) return true; const x = xt(); x.valid = x.valid || {}; x.valid.secu = { by: by.slice(0, 80), at: Date.now(), sig: secSig() }; store(); panel(true); toast('Dispositif validé. La validation tombera si le parcours, les horaires ou les effectifs changent.'); return true; }
+  if (a === 'impeng') { pickFile(impEngages); return true; }
+  if (a === 'impbil') { pickFile(impBillets); return true; }
+  if (a === 'bilphoto') { await proofLoad(); bilanPrint(spSel); return true; }
+  return false;
+}
+TABS['Dossier sécurité'] = () => secTab();
+{ const f = TABS['Billetterie']; TABS['Billetterie'] = () => f() + (xt().free ? '' : tickImpHTML()); }
+{ const f = TABS['Engagés']; TABS['Engagés'] = () => f() + `<h2>Importer depuis une plateforme</h2><p class="note">Export CSV de HelloAsso, Weezevent, njuko, Protiming… L'outil reconnaît les colonnes nom, prénom, dossard, catégorie et club ; les personnes déjà présentes sont ignorées.</p><p><button data-sy="impeng" class="go">Importer un fichier d'inscriptions</button></p>`; }
+{ const f = TABS['Partenariats']; TABS['Partenariats'] = () => f().replace('<button data-pr="spdoc" data-id="1">Bilan après l\'événement</button>', '<button data-pr="spdoc" data-id="1">Bilan après l\'événement</button> <button data-sy="bilphoto">Imprimer le bilan avec les photos</button>') + proofHTML(); }
+for (const t of ['Synthèse', 'Carrefours', 'Secours et public']) { const f = TABS[t]; TABS[t] = () => { const s = f(); return (A || SUMM) && !/^<p class="note">(Lancez|Sans objet)/.test(s) ? valBanner() + s : s; }; }
+{ const f = TABS['Jour J']; TABS['Jour J'] = () => f() + offHTML(); }
+{ const f = TABS['Appareils et IA']; TABS['Appareils et IA'] = () => { const s = f(); return syncOn() ? s.replace(/<h2>Appareils<\/h2>[\s\S]*?(?=<h2>Cet appareil<\/h2>)/, accessHTML()) : s; }; }
+{ const f = TABS['Réglages']; TABS['Réglages'] = () => modsHTML() + f(); }
+{ const f = TABS['Accueil']; TABS['Accueil'] = () => { let s = f(); if (!roleR('money')) s = s.replace(/<div class="kpi">[\s\S]*?<\/div><\/div>/, `<div class="kpi"><div><b>${daysTo() == null ? '—' : daysTo() > 0 ? 'J-' + daysTo() : daysTo() === 0 ? 'Jour J' : 'J+' + (-daysTo())}</b><span>${HY.date ? 'avant l\'événement' : 'date à fixer'}</span></div><div><b>${fmt(+HY.parts || 0)}</b><span>participants attendus</span></div><div><b>${fmt(+HY.spect || 0)}</b><span>spectateurs attendus</span></div><div><b>${secVal() && secVal().ok ? 'Validé' : 'À valider'}</b><span>dispositif de sécurité</span></div></div>`); return s; }; }
 function libSave() { ST.types = JSON.parse(JSON.stringify(TYPES)); store(); }
 function loadProject(id) {
   ST.cur = id; const p = ST.projects[id] || {};
@@ -1450,14 +2119,14 @@ function loadProject(id) {
   OBJ = (p.OBJ || []).filter(o => TYPES[o.t]).map(o => ({ ...o })); nid = OBJ.reduce((a, o) => Math.max(a, o.id), 0) + 1; selO = null; placing = null; A = null; GL = [];
   DRAW = (p.DRAW || []).filter(d => d.k === 'note' || (d.k === 'ligne' ? LT : d.k === 'zone' ? ZT : PT)[d.t]).map(d => ({ ...d, pts: d.pts.map(q => q.slice()) })); did = DRAW.reduce((a, d) => Math.max(a, d.id), 0) + 1; selD = null; drawing = null; BG = p.BG || null; LV = JSON.parse(JSON.stringify(p.LV || {})); SUMM = p.SUMM || null; XT = JSON.parse(JSON.stringify(p.XT || {}));
   lyRes.clearLayers(); $('#prof').innerHTML = ''; $('#bPr').disabled = true; $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; $('#bSnap').classList.toggle('on', snap); $('#pname').textContent = p.name || 'Sans nom';
-  drawRoute(); drawObj(); drawBg(); applyLayers(); panel(); const pts = WP.length > 1 ? line() : WP; if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(.15)); else if (pts.length) map.setView(pts[0], 16); else if (HY.ll) map.setView(HY.ll, 15); else map.setView([46.6, 2.5], 6);
+  drawRoute(); drawObj(); drawBg(); applyLayers(); drawAff(); lyLive.clearLayers(); panel(); const pts = WP.length > 1 ? line() : WP; if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(.15)); else if (pts.length) map.setView(pts[0], 16); else if (HY.ll) map.setView(HY.ll, 15); else map.setView([46.6, 2.5], 6);
 }
 function projAct(a, id) {
   const uid = p => p + Date.now().toString(36);
   if (a === 'new') { store(); const k = uid('p'); ST.projects[k] = { name: 'Nouvelle épreuve' }; loadProject(k); tab = 'Accueil'; store(); panel(); }
   else if (a === 'open') { store(); loadProject(id); store(); }
   else if (a === 'dup') { store(); const k = uid('p'); ST.projects[k] = JSON.parse(JSON.stringify(ST.projects[id])); ST.projects[k].name += ' (copie)'; loadProject(k); store(); }
-  else if (a === 'pdel') { if (Object.keys(ST.projects).length < 2) { alert('Il faut garder au moins un projet.'); return; } if (!confirm('Supprimer définitivement « ' + (ST.projects[id].name || 'Sans nom') + ' » ?')) return; if (id !== ST.cur) store(); delete ST.projects[id]; if (id === ST.cur) loadProject(Object.keys(ST.projects)[0]); store(); panel(); }
+  else if (a === 'pdel') { if (Object.keys(ST.projects).length < 2) { alert('Il faut garder au moins un projet.'); return; } if (!confirm('Supprimer définitivement « ' + (ST.projects[id].name || 'Sans nom') + ' » ?')) return; if (id !== ST.cur) store(); delete ST.projects[id]; syncDel(id); if (id === ST.cur) loadProject(Object.keys(ST.projects)[0]); store(); panel(); }
   else if (a === 'export') { store(); const b = new Blob([JSON.stringify({ format: 'organisateur-1', project: ST.projects[ST.cur], profiles: ST.profiles, types: ST.types }, null, 1)], { type: 'application/json' }), l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = (ST.projects[ST.cur].name || 'epreuve').replace(/[^\w\-]+/g, '_') + '.json'; l.click(); }
   else if (a === 'import') $('#impFile').click();
   else if (a === 'tadd') { ST.tasks = tasks().map(x => ({ ...x })); ST.tasks.push({ id: uid('u'), j: -10, t: 'Nouvelle tâche' }); store(); panel(true); }
@@ -1476,6 +2145,7 @@ $('#body').addEventListener('change', e => {
   if (t.id === 'pName') { ST.projects[ST.cur].name = t.value || 'Sans nom'; $('#pname').textContent = ST.projects[ST.cur].name; store(); return; }
   if (t.id === 'pfSel') { pfKey = t.value; panel(true); return; }
   if (t.id === 'impFile') { const f = t.files[0]; if (!f) return; f.text().then(x => { try { const d = JSON.parse(x); if (!d.project) throw 0; store(); for (const k in d.profiles || {}) if (!SPORTS[k]) { SPORTS[k] = d.profiles[k]; ST.profiles[k] = d.profiles[k]; } for (const k in d.types || {}) if (!TYPES[k]) TYPES[k] = d.types[k]; if (d.types) ST.types = JSON.parse(JSON.stringify(TYPES)); const k = 'p' + Date.now().toString(36); ST.projects[k] = d.project; loadProject(k); store(); } catch (err) { alert('Ce fichier n\'est pas un projet exporté par cet outil.'); } }); t.value = ''; return; }
+  if (t.dataset.sx) { syChange(t); return; }
   if (t.dataset.w) { W[t.dataset.w] = t.value; return; }
   if (t.dataset.sp) { const v = t.dataset.sp, i = v.lastIndexOf(':'), k = v.slice(0, i), fl = v.slice(i + 1), s = spx()[k] = spx()[k] || {}; if (fl === 'st') s.st = +t.value; else if (fl === 'who') s.who = t.value.trim().slice(0, 80); else { if (t.value === '') delete s.prix; else s.prix = parseFloat(t.value) || 0; } store(); panel(true); return; }
   if (t.dataset.tc) { const [i, fl] = t.dataset.tc.split(':'), c = tkc().find(c => c.id === i); if (c) { c[fl] = fl === 'nom' ? t.value.slice(0, 60) : (parseFloat(t.value) || 0); store(); panel(true); } return; }
@@ -1499,13 +2169,13 @@ $('#body').addEventListener('change', e => {
   if (t.dataset.tk) { ST.tasks = tasks().map(x => ({ ...x })); const x = ST.tasks.find(x => x.id === t.dataset.tk); if (x) x[t.dataset.f] = t.dataset.f === 'j' ? (parseFloat(t.value) || 0) : t.value; store(); if (t.dataset.f === 'j') panel(true); return; }
   if (t.dataset.pf) { const k = pfKey && SPORTS[pfKey] ? pfKey : HY.sport, f = t.dataset.pf; SPORTS[k][f] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; ST.profiles[k] = { ...SPORTS[k] }; if (f === 'nom') { $('#sport').innerHTML = sportOptions(); $('#sport').value = HY.sport; } store(); return; }
   if (t.dataset.ty) { const T = TYPES[t.dataset.ty], f = t.dataset.f; if (!T) return; T[f] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; libSave(); checkObj(); drawObj(); return; }
-  if (t.dataset.hy) { HY[t.dataset.hy] = t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; store(); if (tab === 'Implantation') { checkObj(); drawObj(); panel(true); } else if (/^(Besoins|Jour J|Bilan|Accueil|Budget|Documents|Partenariats|Billetterie)$/.test(tab)) panel(true); }
+  if (t.dataset.hy) { HY[t.dataset.hy] = t.type === 'number' ? (parseFloat(t.value) || 0) : t.value; store(); if (tab === 'Implantation') { checkObj(); drawObj(); panel(true); } else if (/^(Besoins|Jour J|Bilan|Accueil|Budget|Documents|Partenariats|Billetterie|Affichage)$/.test(tab)) panel(true); }
   if (t.dataset.ob) { const o = OBJ.find(o => o.id === selO), v = parseFloat(t.value); if (o && v > 0) { o[t.dataset.ob] = v; checkObj(); store(); drawObj(); panel(true); } }
   if (t.dataset.cost) { COST[t.dataset.cost] = parseFloat(t.value) || 0; store(); panel(true); }
   if (t.id === 'pTop') { HY.pTop = parseFloat(t.value) || 0; store(); panel(true); }
 });
 $('#body').addEventListener('click', e => {
-  const d = (e.target.closest('[data-pa],[data-oa],[data-da],[data-xa],[data-ya],[data-ra],[data-pr],[data-add]') || e.target).dataset;
+  const d = (e.target.closest('[data-pa],[data-oa],[data-da],[data-xa],[data-ya],[data-ra],[data-pr],[data-sy],[data-add]') || e.target).dataset;
   if (d.pa) { projAct(d.pa, d.id); return; }
   if (d.oa) { siteAct(d.oa); return; }
   if (d.da) { drawAct(d.da, d.k, d.t); return; }
@@ -1513,6 +2183,7 @@ $('#body').addEventListener('click', e => {
   if (d.ya) { orgAct(d.ya, d.id); return; }
   if (d.ra) { raceAct(d.ra, d.id); return; }
   if (d.pr) { proAct(d.pr, d.id); return; }
+  if (d.sy) { syAct(d.sy, d.id); return; }
   if (d.add) { placing = placing === d.add ? null : d.add; panel(true); return; }
   const r = e.target.closest('tr.go'); if (!r || !A) return;
   if (r.dataset.obGo) { const o = OBJ.find(o => o.id === +r.dataset.obGo); if (o) { selO = o.id; map.setView([o.lat, o.lng], Math.max(map.getZoom(), 18)); drawObj(); panel(true); } return; }
@@ -1556,7 +2227,7 @@ let palI = 0, palL = [];
 const nrm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 function palItems(q) {
   const it = [], go = t => () => { tab = t; panel(); };
-  PHASES.forEach(([g, l]) => l.forEach(t => it.push({ t, s: g, f: go(t) })));
+  PHASES.forEach(([g, l]) => l.forEach(t => it.push({ t: LBL[t] || t, s: g, f: go(t) })));
   it.push({ t: 'Nouvel événement', s: 'Action', f: () => orgAct('wnew') }, { t: 'Analyser le parcours', s: 'Action', f: () => $('#bRun').click() }, { t: 'Afficher la photo aérienne', s: 'Carte', f: () => setBase('ortho') }, { t: 'Afficher le plan', s: 'Carte', f: () => setBase('plan') }, { t: 'Exporter le projet', s: 'Action', f: () => projAct('export') }, { t: 'Imprimer le dossier', s: 'Action', f: () => $('#bPr').click() });
   for (const k in ST.projects) if (k !== ST.cur) it.push({ t: ST.projects[k].name || 'Sans nom', s: 'Ouvrir ce projet', f: () => projAct('open', k) });
   if (q) { for (const p of xt().people) it.push({ t: p.nom, s: p.type + (p.tel ? ' — ' + p.tel : ''), f: go('Équipe') }); for (const e of rc().ent) it.push({ t: e.nom, s: 'Engagé n° ' + e.num + (e.cat ? ', ' + e.cat : ''), f: go('Engagés') }); for (const e of exh()) it.push({ t: e.nom, s: 'Exposant, ' + e.st.toLowerCase(), f: go('Exposants') }); for (const r of needRows()) it.push({ t: r.nom, s: fmt(r.q) + ' ' + r.un, f: go('Besoins') }); for (const k in DOCS) it.push({ t: DOCS[k], s: 'Courrier', f: () => { docK = k; tab = 'Documents'; panel(); } }); }
@@ -1579,6 +2250,7 @@ if (!/Mac|iPhone|iPad/.test(navigator.platform)) $('#kbtn kbd').textContent = 'C
 new ResizeObserver(() => map.invalidateSize()).observe($('#mapw'));
 setBase(ST.base || 'plan');
 loadProject(ST.cur);
+syncBoot();
 </script>
 </body>
 </html>
